@@ -10,6 +10,10 @@ export const routes: RouteObject[] = [
             {
                 index: true,
                 element: lazyLoad(() => import('~/pages/Home'))
+            },
+            {
+                path: 'settings',
+                element: lazyLoad(() => import('~/pages/Settings'))
             }
         ]
     },

@@ -1,14 +1,12 @@
-import React from 'react'
+import { useEffect, useState } from 'react'
 import { Copy, Maximize, Minus, X } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window';
-type WindowControlsProps = {}
-
 
 const baseClass = `cursor-pointer p-3 flex items-center justify-center text-sm text-gray-500 transition duration-200`
 const normalClass = `hover:bg-gray-100 dark:hover:bg-zinc-800`
 const dangerClass = `hover:bg-red-500 hover:text-white dark:hover:bg-red-600`
 
-export const WindowControls: React.FC<WindowControlsProps> = () => {
+export const WindowControls = () => {
 
     const [isMaximized, setIsMaximized] = useState(false)
 
