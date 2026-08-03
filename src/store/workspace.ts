@@ -4,6 +4,7 @@ import {
   combinePaths,
   createFileEntry,
   createFolderEntry,
+  copyFileEntry,
   deleteEntry,
   ensureMarkdownExtension,
   getParentPath,
@@ -34,14 +35,16 @@ interface WorkspaceState {
   isLoading: boolean
   isSaving: boolean
   viewMode: ViewMode
-  sidebarWidth: number
+  sidebarCollapsed: boolean
+  outlineVisible: boolean
   searchQuery: string
   openFiles: string[]
   initialized: boolean
   initialize: () => Promise<void>
   setSearchQuery: (value: string) => void
   setViewMode: (mode: ViewMode) => void
-  setSidebarWidth: (width: number) => void
+  setSidebarCollapsed: (collapsed: boolean) => void
+  setOutlineVisible: (visible: boolean) => void
   setTree: (tree: FileNode[]) => void
   selectFile: (path: string) => Promise<void>
   updateContent: (content: string) => void
@@ -51,12 +54,17 @@ interface WorkspaceState {
   renameNode: (oldPath: string, newName: string) => Promise<void>
   deleteNode: (path: string) => Promise<void>
   moveNode: (oldPath: string, newPath: string) => Promise<void>
+  copyFileToDirectory: (sourcePath: string, destinationDir: string) => Promise<string | null>
   refreshTree: () => Promise<void>
   updateSettings: (settings: Partial<AppSettings>) => Promise<void>
   updateWorkspaceConfig: (config: Partial<Pick<WorkspaceConfig, "notesPath" | "assetsPath" | "workspaceName">>) => Promise<void>
   updateUiState: (patch: Partial<WorkspaceConfig["uiState"]>) => Promise<void>
   recordReadingPosition: (path: string, position: Partial<ReadingPosition>) => Promise<void>
   closeFileTab: (path: string) => Promise<void>
+  reorderTabs: (fromIndex: number, toIndex: number) => Promise<void>
+  closeOtherTabs: (path: string) => Promise<void>
+  closeTabsToTheRight: (path: string) => Promise<void>
+  closeAllTabs: () => Promise<void>
 }
 
 const defaultState = {
@@ -68,7 +76,8 @@ const defaultState = {
   isLoading: false,
   isSaving: false,
   viewMode: "split" as ViewMode,
-  sidebarWidth: 280,
+  sidebarCollapsed: false,
+  outlineVisible: false,
   searchQuery: "",
   openFiles: [],
   initialized: false,
@@ -86,10 +95,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       settings: {
         ...defaultSettings,
         ...config.settings,
+        editorFontSize:
+          config.settings?.editorFontSize && config.settings.editorFontSize > 0
+            ? config.settings.editorFontSize
+            : defaultSettings.editorFontSize,
       },
       uiState: {
         ...defaultUiState,
         ...config.uiState,
+        outlineWidth:
+          config.uiState?.outlineWidth && config.uiState.outlineWidth > 0
+            ? config.uiState.outlineWidth
+            : defaultUiState.outlineWidth,
+        windowWidth:
+          config.uiState?.windowWidth && config.uiState.windowWidth > 0
+            ? config.uiState.windowWidth
+            : defaultUiState.windowWidth,
+        windowHeight:
+          config.uiState?.windowHeight && config.uiState.windowHeight > 0
+            ? config.uiState.windowHeight
+            : defaultUiState.windowHeight,
       },
     }
     const initialViewMode = normalizedConfig.uiState.lastViewMode || (
@@ -105,6 +130,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       viewMode: initialViewMode as ViewMode,
       openFiles: normalizedConfig.uiState.openFiles,
       selectedFilePath: normalizedConfig.uiState.activeFilePath,
+      sidebarCollapsed: normalizedConfig.uiState.sidebarCollapsed,
+      outlineVisible: normalizedConfig.uiState.outlineVisible,
     })
 
     if (normalizedConfig.uiState.activeFilePath) {
@@ -146,7 +173,40 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       set({ config: nextConfig })
     }
   },
-  setSidebarWidth: (width) => set({ sidebarWidth: width }),
+  setSidebarCollapsed: (collapsed) => {
+    const config = get().config
+    set({ sidebarCollapsed: collapsed })
+
+    if (config) {
+      const nextConfig = {
+        ...config,
+        uiState: {
+          ...config.uiState,
+          sidebarCollapsed: collapsed,
+        },
+      }
+
+      void saveWorkspaceConfig(nextConfig)
+      set({ config: nextConfig })
+    }
+  },
+  setOutlineVisible: (visible) => {
+    const config = get().config
+    set({ outlineVisible: visible })
+
+    if (config) {
+      const nextConfig = {
+        ...config,
+        uiState: {
+          ...config.uiState,
+          outlineVisible: visible,
+        },
+      }
+
+      void saveWorkspaceConfig(nextConfig)
+      set({ config: nextConfig })
+    }
+  },
   setTree: (tree) => set({ tree }),
 
   selectFile: async (path) => {
@@ -156,9 +216,35 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     const normalizedPath = path.replace(/\\/g, "/")
+    const tree = get().tree
+
+    const findNode = (nodes: FileNode[]): FileNode | null => {
+      for (const node of nodes) {
+        if (node.path.replace(/\\/g, "/") === normalizedPath) {
+          return node
+        }
+        if (node.children) {
+          const found = findNode(node.children)
+          if (found) {
+            return found
+          }
+        }
+      }
+      return null
+    }
+
+    const node = findNode(tree)
+    if (node?.type === "folder") {
+      return
+    }
+
     const content = await readTextFile(normalizedPath)
     const recentFiles = [normalizedPath, ...(config.recentFiles ?? []).filter((item) => item !== normalizedPath)].slice(0, 10)
-    const openFiles = [normalizedPath, ...(get().openFiles ?? []).filter((item) => item !== normalizedPath)].slice(0, 8)
+    const currentOpen = get().openFiles ?? []
+    // Keep existing tab order; only append when newly opened.
+    const openFiles = currentOpen.includes(normalizedPath)
+      ? currentOpen
+      : [...currentOpen, normalizedPath].slice(0, 16)
     const nextConfig = {
       ...config,
       recentFiles,
@@ -178,6 +264,118 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       dirty: false,
       config: nextConfig,
       openFiles,
+    })
+  },
+
+  reorderTabs: async (fromIndex: number, toIndex: number) => {
+    const config = get().config
+    if (!config) {
+      return
+    }
+
+    const openFiles = [...get().openFiles]
+    if (
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= openFiles.length ||
+      toIndex >= openFiles.length ||
+      fromIndex === toIndex
+    ) {
+      return
+    }
+
+    const [moved] = openFiles.splice(fromIndex, 1)
+    openFiles.splice(toIndex, 0, moved)
+
+    const nextConfig = {
+      ...config,
+      uiState: {
+        ...config.uiState,
+        openFiles,
+      },
+    }
+
+    await saveWorkspaceConfig(nextConfig)
+    set({ config: nextConfig, openFiles })
+  },
+
+  closeOtherTabs: async (path: string) => {
+    const config = get().config
+    if (!config) {
+      return
+    }
+
+    const normalizedPath = path.replace(/\\/g, "/")
+    const openFiles = [normalizedPath]
+    const nextConfig = {
+      ...config,
+      uiState: {
+        ...config.uiState,
+        activeFilePath: normalizedPath,
+        openFiles,
+      },
+    }
+
+    await saveWorkspaceConfig(nextConfig)
+    set({ config: nextConfig, openFiles, selectedFilePath: normalizedPath })
+    await get().selectFile(normalizedPath)
+  },
+
+  closeTabsToTheRight: async (path: string) => {
+    const config = get().config
+    if (!config) {
+      return
+    }
+
+    const normalizedPath = path.replace(/\\/g, "/")
+    const currentSelected = get().selectedFilePath
+    const index = get().openFiles.indexOf(normalizedPath)
+    if (index < 0) {
+      return
+    }
+
+    const openFiles = get().openFiles.slice(0, index + 1)
+    const selectedStillOpen = currentSelected ? openFiles.includes(currentSelected) : false
+    const nextActive = selectedStillOpen ? currentSelected : normalizedPath
+
+    const nextConfig = {
+      ...config,
+      uiState: {
+        ...config.uiState,
+        activeFilePath: nextActive,
+        openFiles,
+      },
+    }
+
+    await saveWorkspaceConfig(nextConfig)
+    set({ config: nextConfig, openFiles, selectedFilePath: nextActive })
+    if (nextActive && nextActive !== currentSelected) {
+      await get().selectFile(nextActive)
+    }
+  },
+
+  closeAllTabs: async () => {
+    const config = get().config
+    if (!config) {
+      return
+    }
+
+    const nextConfig = {
+      ...config,
+      uiState: {
+        ...config.uiState,
+        activeFilePath: null,
+        openFiles: [],
+      },
+    }
+
+    await saveWorkspaceConfig(nextConfig)
+    set({
+      config: nextConfig,
+      openFiles: [],
+      selectedFilePath: null,
+      currentContent: "",
+      dirty: false,
     })
   },
 
@@ -245,18 +443,74 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   renameNode: async (oldPath, newName) => {
     const parentPath = getParentPath(oldPath)
     const nextPath = parentPath ? combinePaths(parentPath, newName) : newName
+    const normalizedOld = oldPath.replace(/\\/g, "/")
+    const normalizedNext = nextPath.replace(/\\/g, "/")
 
     await renameEntry(oldPath, nextPath)
-    if (get().selectedFilePath === oldPath) {
-      await get().selectFile(nextPath)
+
+    const { config, selectedFilePath, openFiles } = get()
+    const nextOpenFiles = openFiles.map((item) => (item === normalizedOld ? normalizedNext : item))
+    const nextSelected = selectedFilePath === normalizedOld ? normalizedNext : selectedFilePath
+
+    if (config) {
+      const nextConfig = {
+        ...config,
+        recentFiles: (config.recentFiles ?? []).map((item) => (item === normalizedOld ? normalizedNext : item)),
+        uiState: {
+          ...config.uiState,
+          activeFilePath: nextSelected,
+          openFiles: nextOpenFiles,
+        },
+      }
+      await saveWorkspaceConfig(nextConfig)
+      set({ config: nextConfig, openFiles: nextOpenFiles, selectedFilePath: nextSelected })
+    }
+
+    if (selectedFilePath === normalizedOld) {
+      await get().selectFile(normalizedNext)
     }
     await get().refreshTree()
   },
 
   deleteNode: async (path) => {
+    const normalizedPath = path.replace(/\\/g, "/")
     await deleteEntry(path)
-    if (get().selectedFilePath === path) {
-      set({ selectedFilePath: null, currentContent: "", dirty: false })
+
+    const { config, selectedFilePath, openFiles, currentContent } = get()
+    const nextOpenFiles = openFiles.filter(
+      (item) => item !== normalizedPath && !item.startsWith(`${normalizedPath}/`)
+    )
+    const selectedRemoved =
+      selectedFilePath === normalizedPath ||
+      (selectedFilePath?.startsWith(`${normalizedPath}/`) ?? false)
+    const nextSelected = selectedRemoved
+      ? nextOpenFiles[nextOpenFiles.length - 1] ?? null
+      : selectedFilePath
+
+    if (config) {
+      const nextConfig = {
+        ...config,
+        recentFiles: (config.recentFiles ?? []).filter(
+          (item) => item !== normalizedPath && !item.startsWith(`${normalizedPath}/`)
+        ),
+        uiState: {
+          ...config.uiState,
+          activeFilePath: nextSelected,
+          openFiles: nextOpenFiles,
+        },
+      }
+      await saveWorkspaceConfig(nextConfig)
+      set({
+        config: nextConfig,
+        openFiles: nextOpenFiles,
+        selectedFilePath: nextSelected,
+        currentContent: selectedRemoved ? "" : currentContent,
+        dirty: selectedRemoved ? false : get().dirty,
+      })
+    }
+
+    if (nextSelected && selectedRemoved) {
+      await get().selectFile(nextSelected)
     }
     await get().refreshTree()
   },
@@ -267,6 +521,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       await get().selectFile(newPath)
     }
     await get().refreshTree()
+  },
+
+  copyFileToDirectory: async (sourcePath, destinationDir) => {
+    const config = get().config
+    if (!config) {
+      return null
+    }
+
+    const copiedPath = await copyFileEntry(sourcePath, destinationDir)
+    await get().refreshTree()
+    return copiedPath.replace(/\\/g, "/")
   },
 
   refreshTree: async () => {

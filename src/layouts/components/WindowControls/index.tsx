@@ -1,75 +1,70 @@
-import { useEffect, useState } from 'react'
-import { Copy, Maximize, Minus, X } from 'lucide-react'
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useEffect, useState } from "react"
+import { Copy, Maximize2, Minus, X } from "lucide-react"
+import { getCurrentWindow } from "@tauri-apps/api/window"
 
-const baseClass = `cursor-pointer p-3 flex items-center justify-center text-sm text-gray-500 transition duration-200`
-const normalClass = `hover:bg-gray-100 dark:hover:bg-zinc-800`
-const dangerClass = `hover:bg-red-500 hover:text-white dark:hover:bg-red-600`
+import { cn } from "~/lib/utils"
 
 export const WindowControls = () => {
+  const [isMaximized, setIsMaximized] = useState(false)
 
-    const [isMaximized, setIsMaximized] = useState(false)
+  useEffect(() => {
+    const appWindow = getCurrentWindow()
 
-    useEffect(() => {
-        const appWindow = getCurrentWindow()
+    void appWindow.isMaximized().then(setIsMaximized)
 
-        // 初始化状态
-        appWindow.isMaximized().then(setIsMaximized)
-        console.log(`WindowControls: isMaximized=${isMaximized}`)
+    const unlistenPromise = appWindow.onResized(async () => {
+      setIsMaximized(await appWindow.isMaximized())
+    })
 
-        const unlistenPromise = appWindow.onResized(async () => {
-            const maximized = await appWindow.isMaximized()
-            setIsMaximized(maximized)
-            console.log(`WindowControls: onResized: isMaximized=${maximized}`)
-        })
-
-        return () => {
-            unlistenPromise.then(unlisten => unlisten())
-        }
-    }, [])
-
-
-    const handleClickMaximize = async () => {
-        const appWindow = getCurrentWindow()
-        await appWindow.toggleMaximize();
-        appWindow.isMaximized().then(setIsMaximized)
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten())
     }
+  }, [])
 
-    const handleClickMinus = async () => {
-        await getCurrentWindow().minimize();
-    }
+  const handleMaximize = async () => {
+    const appWindow = getCurrentWindow()
+    await appWindow.toggleMaximize()
+    setIsMaximized(await appWindow.isMaximized())
+  }
 
-    const handleClickClose = async () => {
-        await getCurrentWindow().close();
-    }
+  const handleMinimize = async () => {
+    await getCurrentWindow().minimize()
+  }
 
+  const handleClose = async () => {
+    await getCurrentWindow().close()
+  }
 
-    return (
-        <div className="flex items-center justify-end">
-            <button
-                className={`${baseClass} ${normalClass}`}
-                title="最小化"
-                onClick={handleClickMinus}
-            >
-                <Minus size={16} />
-            </button>
+  const buttonClass =
+    "flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 
-            <button
-                className={`${baseClass} ${normalClass}`}
-                title={isMaximized ? "还原" : "最大化"}
-                onClick={handleClickMaximize}
-            >
-                {/* 根据最大化状态动态切换图标 */}
-                {isMaximized ? <Copy size={16} className="rotate-180" /> : <Maximize size={16} />}
-            </button>
-
-            <button
-                className={`${baseClass} ${dangerClass}`}
-                title="关闭"
-                onClick={handleClickClose}
-            >
-                <X size={16} />
-            </button>
-        </div>
-    )
+  return (
+    <div className="flex h-full shrink-0 items-stretch">
+      <button type="button" className={buttonClass} title="最小化" aria-label="最小化" onClick={() => void handleMinimize()}>
+        <Minus className="size-3.5" strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        className={buttonClass}
+        title={isMaximized ? "还原" : "最大化"}
+        aria-label={isMaximized ? "还原" : "最大化"}
+        onClick={() => void handleMaximize()}
+      >
+        {isMaximized ? (
+          <Copy className="size-3 rotate-90" strokeWidth={1.75} />
+        ) : (
+          <Maximize2 className="size-3" strokeWidth={1.75} />
+        )}
+      </button>
+      <button
+        type="button"
+        className={cn(buttonClass, "hover:bg-destructive hover:text-white")}
+        title="关闭"
+        aria-label="关闭"
+        onClick={() => void handleClose()}
+      >
+        <X className="size-3.5" strokeWidth={1.75} />
+      </button>
+    </div>
+  )
 }

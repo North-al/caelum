@@ -1,6 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core"
 
-import { combinePaths, normalizePath } from "~/lib/workspace"
+import { resolveAssetAbsolutePath } from "~/lib/assets"
+import { normalizePath } from "~/lib/workspace"
 
 export const resolveMarkdownAssetUrl = (
   src: string,
@@ -15,27 +16,14 @@ export const resolveMarkdownAssetUrl = (
     return src
   }
 
-  if (src.startsWith("/")) {
-    return convertFileSrc(src)
+  if (/^asset:/i.test(src)) {
+    return src
   }
 
-  if (/^[A-Za-z]:[\\/]/.test(src)) {
-    return convertFileSrc(normalizePath(src))
+  const absolutePath = resolveAssetAbsolutePath(src, currentFilePath, workspaceRoot)
+  if (!absolutePath || /^(https?:|data:|mailto:|#|asset:)/i.test(absolutePath)) {
+    return absolutePath || src
   }
 
-  const currentDirectory = currentFilePath.includes("/")
-    ? currentFilePath.slice(0, currentFilePath.lastIndexOf("/"))
-    : ""
-
-  const candidatePaths = [
-    combinePaths(currentDirectory, src),
-    combinePaths(workspaceRoot, src),
-  ]
-
-  const existingPath = candidatePaths.find((value) => value)
-  if (!existingPath) {
-    return convertFileSrc(combinePaths(workspaceRoot, src))
-  }
-
-  return convertFileSrc(existingPath)
+  return convertFileSrc(normalizePath(absolutePath))
 }

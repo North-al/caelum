@@ -1,5 +1,16 @@
-import type { MouseEvent } from "react"
-import { FileText, FolderOpen, PencilLine, Trash2 } from "lucide-react"
+import { useEffect, useState, type DragEvent, type MouseEvent } from "react"
+import {
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  FilePlus2,
+  FileText,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  PencilLine,
+  Trash2,
+} from "lucide-react"
 
 import {
   Collapsible,
@@ -13,6 +24,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "~/components/ui/context-menu"
+import { CAELUM_TAB_PATH_MIME } from "~/lib/dnd"
+import { getParentPath } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 
 import type { FileNode } from "./types"
@@ -21,121 +34,324 @@ interface Props {
   node: FileNode
   level?: number
   selectedPath?: string | null
+  expandedPaths: Set<string>
+  onToggleExpand: (path: string) => void
   onSelect?: (path: string) => void
   onRename?: (path: string) => void
   onDelete?: (path: string) => void
+  onCreateFile?: (parentPath: string) => void
+  onCreateFolder?: (parentPath: string) => void
+  onReveal?: (path: string) => void
+  onCopyPath?: (path: string) => void
+  onDropTabFile?: (sourcePath: string, destinationDir: string) => void
 }
 
-const getFileTag = (name: string) => {
-  if (name.toLowerCase().endsWith(".txt")) {
-    return "TXT"
-  }
-
-  if (name.toLowerCase().endsWith(".md")) {
-    return "MD"
-  }
-
-  return "FILE"
-}
+const readTabPath = (event: DragEvent) => event.dataTransfer.getData(CAELUM_TAB_PATH_MIME)
 
 export const FileTreeItem = ({
   node,
   level = 0,
   selectedPath,
+  expandedPaths,
+  onToggleExpand,
   onSelect,
   onRename,
   onDelete,
+  onCreateFile,
+  onCreateFolder,
+  onReveal,
+  onCopyPath,
+  onDropTabFile,
 }: Props) => {
   const isFolder = node.type === "folder"
-  const isSelected = selectedPath === node.path
-  const itemClassName = cn(
-    "group flex h-8 w-full items-center gap-2 rounded-md px-2 text-sm transition-colors hover:bg-accent/80",
-    isSelected && "bg-primary/10 text-foreground"
+  const isSelected = !isFolder && selectedPath === node.path
+  const isExpanded = isFolder && expandedPaths.has(node.path)
+  const paddingLeft = 8 + level * 12
+  const [dropActive, setDropActive] = useState(false)
+
+  const rowClassName = cn(
+    "group flex h-[26px] w-full items-center gap-1 pr-1 text-[13px] outline-none transition-colors",
+    "hover:bg-sidebar-accent/70",
+    isSelected && "bg-sidebar-accent text-sidebar-accent-foreground",
+    dropActive && "bg-primary/15 ring-1 ring-inset ring-primary/40"
   )
 
-  const handleRename = (event: MouseEvent<HTMLButtonElement>) => {
+  const stop = (event: MouseEvent) => {
+    event.preventDefault()
     event.stopPropagation()
-    onRename?.(node.path)
   }
 
-  const handleDelete = (event: MouseEvent<HTMLButtonElement>) => {
+  const handleDragOver = (event: DragEvent) => {
+    if (![...event.dataTransfer.types].includes(CAELUM_TAB_PATH_MIME)) {
+      return
+    }
+    event.preventDefault()
     event.stopPropagation()
-    onDelete?.(node.path)
+    event.dataTransfer.dropEffect = "copy"
+    setDropActive(true)
   }
 
-  const content = (
-    <div className={itemClassName} style={{ paddingLeft: level * 16 + 8 }}>
-      {isFolder ? (
-        <FolderOpen className="size-4 text-primary" />
-      ) : (
-        <FileText className="size-4 text-muted-foreground" />
-      )}
-      <span className="truncate">{node.name}</span>
-      {!isFolder && (
-        <span className="ml-auto rounded-full border border-border/60 px-1.5 py-0.5 text-[10px] tracking-[0.2em] text-muted-foreground">
-          {getFileTag(node.name)}
-        </span>
-      )}
-      {!isFolder && (
-        <div className="ml-1 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-          <button type="button" className="rounded p-1 hover:bg-background" onClick={handleRename}>
-            <PencilLine className="size-3" />
-          </button>
-          <button type="button" className="rounded p-1 hover:bg-background" onClick={handleDelete}>
-            <Trash2 className="size-3" />
-          </button>
-        </div>
-      )}
-    </div>
+  const handleDragLeave = () => setDropActive(false)
+
+  const handleDrop = (event: DragEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setDropActive(false)
+    const sourcePath = readTabPath(event)
+    if (!sourcePath) {
+      return
+    }
+    const destinationDir = isFolder ? node.path : getParentPath(node.path)
+    if (!destinationDir) {
+      return
+    }
+    onDropTabFile?.(sourcePath, destinationDir)
+  }
+
+  const folderMenu = (
+    <>
+      <ContextMenuItem onClick={() => onCreateFile?.(node.path)}>
+        <FilePlus2 className="mr-2 size-4" />
+        新建文件
+      </ContextMenuItem>
+      <ContextMenuItem onClick={() => onCreateFolder?.(node.path)}>
+        <FolderPlus className="mr-2 size-4" />
+        新建文件夹
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem onClick={() => onRename?.(node.path)}>
+        <PencilLine className="mr-2 size-4" />
+        重命名
+      </ContextMenuItem>
+      <ContextMenuItem onClick={() => onCopyPath?.(node.path)}>
+        <Copy className="mr-2 size-4" />
+        复制路径
+      </ContextMenuItem>
+      <ContextMenuItem onClick={() => onReveal?.(node.path)}>
+        <ExternalLink className="mr-2 size-4" />
+        在资源管理器中显示
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem variant="destructive" onClick={() => onDelete?.(node.path)}>
+        <Trash2 className="mr-2 size-4" />
+        删除
+      </ContextMenuItem>
+    </>
   )
 
-  const menu = (
-    <ContextMenu>
-      <ContextMenuTrigger className="block w-full">
-        {isFolder ? (
-          <Collapsible>
-            <CollapsibleTrigger
-              className={itemClassName}
-              style={{ paddingLeft: level * 16 + 8 }}
-              onClick={() => onSelect?.(node.path)}
-            >
-              <FolderOpen className="size-4 text-primary" />
-              <span className="truncate">{node.name}</span>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0">
-              {node.children?.map((child) => (
-                <FileTreeItem
-                  key={child.id}
-                  node={child}
-                  level={level + 1}
-                  selectedPath={selectedPath}
-                  onSelect={onSelect}
-                  onRename={onRename}
-                  onDelete={onDelete}
-                />
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        ) : (
-          <button type="button" className="block w-full text-left" onClick={() => onSelect?.(node.path)}>
-            {content}
-          </button>
-        )}
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onClick={() => onSelect?.(node.path)}>打开</ContextMenuItem>
-        <ContextMenuItem onClick={() => onRename?.(node.path)}>重命名</ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onClick={() => onDelete?.(node.path)}>
-          删除
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+  const fileMenu = (
+    <>
+      <ContextMenuItem onClick={() => onSelect?.(node.path)}>打开</ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem onClick={() => onRename?.(node.path)}>
+        <PencilLine className="mr-2 size-4" />
+        重命名
+      </ContextMenuItem>
+      <ContextMenuItem onClick={() => onCopyPath?.(node.path)}>
+        <Copy className="mr-2 size-4" />
+        复制路径
+      </ContextMenuItem>
+      <ContextMenuItem onClick={() => onReveal?.(node.path)}>
+        <ExternalLink className="mr-2 size-4" />
+        在资源管理器中显示
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem variant="destructive" onClick={() => onDelete?.(node.path)}>
+        <Trash2 className="mr-2 size-4" />
+        删除
+      </ContextMenuItem>
+    </>
   )
 
   if (isFolder) {
-    return menu
+    return (
+      <Collapsible open={isExpanded} onOpenChange={() => onToggleExpand(node.path)}>
+        <ContextMenu>
+          <ContextMenuTrigger className="block w-full">
+            <div
+              className={rowClassName}
+              style={{ paddingLeft }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-0.5 text-left outline-none">
+                <ChevronRight
+                  className={cn(
+                    "size-3.5 shrink-0 text-muted-foreground/80 transition-transform",
+                    isExpanded && "rotate-90"
+                  )}
+                />
+                {isExpanded ? (
+                  <FolderOpen className="size-3.5 shrink-0 text-amber-500/90" />
+                ) : (
+                  <Folder className="size-3.5 shrink-0 text-amber-500/90" />
+                )}
+                <span className="truncate pl-0.5">{node.name}</span>
+              </CollapsibleTrigger>
+              <div className="ml-auto hidden shrink-0 items-center group-hover:flex">
+                <button
+                  type="button"
+                  title="新建文件"
+                  className="rounded p-0.5 text-muted-foreground hover:bg-background/80 hover:text-foreground"
+                  onClick={(event) => {
+                    stop(event)
+                    onCreateFile?.(node.path)
+                  }}
+                >
+                  <FilePlus2 className="size-3.5" />
+                </button>
+              </div>
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>{folderMenu}</ContextMenuContent>
+        </ContextMenu>
+
+        <CollapsibleContent className="overflow-hidden">
+          {(node.children ?? []).length > 0 ? (
+            node.children?.map((child) => (
+              <FileTreeItem
+                key={child.id}
+                node={child}
+                level={level + 1}
+                selectedPath={selectedPath}
+                expandedPaths={expandedPaths}
+                onToggleExpand={onToggleExpand}
+                onSelect={onSelect}
+                onRename={onRename}
+                onDelete={onDelete}
+                onCreateFile={onCreateFile}
+                onCreateFolder={onCreateFolder}
+                onReveal={onReveal}
+                onCopyPath={onCopyPath}
+                onDropTabFile={onDropTabFile}
+              />
+            ))
+          ) : (
+            <div
+              className="py-0.5 text-[11px] text-muted-foreground/60"
+              style={{ paddingLeft: paddingLeft + 28 }}
+            >
+              空文件夹
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+    )
   }
 
-  return menu
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger className="block w-full">
+        <button
+          type="button"
+          className={cn(rowClassName, "w-full text-left")}
+          style={{ paddingLeft: paddingLeft + 16 }}
+          onClick={() => onSelect?.(node.path)}
+          onDoubleClick={() => onRename?.(node.path)}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate pl-0.5">{node.name}</span>
+        </button>
+      </ContextMenuTrigger>
+      <ContextMenuContent>{fileMenu}</ContextMenuContent>
+    </ContextMenu>
+  )
+}
+
+export const getInitialExpandedPaths = (nodes: FileNode[], selectedPath?: string | null): Set<string> => {
+  const expanded = new Set<string>()
+
+  for (const item of nodes) {
+    if (item.type === "folder") {
+      expanded.add(item.path)
+    }
+  }
+
+  if (selectedPath) {
+    const normalized = selectedPath.replace(/\\/g, "/")
+    const markAncestors = (items: FileNode[]): boolean => {
+      for (const item of items) {
+        if (item.type === "folder" && item.children) {
+          const hit =
+            item.children.some((child) => child.path.replace(/\\/g, "/") === normalized) ||
+            markAncestors(item.children)
+          if (hit) {
+            expanded.add(item.path)
+            return true
+          }
+        }
+      }
+      return false
+    }
+    markAncestors(nodes)
+  }
+
+  return expanded
+}
+
+export const useExpandedPaths = (nodes: FileNode[], selectedPath?: string | null) => {
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => getInitialExpandedPaths(nodes, selectedPath))
+  const [initialized, setInitialized] = useState(nodes.length > 0)
+
+  useEffect(() => {
+    if (!initialized && nodes.length > 0) {
+      setExpandedPaths(getInitialExpandedPaths(nodes, selectedPath))
+      setInitialized(true)
+      return
+    }
+
+    if (!selectedPath) {
+      return
+    }
+
+    setExpandedPaths((previous) => {
+      const next = new Set(previous)
+      const normalized = selectedPath.replace(/\\/g, "/")
+      const markAncestors = (items: FileNode[]): boolean => {
+        for (const item of items) {
+          if (item.type === "folder" && item.children) {
+            const hit =
+              item.children.some((child) => child.path.replace(/\\/g, "/") === normalized) ||
+              markAncestors(item.children)
+            if (hit) {
+              next.add(item.path)
+              return true
+            }
+          }
+        }
+        return false
+      }
+      markAncestors(nodes)
+      return next
+    })
+  }, [initialized, nodes, selectedPath])
+
+  const toggleExpand = (path: string) => {
+    setExpandedPaths((previous) => {
+      const next = new Set(previous)
+      if (next.has(path)) {
+        next.delete(path)
+      } else {
+        next.add(path)
+      }
+      return next
+    })
+  }
+
+  const ensureExpanded = (path: string) => {
+    setExpandedPaths((previous) => {
+      if (previous.has(path)) {
+        return previous
+      }
+      const next = new Set(previous)
+      next.add(path)
+      return next
+    })
+  }
+
+  return { expandedPaths, toggleExpand, ensureExpanded }
 }

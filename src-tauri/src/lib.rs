@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct AppSettings {
     theme_mode: String,
@@ -18,18 +18,99 @@ struct AppSettings {
     auto_save: bool,
     auto_save_interval: u32,
     start_with_last_file: bool,
+    #[serde(default)]
+    scroll_sync: bool,
     language: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            theme_mode: "system".to_string(),
+            theme_color: "blue".to_string(),
+            editor_font_size: 14,
+            editor_font_family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace".to_string(),
+            show_line_numbers: true,
+            word_wrap: true,
+            tab_size: 2,
+            live_preview: true,
+            code_highlight: true,
+            auto_save: true,
+            auto_save_interval: 600,
+            start_with_last_file: true,
+            scroll_sync: false,
+            language: "zh-CN".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct WorkspaceUiState {
+    #[serde(default = "default_open_mode")]
     default_open_mode: String,
+    #[serde(default = "default_last_view_mode")]
     last_view_mode: String,
+    #[serde(default)]
     active_file_path: Option<String>,
+    #[serde(default)]
     open_files: Vec<String>,
+    #[serde(default = "default_split_ratio")]
     split_ratio: f64,
+    #[serde(default)]
     reading_positions: std::collections::HashMap<String, serde_json::Value>,
+    #[serde(default)]
+    sidebar_collapsed: bool,
+    #[serde(default)]
+    outline_visible: bool,
+    #[serde(default = "default_outline_width")]
+    outline_width: f64,
+    #[serde(default = "default_window_width")]
+    window_width: f64,
+    #[serde(default = "default_window_height")]
+    window_height: f64,
+}
+
+fn default_open_mode() -> String {
+    "preview".to_string()
+}
+
+fn default_last_view_mode() -> String {
+    "preview".to_string()
+}
+
+fn default_split_ratio() -> f64 {
+    50.0
+}
+
+fn default_outline_width() -> f64 {
+    250.0
+}
+
+fn default_window_width() -> f64 {
+    1200.0
+}
+
+fn default_window_height() -> f64 {
+    760.0
+}
+
+impl Default for WorkspaceUiState {
+    fn default() -> Self {
+        Self {
+            default_open_mode: default_open_mode(),
+            last_view_mode: default_last_view_mode(),
+            active_file_path: None,
+            open_files: Vec::new(),
+            split_ratio: default_split_ratio(),
+            reading_positions: std::collections::HashMap::new(),
+            sidebar_collapsed: false,
+            outline_visible: false,
+            outline_width: default_outline_width(),
+            window_width: default_window_width(),
+            window_height: default_window_height(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -69,29 +150,8 @@ impl Default for WorkspaceConfig {
             assets_path: paths.assets_path,
             workspace_name: "Caelum".to_string(),
             recent_files: Vec::new(),
-            settings: AppSettings {
-                theme_mode: "system".to_string(),
-                theme_color: "blue".to_string(),
-                editor_font_size: 14,
-                editor_font_family: "Inter Variable".to_string(),
-                show_line_numbers: true,
-                word_wrap: true,
-                tab_size: 2,
-                live_preview: true,
-                code_highlight: true,
-                auto_save: true,
-                auto_save_interval: 600,
-                start_with_last_file: true,
-                language: "zh-CN".to_string(),
-            },
-            ui_state: WorkspaceUiState {
-                default_open_mode: "preview".to_string(),
-                last_view_mode: "preview".to_string(),
-                active_file_path: None,
-                open_files: Vec::new(),
-                split_ratio: 50.0,
-                reading_positions: std::collections::HashMap::new(),
-            },
+            settings: AppSettings::default(),
+            ui_state: WorkspaceUiState::default(),
         }
     }
 }
@@ -103,14 +163,43 @@ fn default_workspace_paths() -> WorkspacePaths {
     let documents_dir = directories::UserDirs::new()
         .and_then(|user_dirs| user_dirs.document_dir().map(Path::to_path_buf))
         .unwrap_or_else(|| home_dir.join("Documents"));
-    let pictures_dir = directories::UserDirs::new()
-        .and_then(|user_dirs| user_dirs.picture_dir().map(Path::to_path_buf))
-        .unwrap_or_else(|| home_dir.join("Pictures"));
+    let caelum_root = documents_dir.join("caelum");
 
     WorkspacePaths {
-        notes_path: documents_dir.join("caelum").join("notes").to_string_lossy().into_owned(),
-        assets_path: pictures_dir.join("caelum").join("assets").to_string_lossy().into_owned(),
+        notes_path: caelum_root.join("notes").to_string_lossy().into_owned(),
+        assets_path: caelum_root.join("assets").to_string_lossy().into_owned(),
     }
+}
+
+fn allocate_unique_path(dir: &Path, file_name: &str) -> PathBuf {
+    let candidate = dir.join(file_name);
+    if !candidate.exists() {
+        return candidate;
+    }
+
+    let path = Path::new(file_name);
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("file");
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("");
+
+    for index in 1..10_000 {
+        let next_name = if extension.is_empty() {
+            format!("{stem} ({index})")
+        } else {
+            format!("{stem} ({index}).{extension}")
+        };
+        let next_path = dir.join(next_name);
+        if !next_path.exists() {
+            return next_path;
+        }
+    }
+
+    dir.join(format!("{stem}-{}.{}", std::process::id(), extension))
 }
 
 fn config_file_path() -> PathBuf {
@@ -212,7 +301,7 @@ fn get_default_workspace_paths() -> Result<WorkspacePaths, String> {
 #[tauri::command]
 fn load_workspace_config() -> Result<WorkspaceConfig, String> {
     let config_path = config_file_path();
-    let config = if config_path.exists() {
+    let mut config = if config_path.exists() {
         let content = fs::read_to_string(&config_path).map_err(|error| error.to_string())?;
         let mut config: WorkspaceConfig = serde_json::from_str(&content).map_err(|error| error.to_string())?;
         if config.notes_path.is_empty() || config.assets_path.is_empty() {
@@ -224,6 +313,16 @@ fn load_workspace_config() -> Result<WorkspaceConfig, String> {
     } else {
         WorkspaceConfig::default()
     };
+
+    if config.settings.editor_font_size == 0 {
+        config.settings.editor_font_size = 14;
+    }
+    if config.settings.tab_size == 0 {
+        config.settings.tab_size = 2;
+    }
+    if config.settings.auto_save_interval == 0 {
+        config.settings.auto_save_interval = 600;
+    }
 
     ensure_workspace_layout(&config)?;
     save_workspace_config_file(&config)?;
@@ -298,6 +397,40 @@ fn move_entry(old_path: String, new_path: String) -> Result<(), String> {
     fs::rename(old_path, new_path).map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn copy_file_entry(source: String, destination_dir: String) -> Result<String, String> {
+    let source_path = PathBuf::from(&source);
+    if !source_path.is_file() {
+        return Err("Source is not a file".to_string());
+    }
+
+    let dest_dir = PathBuf::from(&destination_dir);
+    fs::create_dir_all(&dest_dir).map_err(|error| error.to_string())?;
+
+    let file_name = source_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "Invalid source file name".to_string())?;
+    let destination = allocate_unique_path(&dest_dir, file_name);
+    fs::copy(&source_path, &destination).map_err(|error| error.to_string())?;
+    Ok(destination.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn copy_file_to_path(source: String, destination: String) -> Result<(), String> {
+    let destination_path = PathBuf::from(&destination);
+    ensure_parent_directory(&destination_path)?;
+    fs::copy(source, destination_path).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn write_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
+    let file_path = PathBuf::from(path);
+    ensure_parent_directory(&file_path)?;
+    fs::write(file_path, contents).map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -314,7 +447,10 @@ pub fn run() {
             create_folder_entry,
             rename_entry,
             delete_entry,
-            move_entry
+            move_entry,
+            copy_file_entry,
+            copy_file_to_path,
+            write_binary_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

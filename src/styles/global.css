@@ -1,18 +1,27 @@
-@import "tailwindcss";
-@import "./theme/shadcn.css";
+@import 'tailwindcss';
+@import './theme/shadcn.css';
+@import 'highlight.js/styles/github.css';
 
-
-html, body, #root {
+html,
+body,
+#root {
     width: 100%;
     height: 100%;
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 :root {
     color-scheme: light;
-    font-family: "Inter Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family:
+        'Inter Variable',
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        'Segoe UI',
+        sans-serif;
 }
 
 :root.dark {
@@ -22,17 +31,364 @@ html, body, #root {
 body {
     background: var(--background);
     color: var(--foreground);
-    transition: background-color 180ms ease, color 180ms ease;
+    transition:
+        background-color 180ms ease,
+        color 180ms ease;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    user-select: none;
+}
+
+input,
+textarea,
+.cm-editor,
+.cm-content,
+.markdown-preview {
+    user-select: text;
 }
 
 * {
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 40%, transparent) transparent;
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent) transparent;
 }
 
 ::selection {
     background: color-mix(in srgb, var(--primary) 26%, transparent);
     color: inherit;
+}
+
+/* CodeMirror — explicit px font-size (inherit collapses to 0 in this layout) */
+.codemirror-host {
+    font-size: var(--cm-font-size, 14px) !important;
+    font-family: var(--cm-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+    font-variation-settings: normal !important;
+}
+
+.codemirror-host .cm-editor,
+.codemirror-host .cm-scroller,
+.codemirror-host .cm-content,
+.codemirror-host .cm-line,
+.codemirror-host .cm-gutters,
+.codemirror-host .cm-gutterElement {
+    font-size: var(--cm-font-size, 14px) !important;
+    font-family: inherit !important;
+    font-variation-settings: normal !important;
+    line-height: 1.7 !important;
+}
+
+.codemirror-host .cm-editor {
+    height: 100% !important;
+    max-height: 100% !important;
+    background: transparent !important;
+}
+
+.codemirror-host .cm-scroller {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    height: 100% !important;
+}
+
+.codemirror-host .cm-line {
+    display: block !important;
+    height: auto !important;
+    min-height: calc(var(--cm-font-size, 14px) * 1.7) !important;
+    padding: 0 4px !important;
+}
+
+.codemirror-host .cm-gutterElement {
+    min-height: calc(var(--cm-font-size, 14px) * 1.7) !important;
+}
+
+.codemirror-host .cm-gutters {
+    border: none !important;
+}
+
+.codemirror-host .cm-lineNumbers .cm-gutterElement {
+    min-width: 2.5rem;
+    padding: 0 0.75rem 0 0.25rem;
+}
+
+.codemirror-host .cm-editor.cm-focused {
+    outline: none !important;
+}
+
+/* Markdown preview typography */
+.markdown-preview {
+    user-select: text;
+    line-height: 1.75;
+    color: var(--foreground);
+}
+
+.markdown-preview > :first-child {
+    margin-top: 0;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    margin: 1.6em 0 0.6em;
+    color: var(--foreground);
+}
+
+.markdown-preview h1 {
+    font-size: 1.875rem;
+    padding-bottom: 0.4em;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.markdown-preview h2 {
+    font-size: 1.4rem;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.markdown-preview h3 {
+    font-size: 1.15rem;
+}
+
+.markdown-preview h4 {
+    font-size: 1.05rem;
+}
+
+.markdown-preview p {
+    margin: 0.85em 0;
+}
+
+.markdown-preview ul,
+.markdown-preview ol {
+    margin: 0.85em 0;
+    padding-left: 1.5em;
+}
+
+.markdown-preview ul {
+    list-style: disc;
+}
+
+.markdown-preview ol {
+    list-style: decimal;
+}
+
+.markdown-preview ul ul {
+    list-style: circle;
+}
+
+.markdown-preview ul ul ul {
+    list-style: square;
+}
+
+.markdown-preview li {
+    margin: 0.25em 0;
+    display: list-item;
+}
+
+.markdown-preview li + li {
+    margin-top: 0.2em;
+}
+
+.markdown-preview ul.contains-task-list {
+    list-style: none;
+    padding-left: 0.25em;
+}
+
+.markdown-preview li.task-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    list-style: none;
+}
+
+.markdown-preview .markdown-task-checkbox {
+    margin-top: 0.4em;
+    width: 0.95em;
+    height: 0.95em;
+    accent-color: var(--primary);
+    flex-shrink: 0;
+}
+
+.markdown-preview .markdown-preview-image-button img {
+    display: block;
+}
+
+.markdown-preview .markdown-preview-image-button:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+}
+
+.markdown-preview blockquote {
+    margin: 1em 0;
+    padding: 0.25em 0 0.25em 1em;
+    border-left: 3px solid color-mix(in srgb, var(--primary) 55%, transparent);
+    color: var(--muted-foreground);
+}
+
+.markdown-preview code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.875em;
+    padding: 0.15em 0.4em;
+    border-radius: 0.35em;
+    background: color-mix(in srgb, var(--muted) 85%, var(--primary) 8%);
+}
+
+.markdown-preview pre {
+    margin: 1.1em 0;
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    border-radius: 0.65rem;
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    background: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
+.markdown-preview pre code,
+.markdown-preview pre code.hljs {
+    padding: 0;
+    background: transparent;
+    font-size: 0.85em;
+    line-height: 1.65;
+    display: block;
+    overflow-x: auto;
+}
+
+.markdown-preview .markdown-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    margin: 1.1em 0;
+}
+
+.markdown-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.925em;
+}
+
+.markdown-preview th,
+.markdown-preview td {
+    border: 1px solid var(--border);
+    padding: 0.5em 0.75em;
+    text-align: left;
+}
+
+.markdown-preview th {
+    background: var(--muted);
+    font-weight: 600;
+}
+
+.markdown-preview hr {
+    margin: 1.75em 0;
+    border: none;
+    border-top: 1px solid var(--border);
+}
+
+.markdown-preview a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.markdown-preview a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.markdown-preview del {
+    color: var(--muted-foreground);
+}
+
+/* Syntax highlighting — light */
+.markdown-preview .hljs-comment,
+.markdown-preview .hljs-quote {
+    color: #6a737d;
+    font-style: italic;
+}
+
+.markdown-preview .hljs-keyword,
+.markdown-preview .hljs-selector-tag,
+.markdown-preview .hljs-addition {
+    color: #d73a49;
+}
+
+.markdown-preview .hljs-string,
+.markdown-preview .hljs-meta .hljs-string,
+.markdown-preview .hljs-attr {
+    color: #032f62;
+}
+
+.markdown-preview .hljs-number,
+.markdown-preview .hljs-literal,
+.markdown-preview .hljs-variable,
+.markdown-preview .hljs-template-variable {
+    color: #005cc5;
+}
+
+.markdown-preview .hljs-title,
+.markdown-preview .hljs-section,
+.markdown-preview .hljs-selector-id {
+    color: #6f42c1;
+}
+
+.markdown-preview .hljs-built_in,
+.markdown-preview .hljs-type,
+.markdown-preview .hljs-params {
+    color: #e36209;
+}
+
+.markdown-preview .hljs-meta,
+.markdown-preview .hljs-doctag {
+    color: #735c0f;
+}
+
+.markdown-preview .hljs-name,
+.markdown-preview .hljs-attribute {
+    color: #22863a;
+}
+
+/* Syntax highlighting — dark */
+.dark .markdown-preview pre {
+    background: color-mix(in srgb, var(--muted) 80%, #000 20%);
+}
+
+.dark .markdown-preview .hljs-comment,
+.dark .markdown-preview .hljs-quote {
+    color: #8b949e;
+}
+
+.dark .markdown-preview .hljs-keyword,
+.dark .markdown-preview .hljs-selector-tag,
+.dark .markdown-preview .hljs-addition {
+    color: #ff7b72;
+}
+
+.dark .markdown-preview .hljs-string,
+.dark .markdown-preview .hljs-meta .hljs-string,
+.dark .markdown-preview .hljs-attr {
+    color: #a5d6ff;
+}
+
+.dark .markdown-preview .hljs-number,
+.dark .markdown-preview .hljs-literal,
+.dark .markdown-preview .hljs-variable,
+.dark .markdown-preview .hljs-template-variable {
+    color: #79c0ff;
+}
+
+.dark .markdown-preview .hljs-title,
+.dark .markdown-preview .hljs-section,
+.dark .markdown-preview .hljs-selector-id {
+    color: #d2a8ff;
+}
+
+.dark .markdown-preview .hljs-built_in,
+.dark .markdown-preview .hljs-type,
+.dark .markdown-preview .hljs-params {
+    color: #ffa657;
+}
+
+.dark .markdown-preview .hljs-name,
+.dark .markdown-preview .hljs-attribute {
+    color: #7ee787;
 }

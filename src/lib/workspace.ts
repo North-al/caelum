@@ -18,6 +18,12 @@ export interface WorkspaceUiState {
   openFiles: string[]
   splitRatio: number
   readingPositions: Record<string, ReadingPosition>
+  sidebarCollapsed: boolean
+  outlineVisible: boolean
+  /** Outline panel width in pixels */
+  outlineWidth: number
+  windowWidth: number
+  windowHeight: number
 }
 
 export interface AppSettings {
@@ -33,6 +39,7 @@ export interface AppSettings {
   autoSave: boolean
   autoSaveInterval: number
   startWithLastFile: boolean
+  scrollSync: boolean
   language: string
 }
 
@@ -50,11 +57,15 @@ export interface WorkspacePaths {
   assetsPath: string
 }
 
+export const DEFAULT_WINDOW_WIDTH = 1200
+export const DEFAULT_WINDOW_HEIGHT = 760
+export const DEFAULT_OUTLINE_WIDTH = 250
+
 export const defaultSettings: AppSettings = {
   themeMode: "system",
   themeColor: "blue",
   editorFontSize: 14,
-  editorFontFamily: "Inter Variable",
+  editorFontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
   showLineNumbers: true,
   wordWrap: true,
   tabSize: 2,
@@ -63,6 +74,7 @@ export const defaultSettings: AppSettings = {
   autoSave: true,
   autoSaveInterval: 600,
   startWithLastFile: true,
+  scrollSync: false,
   language: "zh-CN",
 }
 
@@ -73,6 +85,11 @@ export const defaultUiState: WorkspaceUiState = {
   openFiles: [],
   splitRatio: 50,
   readingPositions: {},
+  sidebarCollapsed: false,
+  outlineVisible: false,
+  outlineWidth: DEFAULT_OUTLINE_WIDTH,
+  windowWidth: DEFAULT_WINDOW_WIDTH,
+  windowHeight: DEFAULT_WINDOW_HEIGHT,
 }
 
 export const normalizePath = (value: string) => value.replace(/\\/g, "/")
@@ -86,6 +103,28 @@ export const combinePaths = (base: string, child: string) => {
   }
 
   return `${cleanedBase}/${cleanedChild}`
+}
+
+/** Join base + relative and resolve `.` / `..` segments. */
+export const resolveJoinedPath = (base: string, relative: string) => {
+  const normalizedRelative = normalizePath(relative)
+
+  if (/^[A-Za-z]:[\\/]/.test(normalizedRelative)) {
+    return normalizePath(normalizedRelative)
+  }
+
+  const baseNormalized = normalizePath(base).replace(/\/+$/, "")
+  if (normalizedRelative.startsWith("/") && !/^[A-Za-z]:/.test(baseNormalized)) {
+    return normalizePath(normalizedRelative)
+  }
+
+  const baseHref = `file:///${baseNormalized}/`
+  const resolved = new URL(normalizedRelative, baseHref)
+  let path = decodeURIComponent(resolved.pathname)
+  if (/^\/[A-Za-z]:\//.test(path)) {
+    path = path.slice(1)
+  }
+  return normalizePath(path)
 }
 
 export const getParentPath = (value: string) => {
@@ -144,3 +183,12 @@ export const deleteEntry = async (path: string): Promise<void> =>
 
 export const moveEntry = async (oldPath: string, newPath: string): Promise<void> =>
   invoke<void>("move_entry", { oldPath, newPath })
+
+export const copyFileEntry = async (source: string, destinationDir: string): Promise<string> =>
+  invoke<string>("copy_file_entry", { source, destinationDir })
+
+export const copyFileToPath = async (source: string, destination: string): Promise<void> =>
+  invoke<void>("copy_file_to_path", { source, destination })
+
+export const writeBinaryFile = async (path: string, contents: number[]): Promise<void> =>
+  invoke<void>("write_binary_file", { path, contents })
