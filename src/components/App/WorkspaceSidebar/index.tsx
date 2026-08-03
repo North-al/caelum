@@ -35,6 +35,7 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip"
 import { useWorkspaceStore } from "~/store/workspace"
+import { EXPLORER_ZONE_ATTR } from "~/lib/dnd"
 
 import type { FileNode } from "~/components/App/FileTree/types"
 
@@ -127,7 +128,7 @@ export const WorkspaceSidebar = () => {
             <Button
               variant="default"
               size="sm"
-              className="h-8 w-full justify-center gap-1.5 rounded-lg shadow-sm shadow-primary/20"
+              className="h-9 w-full justify-center gap-1.5 rounded-xl shadow-sm shadow-primary/20"
             />
           )
         }
@@ -155,11 +156,14 @@ export const WorkspaceSidebar = () => {
 
   return (
     <>
-      <SidebarHeader className="gap-2 pt-3">
+      <SidebarHeader className="gap-2.5 pt-3">
         <div className="flex items-center gap-2.5 px-1" data-tauri-drag-region>
-          <CaelumLogo className="size-8 shrink-0 text-primary" />
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
+            <CaelumLogo className="size-5" />
+          </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-semibold tracking-tight">{config?.workspaceName ?? "Caelum"}</div>
+            <div className="truncate text-[15px] font-semibold tracking-tight">{config?.workspaceName ?? "Caelum"}</div>
+            <div className="truncate text-[11px] text-muted-foreground">本地工作区</div>
           </div>
         </div>
 
@@ -172,7 +176,7 @@ export const WorkspaceSidebar = () => {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="size-8 text-muted-foreground"
+                    className="size-8 rounded-lg text-muted-foreground"
                     aria-label="搜索"
                     onClick={() => setSearchOpen(true)}
                   />
@@ -192,7 +196,7 @@ export const WorkspaceSidebar = () => {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="搜索笔记..."
-                className="h-8 rounded-md border-border/50 bg-background/60 pl-8 text-[13px]"
+                className="h-9 rounded-xl border-border/50 bg-background/60 pl-8 text-[13px]"
               />
             </div>
           </>
@@ -201,7 +205,10 @@ export const WorkspaceSidebar = () => {
 
       <SidebarSeparator className="mx-0 group-data-[collapsible=icon]:hidden" />
 
-      <SidebarContent className="px-0 group-data-[collapsible=icon]:hidden">
+      <SidebarContent
+        className="px-0 group-data-[collapsible=icon]:hidden"
+        {...{ [EXPLORER_ZONE_ATTR]: "explorer" }}
+      >
         <SidebarGroup className="min-h-0 flex-1 px-1 py-1">
           <SidebarGroupLabel className="h-6 px-2 text-[11px] font-medium tracking-wide text-muted-foreground/70">
             资源管理器
@@ -275,7 +282,7 @@ export const WorkspaceSidebar = () => {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-full justify-start gap-2 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="h-9 w-full justify-start gap-2 rounded-xl px-3 text-[13px] text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               onClick={() => navigate("/settings")}
             >
               <Settings2 className="size-4 shrink-0" />

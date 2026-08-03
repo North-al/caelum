@@ -1,6 +1,6 @@
 [package]
 name = "caelum"
-version = "1.0.0"
+version = "1.1.0"
 description = "Caelum — local-first Markdown notes"
 authors = ["North"]
 edition = "2021"
@@ -24,4 +24,5 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-fs = "2.5.1"
 directories = "6.0.0"
+tauri-plugin-dialog = "2.7.2"
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent, type MouseEvent } from "react"
+import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "react"
 import {
   ChevronRight,
   Copy,
@@ -24,7 +24,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "~/components/ui/context-menu"
-import { CAELUM_TAB_PATH_MIME } from "~/lib/dnd"
+import { DROP_DIR_ATTR, getActiveDropDir, subscribeTabDrag } from "~/lib/dnd"
 import { getParentPath } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 
@@ -46,8 +46,6 @@ interface Props {
   onDropTabFile?: (sourcePath: string, destinationDir: string) => void
 }
 
-const readTabPath = (event: DragEvent) => event.dataTransfer.getData(CAELUM_TAB_PATH_MIME)
-
 export const FileTreeItem = ({
   node,
   level = 0,
@@ -66,11 +64,13 @@ export const FileTreeItem = ({
   const isFolder = node.type === "folder"
   const isSelected = !isFolder && selectedPath === node.path
   const isExpanded = isFolder && expandedPaths.has(node.path)
-  const paddingLeft = 8 + level * 12
-  const [dropActive, setDropActive] = useState(false)
+  const paddingLeft = 12 + level * 12
+  const dropDir = isFolder ? node.path : getParentPath(node.path)
+  const activeDropDir = useSyncExternalStore(subscribeTabDrag, getActiveDropDir, () => null)
+  const dropActive = Boolean(dropDir && activeDropDir === dropDir.replace(/\\/g, "/"))
 
   const rowClassName = cn(
-    "group flex h-[26px] w-full items-center gap-1 pr-1 text-[13px] outline-none transition-colors",
+    "group flex h-[30px] w-full items-center gap-1 px-1 pr-2 text-[13px] outline-none transition-colors",
     "hover:bg-sidebar-accent/70",
     isSelected && "bg-sidebar-accent text-sidebar-accent-foreground",
     dropActive && "bg-primary/15 ring-1 ring-inset ring-primary/40"
@@ -79,33 +79,6 @@ export const FileTreeItem = ({
   const stop = (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
-  }
-
-  const handleDragOver = (event: DragEvent) => {
-    if (![...event.dataTransfer.types].includes(CAELUM_TAB_PATH_MIME)) {
-      return
-    }
-    event.preventDefault()
-    event.stopPropagation()
-    event.dataTransfer.dropEffect = "copy"
-    setDropActive(true)
-  }
-
-  const handleDragLeave = () => setDropActive(false)
-
-  const handleDrop = (event: DragEvent) => {
-    event.preventDefault()
-    event.stopPropagation()
-    setDropActive(false)
-    const sourcePath = readTabPath(event)
-    if (!sourcePath) {
-      return
-    }
-    const destinationDir = isFolder ? node.path : getParentPath(node.path)
-    if (!destinationDir) {
-      return
-    }
-    onDropTabFile?.(sourcePath, destinationDir)
   }
 
   const folderMenu = (
@@ -169,11 +142,9 @@ export const FileTreeItem = ({
         <ContextMenu>
           <ContextMenuTrigger className="block w-full">
             <div
+              {...{ [DROP_DIR_ATTR]: node.path }}
               className={rowClassName}
               style={{ paddingLeft }}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
             >
               <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-0.5 text-left outline-none">
                 <ChevronRight
@@ -245,13 +216,11 @@ export const FileTreeItem = ({
       <ContextMenuTrigger className="block w-full">
         <button
           type="button"
+          {...{ [DROP_DIR_ATTR]: dropDir }}
           className={cn(rowClassName, "w-full text-left")}
           style={{ paddingLeft: paddingLeft + 16 }}
           onClick={() => onSelect?.(node.path)}
           onDoubleClick={() => onRename?.(node.path)}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
         >
           <FileText className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate pl-0.5">{node.name}</span>

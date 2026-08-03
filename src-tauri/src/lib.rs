@@ -218,17 +218,21 @@ fn ensure_parent_directory(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn ensure_workspace_layout(config: &WorkspaceConfig) -> Result<(), String> {
+fn ensure_workspace_directories(config: &WorkspaceConfig) -> Result<(), String> {
+    fs::create_dir_all(Path::new(&config.notes_path)).map_err(|error| error.to_string())?;
+    fs::create_dir_all(Path::new(&config.assets_path)).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn seed_example_note_if_empty(config: &WorkspaceConfig) -> Result<(), String> {
     let notes_dir = Path::new(&config.notes_path);
-    let assets_dir = Path::new(&config.assets_path);
+    let notes_empty = fs::read_dir(notes_dir)
+        .map(|mut entries| entries.next().is_none())
+        .unwrap_or(true);
 
-    fs::create_dir_all(notes_dir).map_err(|error| error.to_string())?;
-    fs::create_dir_all(assets_dir).map_err(|error| error.to_string())?;
-
-    let example_file = notes_dir.join("example.md");
-    if !example_file.exists() {
+    if notes_empty {
         fs::write(
-            &example_file,
+            notes_dir.join("example.md"),
             "# Welcome to Caelum\n\nStart writing in your local workspace.\n",
         )
         .map_err(|error| error.to_string())?;
@@ -293,14 +297,29 @@ fn build_tree(path: &Path) -> Result<Vec<FileEntry>, String> {
     Ok(entries)
 }
 
+fn get_config_file_path() -> String {
+    config_file_path().to_string_lossy().replace('\\', "/")
+}
+
 #[tauri::command]
 fn get_default_workspace_paths() -> Result<WorkspacePaths, String> {
     Ok(default_workspace_paths())
 }
 
 #[tauri::command]
+fn get_app_paths() -> Result<serde_json::Value, String> {
+    let defaults = default_workspace_paths();
+    Ok(serde_json::json!({
+        "configPath": get_config_file_path(),
+        "defaultNotesPath": defaults.notes_path.replace('\\', "/"),
+        "defaultAssetsPath": defaults.assets_path.replace('\\', "/"),
+    }))
+}
+
+#[tauri::command]
 fn load_workspace_config() -> Result<WorkspaceConfig, String> {
     let config_path = config_file_path();
+    let is_new_config = !config_path.exists();
     let mut config = if config_path.exists() {
         let content = fs::read_to_string(&config_path).map_err(|error| error.to_string())?;
         let mut config: WorkspaceConfig = serde_json::from_str(&content).map_err(|error| error.to_string())?;
@@ -324,14 +343,17 @@ fn load_workspace_config() -> Result<WorkspaceConfig, String> {
         config.settings.auto_save_interval = 600;
     }
 
-    ensure_workspace_layout(&config)?;
+    ensure_workspace_directories(&config)?;
+    if is_new_config {
+        seed_example_note_if_empty(&config)?;
+    }
     save_workspace_config_file(&config)?;
     Ok(config)
 }
 
 #[tauri::command]
 fn save_workspace_config(config: WorkspaceConfig) -> Result<WorkspaceConfig, String> {
-    ensure_workspace_layout(&config)?;
+    ensure_workspace_directories(&config)?;
     save_workspace_config_file(&config)?;
     Ok(config)
 }
@@ -462,8 +484,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_default_workspace_paths,
+            get_app_paths,
             load_workspace_config,
             save_workspace_config,
             list_notes_tree,

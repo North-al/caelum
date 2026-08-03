@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from "react"
+import { useSyncExternalStore, type DragEvent } from "react"
 import { FilePlus2, FolderPlus } from "lucide-react"
 
 import {
@@ -8,7 +8,13 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "~/components/ui/context-menu"
-import { CAELUM_TAB_PATH_MIME } from "~/lib/dnd"
+import {
+  DROP_DIR_ATTR,
+  EXPLORER_ZONE_ATTR,
+  getActiveDropDir,
+  getActiveTabDragPath,
+  subscribeTabDrag,
+} from "~/lib/dnd"
 import { cn } from "~/lib/utils"
 
 import { FileTreeItem, useExpandedPaths } from "./FileTreeItem"
@@ -29,14 +35,6 @@ interface Props {
   onDropTabFile?: (sourcePath: string, destinationDir: string) => void
 }
 
-const readTabPath = (event: DragEvent) => {
-  const fromMime = event.dataTransfer.getData(CAELUM_TAB_PATH_MIME)
-  if (fromMime) {
-    return fromMime
-  }
-  return ""
-}
-
 export const FileTree = ({
   data,
   notesPath,
@@ -51,7 +49,9 @@ export const FileTree = ({
   onDropTabFile,
 }: Props) => {
   const { expandedPaths, toggleExpand, ensureExpanded } = useExpandedPaths(data, selectedPath)
-  const [rootDropActive, setRootDropActive] = useState(false)
+  const activeDropDir = useSyncExternalStore(subscribeTabDrag, getActiveDropDir, () => null)
+  const activeTabPath = useSyncExternalStore(subscribeTabDrag, getActiveTabDragPath, () => null)
+  const rootDropActive = Boolean(notesPath && activeDropDir === notesPath.replace(/\\/g, "/"))
 
   const handleCreateFile = (parentPath?: string) => {
     if (parentPath) {
@@ -67,19 +67,10 @@ export const FileTree = ({
     onCreateFolder?.(parentPath)
   }
 
-  const handleRootDragOver = (event: DragEvent) => {
-    if (![...event.dataTransfer.types].includes(CAELUM_TAB_PATH_MIME)) {
-      return
-    }
+  // Keep HTML5 drop as a secondary path for environments that support it.
+  const handleHtmlDrop = (event: DragEvent) => {
     event.preventDefault()
-    event.dataTransfer.dropEffect = "copy"
-    setRootDropActive(true)
-  }
-
-  const handleRootDrop = (event: DragEvent) => {
-    event.preventDefault()
-    setRootDropActive(false)
-    const sourcePath = readTabPath(event)
+    const sourcePath = activeTabPath
     if (!sourcePath || !notesPath) {
       return
     }
@@ -90,10 +81,20 @@ export const FileTree = ({
     <ContextMenu>
       <ContextMenuTrigger className="block h-full min-h-[160px] w-full">
         <div
-          className={cn("h-full py-0.5", rootDropActive && "rounded-md bg-primary/10 ring-1 ring-primary/30")}
-          onDragOver={handleRootDragOver}
-          onDragLeave={() => setRootDropActive(false)}
-          onDrop={handleRootDrop}
+          {...{ [DROP_DIR_ATTR]: notesPath ?? "" }}
+          {...{ [EXPLORER_ZONE_ATTR]: "explorer" }}
+          className={cn(
+            "h-full px-1 py-1",
+            rootDropActive && "rounded-md bg-primary/10 ring-1 ring-primary/30"
+          )}
+          onDragOver={(event) => {
+            if (!activeTabPath) {
+              return
+            }
+            event.preventDefault()
+            event.dataTransfer.dropEffect = "copy"
+          }}
+          onDrop={handleHtmlDrop}
         >
           {data.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-1.5 px-3 py-8 text-center">

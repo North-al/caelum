@@ -3,7 +3,7 @@ import CodeMirror from "@uiw/react-codemirror"
 import { markdown } from "@codemirror/lang-markdown"
 import { EditorState } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
-import { ImagePlus } from "lucide-react"
+import { ImagePlus, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "~/components/ui/button"
@@ -15,6 +15,7 @@ import {
   importImageFromPath,
   isImagePath,
 } from "~/lib/assets"
+import { defaultSettings } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 import { cn } from "~/lib/utils"
 
@@ -34,6 +35,10 @@ interface ImportImageInput {
 
 const MONO_STACK =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+
+const MIN_EDITOR_FONT_SIZE = 10
+const MAX_EDITOR_FONT_SIZE = 48
+const DEFAULT_EDITOR_FONT_SIZE = defaultSettings.editorFontSize || 14
 
 const subscribeSystemDark = (onChange: () => void) => {
   const media = window.matchMedia("(prefers-color-scheme: dark)")
@@ -55,12 +60,13 @@ const insertAtCursor = (view: EditorView, text: string) => {
 }
 
 export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEditor }: Props) => {
-  const { config, selectedFilePath } = useWorkspaceStore()
+  const { config, selectedFilePath, updateSettings } = useWorkspaceStore()
   const settings = config?.settings
   const themeMode = settings?.themeMode ?? "system"
   const systemDark = useSyncExternalStore(subscribeSystemDark, getSystemDark, () => false)
   const isDark = themeMode === "dark" || (themeMode === "system" && systemDark)
-  const fontSize = settings?.editorFontSize && settings.editorFontSize > 0 ? settings.editorFontSize : 14
+  const settingsFontSize =
+    settings?.editorFontSize && settings.editorFontSize > 0 ? settings.editorFontSize : DEFAULT_EDITOR_FONT_SIZE
   const rawFamily = settings?.editorFontFamily?.trim() || MONO_STACK
   const fontFamily =
     /inter|variable|sans/i.test(rawFamily) && !/mono|consolas|menlo|courier/i.test(rawFamily)
@@ -71,7 +77,18 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
   const viewRef = useRef<EditorView | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const importRef = useRef<(input: ImportImageInput) => Promise<void>>(async () => undefined)
+  const fontSizeRef = useRef(settingsFontSize)
+  const persistTimerRef = useRef<number | null>(null)
+  const hideHudTimerRef = useRef<number | null>(null)
   const [height, setHeight] = useState(0)
+  const [fontSize, setFontSize] = useState(settingsFontSize)
+  const [zoomHudVisible, setZoomHudVisible] = useState(false)
+
+  fontSizeRef.current = fontSize
+
+  useEffect(() => {
+    setFontSize(settingsFontSize)
+  }, [settingsFontSize])
 
   useEffect(() => {
     const element = containerRef.current
@@ -87,6 +104,85 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
     const observer = new ResizeObserver(update)
     observer.observe(element)
     return () => observer.disconnect()
+  }, [])
+
+  const showZoomHud = () => {
+    setZoomHudVisible(true)
+    if (hideHudTimerRef.current) {
+      window.clearTimeout(hideHudTimerRef.current)
+    }
+    hideHudTimerRef.current = window.setTimeout(() => {
+      setZoomHudVisible(false)
+    }, 1600)
+  }
+
+  const persistFontSize = (next: number) => {
+    if (persistTimerRef.current) {
+      window.clearTimeout(persistTimerRef.current)
+    }
+    persistTimerRef.current = window.setTimeout(() => {
+      void updateSettings({ editorFontSize: next })
+    }, 280)
+  }
+
+  const applyFontSize = (next: number) => {
+    const clamped = Math.min(MAX_EDITOR_FONT_SIZE, Math.max(MIN_EDITOR_FONT_SIZE, Math.round(next)))
+    setFontSize(clamped)
+    showZoomHud()
+    persistFontSize(clamped)
+  }
+
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) {
+      return
+    }
+
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return
+      }
+      event.preventDefault()
+      const delta = event.deltaY < 0 ? 1 : event.deltaY > 0 ? -1 : 0
+      if (delta === 0) {
+        return
+      }
+      const clamped = Math.min(
+        MAX_EDITOR_FONT_SIZE,
+        Math.max(MIN_EDITOR_FONT_SIZE, Math.round(fontSizeRef.current + delta))
+      )
+      fontSizeRef.current = clamped
+      setFontSize(clamped)
+      setZoomHudVisible(true)
+      if (hideHudTimerRef.current) {
+        window.clearTimeout(hideHudTimerRef.current)
+      }
+      hideHudTimerRef.current = window.setTimeout(() => {
+        setZoomHudVisible(false)
+      }, 1600)
+      if (persistTimerRef.current) {
+        window.clearTimeout(persistTimerRef.current)
+      }
+      persistTimerRef.current = window.setTimeout(() => {
+        void updateSettings({ editorFontSize: clamped })
+      }, 280)
+    }
+
+    element.addEventListener("wheel", onWheel, { passive: false, capture: true })
+    return () => {
+      element.removeEventListener("wheel", onWheel, { capture: true })
+    }
+  }, [updateSettings])
+
+  useEffect(() => {
+    return () => {
+      if (persistTimerRef.current) {
+        window.clearTimeout(persistTimerRef.current)
+      }
+      if (hideHudTimerRef.current) {
+        window.clearTimeout(hideHudTimerRef.current)
+      }
+    }
   }, [])
 
   importRef.current = async (input: ImportImageInput) => {
@@ -336,6 +432,28 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             />
           ) : null}
         </div>
+
+        {zoomHudVisible ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-[18%] z-20 flex justify-center px-4">
+            <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-border/50 bg-background/95 px-4 py-2.5 shadow-xl ring-1 ring-black/5 backdrop-blur-md">
+              <div className="min-w-[4.5rem] text-center">
+                <div className="text-[11px] text-muted-foreground">字号</div>
+                <div className="text-lg font-semibold tabular-nums tracking-tight">{fontSize}px</div>
+              </div>
+              <div className="h-8 w-px bg-border/60" />
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-8 gap-1.5 rounded-full px-3 text-[12px]"
+                onClick={() => applyFontSize(DEFAULT_EDITOR_FONT_SIZE)}
+              >
+                <RotateCcw className="size-3.5" />
+                重置
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )

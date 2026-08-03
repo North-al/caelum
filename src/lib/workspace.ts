@@ -157,6 +157,14 @@ export const initializeWorkspace = async (): Promise<WorkspaceConfig> =>
 export const getDefaultWorkspacePaths = async (): Promise<WorkspacePaths> =>
   invoke<WorkspacePaths>("get_default_workspace_paths")
 
+export interface AppPaths {
+  configPath: string
+  defaultNotesPath: string
+  defaultAssetsPath: string
+}
+
+export const getAppPaths = async (): Promise<AppPaths> => invoke<AppPaths>("get_app_paths")
+
 export const saveWorkspaceConfig = async (config: WorkspaceConfig): Promise<WorkspaceConfig> =>
   invoke<WorkspaceConfig>("save_workspace_config", { config })
 
