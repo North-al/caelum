@@ -192,3 +192,6 @@ export const copyFileToPath = async (source: string, destination: string): Promi
 
 export const writeBinaryFile = async (path: string, contents: number[]): Promise<void> =>
   invoke<void>("write_binary_file", { path, contents })
+
+export const getLaunchFilePaths = async (): Promise<string[]> =>
+  invoke<string[]>("get_launch_file_paths")

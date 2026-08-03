@@ -431,6 +431,32 @@ fn write_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
     fs::write(file_path, contents).map_err(|error| error.to_string())
 }
 
+fn is_openable_note_path(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    lower.ends_with(".md") || lower.ends_with(".markdown") || lower.ends_with(".txt")
+}
+
+/// Paths passed via CLI / file association (e.g. double-click a .md file).
+#[tauri::command]
+fn get_launch_file_paths() -> Vec<String> {
+    std::env::args()
+        .skip(1)
+        .filter(|argument| !argument.starts_with('-'))
+        .filter(|argument| is_openable_note_path(argument))
+        .map(|argument| {
+            let resolved = PathBuf::from(&argument)
+                .canonicalize()
+                .unwrap_or_else(|_| PathBuf::from(&argument));
+            let mut path = resolved.to_string_lossy().into_owned();
+            // Windows may prefix with \\?\
+            if let Some(stripped) = path.strip_prefix(r"\\?\") {
+                path = stripped.to_string();
+            }
+            path.replace('\\', "/")
+        })
+        .collect()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -450,7 +476,8 @@ pub fn run() {
             move_entry,
             copy_file_entry,
             copy_file_to_path,
-            write_binary_file
+            write_binary_file,
+            get_launch_file_paths
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

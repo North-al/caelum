@@ -19,7 +19,7 @@ import { useFileDropOpen } from "~/hooks/use-file-drop-open"
 import { useScrollSync } from "~/hooks/use-scroll-sync"
 import { useWindowSizeMemory } from "~/hooks/use-window-size-memory"
 import { buildImageMarkdown, importImageFromPath } from "~/lib/assets"
-import { DEFAULT_OUTLINE_WIDTH } from "~/lib/workspace"
+import { DEFAULT_OUTLINE_WIDTH, getLaunchFilePaths } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 
 const EDITOR_PANEL_ID = "editor"
@@ -90,7 +90,23 @@ const Home = () => {
   useWindowSizeMemory()
 
   useEffect(() => {
-    void initialize()
+    void (async () => {
+      await initialize()
+      try {
+        const launchPaths = await getLaunchFilePaths()
+        if (launchPaths.length === 0) {
+          return
+        }
+        const { selectFile, setViewMode } = useWorkspaceStore.getState()
+        setViewMode("preview")
+        for (const path of launchPaths) {
+          await selectFile(path.replace(/\\/g, "/"))
+        }
+        await selectFile(launchPaths[0].replace(/\\/g, "/"))
+      } catch {
+        // Browser / non-Tauri preview ignores launch args.
+      }
+    })()
   }, [initialize])
 
   const refreshScrollEls = useCallback(() => {
