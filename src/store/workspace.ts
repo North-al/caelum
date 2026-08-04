@@ -6,7 +6,8 @@ import {
   createFolderEntry,
   copyFileEntry,
   deleteEntry,
-  ensureMarkdownExtension,
+  ensureFileExtension,
+  allocateUniqueFileName,
   getParentPath,
   initializeWorkspace,
   listNotesTree,
@@ -431,10 +432,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     const basePath = parentPath ?? config.notesPath
-    const fileName = ensureMarkdownExtension(name)
+    const desiredName = name.includes(".") ? name : ensureFileExtension(name, "md")
+    const fileName = await allocateUniqueFileName(basePath, desiredName)
     const nextPath = combinePaths(basePath, fileName)
+    const extension = fileName.split(".").pop()?.toLowerCase() ?? "md"
+    const seedContent =
+      extension === "json"
+        ? "{\n  \n}\n"
+        : extension === "xml"
+          ? '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n  \n</root>\n'
+          : extension === "svg"
+            ? '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">\n  <circle cx="60" cy="60" r="48" fill="#38bdf8" />\n</svg>\n'
+            : ""
 
     await createFileEntry(nextPath)
+    if (seedContent) {
+      await writeTextFile(nextPath, seedContent)
+    }
     await get().refreshTree()
     await get().selectFile(nextPath)
     return nextPath

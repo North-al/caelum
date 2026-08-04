@@ -2,6 +2,66 @@
 @import './theme/shadcn.css';
 @import 'highlight.js/styles/github.css';
 
+/* Neutralize github.css light page background for our previews */
+.code-preview code.hljs,
+.code-preview .hljs,
+.code-preview pre code.hljs {
+    background: transparent !important;
+    color: inherit !important;
+}
+
+.dark .code-preview pre {
+    background-color: color-mix(in srgb, var(--muted) 35%, #0d1117) !important;
+    color: #e6edf3 !important;
+}
+
+.dark .code-preview code.hljs,
+.dark .code-preview .hljs,
+.dark .code-preview pre code.hljs {
+    background: transparent !important;
+    color: #e6edf3 !important;
+}
+
+.dark .code-preview .hljs-comment,
+.dark .code-preview .hljs-quote {
+    color: #8b949e;
+}
+
+.dark .code-preview .hljs-keyword,
+.dark .code-preview .hljs-selector-tag,
+.dark .code-preview .hljs-literal,
+.dark .code-preview .hljs-section,
+.dark .code-preview .hljs-link {
+    color: #ff7b72;
+}
+
+.dark .code-preview .hljs-string,
+.dark .code-preview .hljs-attr,
+.dark .code-preview .hljs-symbol,
+.dark .code-preview .hljs-bullet {
+    color: #a5d6ff;
+}
+
+.dark .code-preview .hljs-number,
+.dark .code-preview .hljs-variable,
+.dark .code-preview .hljs-template-variable {
+    color: #79c0ff;
+}
+
+.dark .code-preview .hljs-title,
+.dark .code-preview .hljs-name,
+.dark .code-preview .hljs-type,
+.dark .code-preview .hljs-attribute,
+.dark .code-preview .hljs-built_in {
+    color: #d2a8ff;
+}
+
+.dark .codemirror-host .cm-editor,
+.dark .codemirror-host .cm-scroller,
+.dark .codemirror-host .cm-gutters {
+    background-color: #1a1b26 !important;
+    color: #e8eaf2 !important;
+}
 html,
 body,
 #root {
@@ -60,7 +120,7 @@ textarea,
 /* CodeMirror — explicit px font-size (inherit collapses to 0 in this layout) */
 .codemirror-host {
     font-size: var(--cm-font-size, 14px) !important;
-    font-family: var(--cm-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+    font-family: var(--cm-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace) !important;
     font-variation-settings: normal !important;
 }
 
@@ -71,7 +131,7 @@ textarea,
 .codemirror-host .cm-gutters,
 .codemirror-host .cm-gutterElement {
     font-size: var(--cm-font-size, 14px) !important;
-    font-family: inherit !important;
+    font-family: var(--cm-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace) !important;
     font-variation-settings: normal !important;
     line-height: 1.7 !important;
 }

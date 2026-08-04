@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 import {
+  ChevronDown,
   Download,
   Eye,
   ExternalLink,
@@ -278,7 +279,7 @@ export const TitleBar = () => {
           </Button>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto px-1 pt-2">
+        <div className="flex min-w-0 flex-1 items-stretch gap-0.5 overflow-x-auto px-1 pt-2">
           {openTabs.length === 0 ? (
             <div className="flex flex-1 items-center px-3 pb-2 text-sm text-muted-foreground" data-tauri-drag-region>
               未打开文件
@@ -384,23 +385,65 @@ export const TitleBar = () => {
               )
             })
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="mb-1 ml-0.5 size-8 shrink-0 rounded-lg text-muted-foreground"
-            aria-label="新建 Markdown 文件"
-            onClick={() => {
-              void createFile("note.md").catch((error) => {
-                toast.error("创建失败", {
-                  description: error instanceof Error ? error.message : "无法创建文件",
+          <div className="mb-1 ml-0.5 flex shrink-0 items-center overflow-hidden rounded-lg border border-border/50 bg-muted/30">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="size-8 rounded-none text-muted-foreground"
+              aria-label="新建 Markdown 文件"
+              onClick={() => {
+                void createFile("note.md").catch((error) => {
+                  toast.error("创建失败", {
+                    description: error instanceof Error ? error.message : "无法创建文件",
+                  })
                 })
-              })
-            }}
-          >
-            <Plus className="size-4" />
-          </Button>
-          <div className="min-w-4 flex-1" data-tauri-drag-region />
+              }}
+            >
+              <Plus className="size-4" />
+            </Button>
+            <div className="h-4 w-px bg-border/60" />
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-7 rounded-none text-muted-foreground"
+                    aria-label="新建其他类型"
+                  />
+                }
+              >
+                <ChevronDown className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="bottom">
+                {[
+                  { label: "Markdown (.md)", name: "note.md" },
+                  { label: "纯文本 (.txt)", name: "note.txt" },
+                  { label: "JSON (.json)", name: "data.json" },
+                  { label: "XML (.xml)", name: "data.xml" },
+                  { label: "INI (.ini)", name: "config.ini" },
+                  { label: "SVG (.svg)", name: "image.svg" },
+                ].map((item) => (
+                  <DropdownMenuItem
+                    key={item.name}
+                    onClick={() => {
+                      void createFile(item.name).catch((error) => {
+                        toast.error("创建失败", {
+                          description: error instanceof Error ? error.message : "无法创建文件",
+                        })
+                      })
+                    }}
+                  >
+                    <FileText className="size-4" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="min-h-full min-w-8 flex-1 self-stretch" data-tauri-drag-region />
         </div>
 
         <div className="flex items-center gap-0.5 px-1.5">

@@ -95,7 +95,7 @@ export const WorkspaceSidebar = () => {
 
   const [createTarget, setCreateTarget] = useState<CreateTarget | null>(null)
   const [renameTarget, setRenameTarget] = useState<string | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<string[] | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
 
   const filteredTree = useMemo(() => filterTree(tree, searchQuery), [searchQuery, tree])
@@ -175,10 +175,10 @@ export const WorkspaceSidebar = () => {
             <FileTree
               data={filteredTree}
               notesPath={notesPath}
-              selectedPath={selectedFilePath}
-              onSelect={(path) => void selectFile(path)}
+              activeFilePath={selectedFilePath}
+              onOpen={(path) => void selectFile(path)}
               onRename={(path) => setRenameTarget(path)}
-              onDelete={(path) => setDeleteTarget(path)}
+              onDelete={(paths) => setDeleteTarget(paths)}
               onCreateFile={(parentPath) => setCreateTarget({ kind: "file", parentPath })}
               onCreateFolder={(parentPath) => setCreateTarget({ kind: "folder", parentPath })}
               onCopyPath={(path) => {
@@ -205,6 +205,16 @@ export const WorkspaceSidebar = () => {
                     })
                   }
                 })()
+              }}
+              onPasteFiles={async (sourcePaths, destinationDir) => {
+                let lastCopied: string | null = null
+                for (const sourcePath of sourcePaths) {
+                  lastCopied = await copyFileToDirectory(sourcePath, destinationDir)
+                }
+                toast.success(
+                  sourcePaths.length === 1 ? "已粘贴到资源管理器" : `已粘贴 ${sourcePaths.length} 个文件`,
+                  { description: lastCopied?.split(/[\\/]/).pop() }
+                )
               }}
             />
           </SidebarGroupContent>
@@ -310,7 +320,9 @@ export const WorkspaceSidebar = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>删除项目</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除 {deleteTarget ? deleteTarget.split(/[\\/]/).pop() : ""} 吗？此操作无法撤销。
+              {deleteTarget && deleteTarget.length > 1
+                ? `确定要删除选中的 ${deleteTarget.length} 个项目吗？此操作无法撤销。`
+                : `确定要删除 ${deleteTarget?.[0]?.split(/[\\/]/).pop() ?? ""} 吗？此操作无法撤销。`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -321,7 +333,11 @@ export const WorkspaceSidebar = () => {
               variant="destructive"
               onClick={() => {
                 if (deleteTarget) {
-                  void deleteNode(deleteTarget)
+                  void (async () => {
+                    for (const path of deleteTarget) {
+                      await deleteNode(path)
+                    }
+                  })()
                 }
                 setDeleteTarget(null)
               }}

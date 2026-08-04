@@ -2,10 +2,8 @@ import { useMemo, useState, type RefObject } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeHighlight from "rehype-highlight"
-import { XIcon } from "lucide-react"
 
-import { Dialog, DialogContent, DialogTitle } from "~/components/ui/dialog"
-import { Button } from "~/components/ui/button"
+import { ImageLightbox } from "~/components/App/ImageLightbox"
 import { resolveMarkdownAssetUrl } from "~/lib/markdown"
 import { normalizeTaskListSyntax } from "~/lib/task-list"
 import { getParentPath } from "~/lib/workspace"
@@ -149,37 +147,12 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
         </div>
       </div>
 
-      <Dialog open={lightbox !== null} onOpenChange={(open) => !open && setLightbox(null)}>
-        <DialogContent
-          showCloseButton={false}
-          className="flex max-h-[92vh] w-[min(96vw,1100px)] max-w-[min(96vw,1100px)] flex-col gap-3 border-border/40 bg-background/95 p-3 shadow-2xl"
-        >
-          <div className="flex items-center justify-between gap-3 px-1">
-            <DialogTitle className="truncate text-sm font-medium text-muted-foreground">
-              {lightbox?.alt || "图片预览"}
-            </DialogTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0"
-              onClick={() => setLightbox(null)}
-              aria-label="关闭预览"
-            >
-              <XIcon className="size-4" />
-            </Button>
-          </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-xl bg-muted/30 p-2">
-            {lightbox ? (
-              <img
-                src={lightbox.src}
-                alt={lightbox.alt}
-                className="max-h-[80vh] max-w-full object-contain"
-              />
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ImageLightbox
+        open={lightbox !== null}
+        src={lightbox?.src ?? ""}
+        alt={lightbox?.alt}
+        onClose={() => setLightbox(null)}
+      />
     </>
   )
 }

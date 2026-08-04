@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react"
 import CodeMirror from "@uiw/react-codemirror"
+import { json } from "@codemirror/lang-json"
 import { markdown } from "@codemirror/lang-markdown"
+import { xml } from "@codemirror/lang-xml"
+import { indentUnit, StreamLanguage } from "@codemirror/language"
 import { EditorState } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { ImagePlus, RotateCcw } from "lucide-react"
@@ -15,6 +18,7 @@ import {
   importImageFromPath,
   isImagePath,
 } from "~/lib/assets"
+import { getFileExtension, isMarkdownPath } from "~/lib/file-types"
 import { defaultSettings } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 import { cn } from "~/lib/utils"
@@ -39,6 +43,52 @@ const MONO_STACK =
 const MIN_EDITOR_FONT_SIZE = 10
 const MAX_EDITOR_FONT_SIZE = 48
 const DEFAULT_EDITOR_FONT_SIZE = defaultSettings.editorFontSize || 14
+
+const iniLanguage = StreamLanguage.define({
+  name: "ini",
+  token(stream) {
+    if (stream.eatSpace()) {
+      return null
+    }
+    if (stream.match(/[;#].*$/)) {
+      return "comment"
+    }
+    if (stream.match(/\[[^\]]*\]/)) {
+      return "heading"
+    }
+    if (stream.match(/[^=\s][^=]*/)) {
+      if (stream.peek() === "=") {
+        return "attributeName"
+      }
+      return "string"
+    }
+    if (stream.match("=")) {
+      return "operator"
+    }
+    if (stream.match(/.+/)) {
+      return "string"
+    }
+    stream.next()
+    return null
+  },
+})
+
+const languageExtensionForPath = (path: string | null) => {
+  const extension = path ? getFileExtension(path) : "md"
+  if (extension === "json") {
+    return json()
+  }
+  if (extension === "xml" || extension === "svg") {
+    return xml()
+  }
+  if (extension === "ini") {
+    return iniLanguage
+  }
+  if (extension === "txt") {
+    return []
+  }
+  return markdown()
+}
 
 const subscribeSystemDark = (onChange: () => void) => {
   const media = window.matchMedia("(prefers-color-scheme: dark)")
@@ -67,11 +117,12 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
   const isDark = themeMode === "dark" || (themeMode === "system" && systemDark)
   const settingsFontSize =
     settings?.editorFontSize && settings.editorFontSize > 0 ? settings.editorFontSize : DEFAULT_EDITOR_FONT_SIZE
+  const tabSize = settings?.tabSize && settings.tabSize > 0 ? settings.tabSize : 2
+  const allowImageInsert = Boolean(selectedFilePath && isMarkdownPath(selectedFilePath))
+  const languageExtension = useMemo(() => languageExtensionForPath(selectedFilePath), [selectedFilePath])
   const rawFamily = settings?.editorFontFamily?.trim() || MONO_STACK
-  const fontFamily =
-    /inter|variable|sans/i.test(rawFamily) && !/mono|consolas|menlo|courier/i.test(rawFamily)
-      ? MONO_STACK
-      : rawFamily
+  // Keep the user-selected stack as-is (Settings only offers monospace fonts).
+  const fontFamily = rawFamily || MONO_STACK
 
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -223,6 +274,9 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
     () =>
       EditorView.domEventHandlers({
         paste(event) {
+          if (!allowImageInsert) {
+            return false
+          }
           const items = event.clipboardData?.items
           if (!items || items.length === 0) {
             return false
@@ -248,6 +302,9 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
           return true
         },
         drop(event) {
+          if (!allowImageInsert) {
+            return false
+          }
           const files = event.dataTransfer?.files
           if (!files || files.length === 0) {
             return false
@@ -274,7 +331,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
           return true
         },
       }),
-    []
+    [allowImageInsert]
   )
 
   const themeExtension = useMemo(
@@ -352,40 +409,42 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/40 bg-muted/20 px-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 rounded-md px-2 text-[12px] text-muted-foreground"
-          disabled={readOnly || !selectedFilePath}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <ImagePlus className="size-3.5" />
-          插入图片
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={(event) => {
-            const files = Array.from(event.target.files ?? [])
-            event.target.value = ""
-            void (async () => {
-              for (const file of files) {
-                const buffer = new Uint8Array(await file.arrayBuffer())
-                await importRef.current({
-                  bytes: buffer,
-                  extension: extensionFromPath(file.name) || extensionFromMime(file.type),
-                  alt: file.name.replace(/\.[^.]+$/, ""),
-                })
-              }
-            })()
-          }}
-        />
-      </div>
+      {allowImageInsert ? (
+        <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/40 bg-muted/20 px-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 rounded-md px-2 text-[12px] text-muted-foreground"
+            disabled={readOnly || !selectedFilePath}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImagePlus className="size-3.5" />
+            插入图片
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? [])
+              event.target.value = ""
+              void (async () => {
+                for (const file of files) {
+                  const buffer = new Uint8Array(await file.arrayBuffer())
+                  await importRef.current({
+                    bytes: buffer,
+                    extension: extensionFromPath(file.name) || extensionFromMime(file.type),
+                    alt: file.name.replace(/\.[^.]+$/, ""),
+                  })
+                }
+              })()
+            }}
+          />
+        </div>
+      ) : null}
 
       <div className="relative min-h-0 min-w-0 flex-1">
         <div
@@ -401,19 +460,20 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
         >
           {height > 0 ? (
             <CodeMirror
-              key={selectedFilePath ?? "empty"}
+              key={`${selectedFilePath ?? "empty"}-${tabSize}-${fontFamily}-${fontSize}`}
               value={value}
               height={`${height}px`}
               maxHeight={`${height}px`}
               theme={isDark ? "dark" : "light"}
               style={{ height: "100%", fontSize: `${fontSize}px`, fontFamily }}
               extensions={[
-                markdown(),
+                languageExtension,
                 EditorView.lineWrapping,
-                EditorState.tabSize.of(settings?.tabSize ?? 2),
+                EditorState.tabSize.of(tabSize),
+                indentUnit.of(" ".repeat(tabSize)),
                 themeExtension,
                 imageHandlers,
-              ]}
+              ].flat()}
               basicSetup={{
                 lineNumbers: settings?.showLineNumbers ?? true,
                 foldGutter: false,

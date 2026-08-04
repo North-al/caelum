@@ -381,6 +381,65 @@ fn write_text_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn path_exists(path: String) -> bool {
+    PathBuf::from(path).exists()
+}
+
+#[tauri::command]
+fn get_clipboard_file_paths() -> Result<Vec<String>, String> {
+    #[cfg(windows)]
+    {
+        use clipboard_win::{formats, get_clipboard};
+
+        match get_clipboard::<Vec<String>, _>(formats::FileList) {
+            Ok(list) => Ok(list
+                .into_iter()
+                .map(|path| {
+                    let mut normalized = path.replace('\\', "/");
+                    if let Some(stripped) = normalized.strip_prefix("//?/") {
+                        normalized = stripped.to_string();
+                    }
+                    normalized
+                })
+                .collect()),
+            Err(_) => Ok(Vec::new()),
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        Ok(Vec::new())
+    }
+}
+
+#[tauri::command]
+fn set_clipboard_file_paths(paths: Vec<String>) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use clipboard_win::{formats, Clipboard, Setter};
+
+        let normalized: Vec<String> = paths
+            .into_iter()
+            .map(|path| path.replace('/', "\\"))
+            .collect();
+        if normalized.is_empty() {
+            return Err("No paths to copy".to_string());
+        }
+        // FileList implements Setter<[T]>; open clipboard then write the slice.
+        let _clip = Clipboard::new_attempts(10).map_err(|error| error.to_string())?;
+        formats::FileList
+            .write_clipboard(normalized.as_slice())
+            .map_err(|error| error.to_string())
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = paths;
+        Err("Clipboard file copy is only supported on Windows".to_string())
+    }
+}
+
+#[tauri::command]
 fn create_file_entry(path: String) -> Result<(), String> {
     let file_path = PathBuf::from(path);
     if file_path.exists() {
@@ -540,6 +599,9 @@ pub fn run() {
             copy_file_entry,
             copy_file_to_path,
             write_binary_file,
+            path_exists,
+            get_clipboard_file_paths,
+            set_clipboard_file_paths,
             get_launch_file_paths
         ])
         .run(tauri::generate_context!())

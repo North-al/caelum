@@ -138,13 +138,39 @@ export const getParentPath = (value: string) => {
   return normalized.slice(0, separatorIndex)
 }
 
-export const ensureMarkdownExtension = (name: string) => {
+export const ensureMarkdownExtension = (name: string) => ensureFileExtension(name, "md")
+
+export const ensureFileExtension = (name: string, extension: string) => {
   const trimmed = name.trim()
+  const normalizedExt = extension.replace(/^\./, "").toLowerCase() || "md"
   if (!trimmed) {
-    return "untitled.md"
+    return `untitled.${normalizedExt}`
   }
 
-  return trimmed.includes(".") ? trimmed : `${trimmed}.md`
+  if (trimmed.includes(".")) {
+    return trimmed
+  }
+
+  return `${trimmed}.${normalizedExt}`
+}
+
+/** Allocate note.md / note-1.md / note-2.md style unique names. */
+export const allocateUniqueFileName = async (directory: string, desiredName: string) => {
+  const fileName = desiredName.includes(".") ? desiredName : ensureFileExtension(desiredName, "md")
+  const stem = fileName.replace(/\.[^.]+$/, "") || "untitled"
+  const extension = fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".") + 1) : "md"
+
+  let candidate = `${stem}.${extension}`
+  let index = 1
+  while (await pathExists(combinePaths(directory, candidate))) {
+    candidate = `${stem}-${index}.${extension}`
+    index += 1
+    if (index > 999) {
+      candidate = `${stem}-${Date.now()}.${extension}`
+      break
+    }
+  }
+  return candidate
 }
 
 export const isMarkdownFile = (value: string) => {
@@ -206,6 +232,14 @@ export const copyFileToPath = async (source: string, destination: string): Promi
 
 export const writeBinaryFile = async (path: string, contents: number[]): Promise<void> =>
   invoke<void>("write_binary_file", { path, contents })
+
+export const pathExists = async (path: string): Promise<boolean> => invoke<boolean>("path_exists", { path })
+
+export const getClipboardFilePaths = async (): Promise<string[]> =>
+  invoke<string[]>("get_clipboard_file_paths")
+
+export const setClipboardFilePaths = async (paths: string[]): Promise<void> =>
+  invoke<void>("set_clipboard_file_paths", { paths })
 
 export const getLaunchFilePaths = async (): Promise<string[]> =>
   invoke<string[]>("get_launch_file_paths")

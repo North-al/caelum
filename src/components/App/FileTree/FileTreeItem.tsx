@@ -3,6 +3,7 @@ import { convertFileSrc } from "@tauri-apps/api/core"
 import {
   Braces,
   ChevronRight,
+  ClipboardPaste,
   Code2,
   Copy,
   ExternalLink,
@@ -20,7 +21,6 @@ import {
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "~/components/ui/collapsible"
 import {
   ContextMenu,
@@ -36,13 +36,21 @@ import { cn } from "~/lib/utils"
 
 import type { FileNode } from "./types"
 
+interface ClickModifiers {
+  ctrlKey: boolean
+  metaKey: boolean
+  shiftKey: boolean
+}
+
 interface Props {
   node: FileNode
   level?: number
-  selectedPath?: string | null
+  selectedPaths: Set<string>
+  activeFilePath?: string | null
   expandedPaths: Set<string>
   onToggleExpand: (path: string) => void
-  onSelect?: (path: string) => void
+  onItemClick?: (path: string, modifiers: ClickModifiers) => void
+  onItemDoubleClick?: (path: string, isFolder: boolean) => void
   onRename?: (path: string) => void
   onDelete?: (path: string) => void
   onCreateFile?: (parentPath: string) => void
@@ -50,6 +58,8 @@ interface Props {
   onReveal?: (path: string) => void
   onCopyPath?: (path: string) => void
   onDropTabFile?: (sourcePath: string, destinationDir: string) => void
+  onPasteFiles?: (destinationDir: string) => void
+  onCopySelection?: () => void
 }
 
 const FileTypeIcon = ({ path }: { path: string }) => {
@@ -82,10 +92,12 @@ const FileTypeIcon = ({ path }: { path: string }) => {
 export const FileTreeItem = ({
   node,
   level = 0,
-  selectedPath,
+  selectedPaths,
+  activeFilePath,
   expandedPaths,
   onToggleExpand,
-  onSelect,
+  onItemClick,
+  onItemDoubleClick,
   onRename,
   onDelete,
   onCreateFile,
@@ -93,26 +105,38 @@ export const FileTreeItem = ({
   onReveal,
   onCopyPath,
   onDropTabFile,
+  onPasteFiles,
+  onCopySelection,
 }: Props) => {
   const isFolder = node.type === "folder"
-  const isSelected = !isFolder && selectedPath === node.path
-  const isExpanded = isFolder && expandedPaths.has(node.path)
+  const nodePath = normalizePath(node.path)
+  const isSelected = selectedPaths.has(nodePath)
+  const isActiveFile = !isFolder && activeFilePath != null && normalizePath(activeFilePath) === nodePath
+  const isExpanded = isFolder && (expandedPaths.has(node.path) || expandedPaths.has(nodePath))
   const paddingLeft = 12 + level * 12
   const dropDir = isFolder ? node.path : getParentPath(node.path)
   const activeDropDir = useSyncExternalStore(subscribeTabDrag, getActiveDropDir, () => null)
-  const dropActive = Boolean(dropDir && activeDropDir === dropDir.replace(/\\/g, "/"))
+  const dropActive = Boolean(dropDir && activeDropDir === normalizePath(dropDir))
 
   const rowClassName = cn(
-    "group flex h-[30px] w-full items-center gap-1 px-1 pr-2 text-[13px] outline-none transition-colors",
-    "hover:bg-sidebar-accent/70",
-    isSelected && "bg-sidebar-accent text-sidebar-accent-foreground",
-    dropActive && "bg-primary/15 ring-1 ring-inset ring-primary/40"
+    "group flex h-[30px] w-full items-center gap-1 rounded-md px-1 pr-2 text-[13px] outline-none transition-colors",
+    isSelected
+      ? "bg-primary/25 text-foreground ring-1 ring-inset ring-primary/40 hover:bg-primary/30"
+      : "hover:bg-sidebar-accent/70",
+    isActiveFile && !isSelected && "bg-sidebar-accent/80 text-sidebar-accent-foreground",
+    dropActive && !isSelected && "bg-primary/15 ring-1 ring-inset ring-primary/35"
   )
 
   const stop = (event: MouseEvent) => {
     event.preventDefault()
     event.stopPropagation()
   }
+
+  const clickModifiers = (event: MouseEvent): ClickModifiers => ({
+    ctrlKey: event.ctrlKey,
+    metaKey: event.metaKey,
+    shiftKey: event.shiftKey,
+  })
 
   const folderMenu = (
     <>
@@ -124,7 +148,12 @@ export const FileTreeItem = ({
         <FolderPlus className="mr-2 size-4" />
         新建文件夹
       </ContextMenuItem>
+      <ContextMenuItem onClick={() => onPasteFiles?.(node.path)}>
+        <ClipboardPaste className="mr-2 size-4" />
+        粘贴
+      </ContextMenuItem>
       <ContextMenuSeparator />
+      <ContextMenuItem onClick={() => onCopySelection?.()}>复制</ContextMenuItem>
       <ContextMenuItem onClick={() => onRename?.(node.path)}>
         <PencilLine className="mr-2 size-4" />
         重命名
@@ -147,7 +176,12 @@ export const FileTreeItem = ({
 
   const fileMenu = (
     <>
-      <ContextMenuItem onClick={() => onSelect?.(node.path)}>打开</ContextMenuItem>
+      <ContextMenuItem onClick={() => onItemDoubleClick?.(node.path, false)}>打开</ContextMenuItem>
+      <ContextMenuItem onClick={() => onCopySelection?.()}>复制</ContextMenuItem>
+      <ContextMenuItem onClick={() => onPasteFiles?.(getParentPath(node.path))}>
+        <ClipboardPaste className="mr-2 size-4" />
+        粘贴到此处
+      </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem onClick={() => onRename?.(node.path)}>
         <PencilLine className="mr-2 size-4" />
@@ -176,23 +210,41 @@ export const FileTreeItem = ({
           <ContextMenuTrigger className="block w-full">
             <div
               {...{ [DROP_DIR_ATTR]: node.path }}
+              data-selected={isSelected ? "true" : undefined}
               className={rowClassName}
               style={{ paddingLeft }}
+              onMouseDown={(event) => {
+                if (event.button !== 0) {
+                  return
+                }
+                event.stopPropagation()
+                onItemClick?.(nodePath, clickModifiers(event))
+              }}
+              onClick={(event) => {
+                event.stopPropagation()
+              }}
+              onDoubleClick={(event) => {
+                stop(event)
+                onItemDoubleClick?.(node.path, true)
+              }}
             >
-              <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-0.5 text-left outline-none">
-                <ChevronRight
-                  className={cn(
-                    "size-3.5 shrink-0 text-muted-foreground/80 transition-transform",
-                    isExpanded && "rotate-90"
-                  )}
-                />
-                {isExpanded ? (
-                  <FolderOpen className="size-3.5 shrink-0 text-amber-500/90" />
-                ) : (
-                  <Folder className="size-3.5 shrink-0 text-amber-500/90" />
-                )}
-                <span className="truncate pl-0.5">{node.name}</span>
-              </CollapsibleTrigger>
+              <button
+                type="button"
+                className="flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-background/70"
+                onClick={(event) => {
+                  stop(event)
+                  onToggleExpand(node.path)
+                }}
+                aria-label={isExpanded ? "折叠" : "展开"}
+              >
+                <ChevronRight className={cn("size-3.5 transition-transform", isExpanded && "rotate-90")} />
+              </button>
+              {isExpanded ? (
+                <FolderOpen className="size-3.5 shrink-0 text-amber-500/90" />
+              ) : (
+                <Folder className="size-3.5 shrink-0 text-amber-500/90" />
+              )}
+              <span className="min-w-0 flex-1 truncate pl-0.5 text-left">{node.name}</span>
               <div className="ml-auto hidden shrink-0 items-center group-hover:flex">
                 <button
                   type="button"
@@ -218,10 +270,12 @@ export const FileTreeItem = ({
                 key={child.id}
                 node={child}
                 level={level + 1}
-                selectedPath={selectedPath}
+                selectedPaths={selectedPaths}
+                activeFilePath={activeFilePath}
                 expandedPaths={expandedPaths}
                 onToggleExpand={onToggleExpand}
-                onSelect={onSelect}
+                onItemClick={onItemClick}
+                onItemDoubleClick={onItemDoubleClick}
                 onRename={onRename}
                 onDelete={onDelete}
                 onCreateFile={onCreateFile}
@@ -229,6 +283,8 @@ export const FileTreeItem = ({
                 onReveal={onReveal}
                 onCopyPath={onCopyPath}
                 onDropTabFile={onDropTabFile}
+                onPasteFiles={onPasteFiles}
+                onCopySelection={onCopySelection}
               />
             ))
           ) : (
@@ -250,10 +306,23 @@ export const FileTreeItem = ({
         <button
           type="button"
           {...{ [DROP_DIR_ATTR]: dropDir }}
+          data-selected={isSelected ? "true" : undefined}
           className={cn(rowClassName, "w-full text-left")}
           style={{ paddingLeft: paddingLeft + 16 }}
-          onClick={() => onSelect?.(node.path)}
-          onDoubleClick={() => onRename?.(node.path)}
+          onMouseDown={(event) => {
+            if (event.button !== 0) {
+              return
+            }
+            event.stopPropagation()
+            onItemClick?.(nodePath, clickModifiers(event))
+          }}
+          onClick={(event) => {
+            event.stopPropagation()
+          }}
+          onDoubleClick={(event) => {
+            stop(event)
+            onItemDoubleClick?.(node.path, false)
+          }}
         >
           <FileTypeIcon path={node.path} />
           <span className="min-w-0 flex-1 truncate pl-0.5">{node.name}</span>

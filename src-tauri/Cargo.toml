@@ -1,6 +1,6 @@
 [package]
 name = "caelum"
-version = "1.1.0"
+version = "1.2.0"
 description = "Caelum — local-first Markdown notes"
 authors = ["North"]
 edition = "2021"
@@ -26,4 +26,5 @@ tauri-plugin-fs = "2.5.1"
 directories = "6.0.0"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-single-instance = "2"
+clipboard-win = "5"
 

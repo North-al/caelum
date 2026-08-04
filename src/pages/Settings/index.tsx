@@ -45,34 +45,51 @@ type PathField = "notesPath" | "assetsPath"
 
 const FONT_OPTIONS = [
   {
+    id: "system",
     label: "系统等宽",
-    value: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+    stack: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
   },
   {
+    id: "consolas",
     label: "Consolas",
-    value: "Consolas, ui-monospace, monospace",
+    stack: "Consolas, ui-monospace, monospace",
   },
   {
+    id: "cascadia",
     label: "Cascadia Code",
-    value: '"Cascadia Code", Consolas, monospace',
+    stack: '"Cascadia Code", Consolas, monospace',
   },
   {
+    id: "jetbrains",
     label: "JetBrains Mono",
-    value: '"JetBrains Mono", Consolas, monospace',
+    stack: '"JetBrains Mono", Consolas, monospace',
   },
   {
+    id: "fira",
     label: "Fira Code",
-    value: '"Fira Code", Consolas, monospace',
+    stack: '"Fira Code", Consolas, monospace',
   },
   {
+    id: "source-code",
     label: "Source Code Pro",
-    value: '"Source Code Pro", Consolas, monospace',
+    stack: '"Source Code Pro", Consolas, monospace',
   },
   {
+    id: "ibm-plex",
     label: "IBM Plex Mono",
-    value: '"IBM Plex Mono", Consolas, monospace',
+    stack: '"IBM Plex Mono", Consolas, monospace',
   },
 ]
+
+const resolveFontOption = (family?: string) => {
+  const normalized = family?.trim()
+  if (!normalized) {
+    return FONT_OPTIONS[0]
+  }
+  return (
+    FONT_OPTIONS.find((option) => option.id === normalized || option.stack === normalized) ?? FONT_OPTIONS[0]
+  )
+}
 
 const THEME_MODE_OPTIONS: Array<{ value: ThemeMode; label: string }> = [
   { value: "system", label: "跟随系统" },
@@ -101,6 +118,25 @@ const SettingsPage = () => {
       .catch(() => setAppPaths(null))
   }, [])
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !pathDialog) {
+        event.preventDefault()
+        navigate("/")
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [navigate, pathDialog])
+
+  const goBackToWorkspace = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+    navigate("/")
+  }
+
   const updateSetting = (patch: Partial<AppSettings>) => {
     void updateSettings(patch)
   }
@@ -127,21 +163,21 @@ const SettingsPage = () => {
     await updateWorkspaceConfig({ notesPath: defaults.notesPath, assetsPath: defaults.assetsPath })
   }
 
-  const matchedFont = FONT_OPTIONS.find((option) => option.value === settings.editorFontFamily)
-  const fontSelectValue = matchedFont?.value ?? FONT_OPTIONS[0].value
+  const matchedFont = resolveFontOption(settings.editorFontFamily)
+  const fontSelectValue = matchedFont.id
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--primary)_8%,transparent),_transparent_55%),var(--background)]">
       <header className="flex h-14 shrink-0 items-stretch border-b border-border/40 bg-background/70 backdrop-blur-xl">
-        <div className="flex min-w-0 flex-1 items-center gap-3 px-4" data-tauri-drag-region>
+        <div className="flex min-w-0 flex-1 items-center gap-3 px-3" data-tauri-drag-region>
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
-            className="h-9 gap-2 rounded-full border border-border/50 bg-background/80 px-3 text-[13px] text-foreground shadow-sm hover:bg-accent"
-            onClick={() => navigate("/")}
+            className="h-9 gap-2 rounded-full border border-border/50 bg-background px-3.5 text-[13px] font-medium text-foreground shadow-sm hover:bg-accent"
+            onClick={goBackToWorkspace}
           >
             <ArrowLeft className="size-3.5" />
-            工作区
+            返回工作区
           </Button>
           <div className="h-5 w-px bg-border/60" />
           <div className="flex min-w-0 items-center gap-2.5">
@@ -149,8 +185,14 @@ const SettingsPage = () => {
               <CaelumLogo className="size-5" />
             </div>
             <div className="min-w-0">
-              <div className="text-[15px] font-semibold tracking-tight">设置</div>
-              <div className="truncate text-[11px] text-muted-foreground">{activeMeta.description}</div>
+              <div className="flex items-center gap-1.5 text-[15px] font-semibold tracking-tight">
+                <span>设置</span>
+                <span className="text-muted-foreground/50">/</span>
+                <span className="text-foreground/85">{activeMeta.label}</span>
+              </div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {activeMeta.description} · Esc 返回
+              </div>
             </div>
           </div>
         </div>
@@ -266,12 +308,15 @@ const SettingsPage = () => {
                 <div className="mb-2 text-sm font-medium">字体</div>
                 <Select
                   value={fontSelectValue}
-                  onChange={(event) => updateSetting({ editorFontFamily: event.target.value })}
-                  options={FONT_OPTIONS}
+                  onChange={(event) => {
+                    const next = resolveFontOption(event.target.value)
+                    updateSetting({ editorFontFamily: next.stack })
+                  }}
+                  options={FONT_OPTIONS.map((option) => ({ label: option.label, value: option.id }))}
                 />
                 <div
                   className="mt-3 rounded-lg border border-border/40 bg-muted/40 px-3 py-2 text-[13px] text-muted-foreground"
-                  style={{ fontFamily: settings.editorFontFamily }}
+                  style={{ fontFamily: matchedFont.stack }}
                 >
                   The quick brown fox 快速狐狸 0123456789
                 </div>
