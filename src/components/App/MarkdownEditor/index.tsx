@@ -5,6 +5,7 @@ import { markdown } from "@codemirror/lang-markdown"
 import { xml } from "@codemirror/lang-xml"
 import { indentUnit, StreamLanguage } from "@codemirror/language"
 import { EditorState } from "@codemirror/state"
+import { oneDark } from "@codemirror/theme-one-dark"
 import { EditorView } from "@codemirror/view"
 import { ImagePlus, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
@@ -460,11 +461,11 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
         >
           {height > 0 ? (
             <CodeMirror
-              key={`${selectedFilePath ?? "empty"}-${tabSize}-${fontFamily}-${fontSize}`}
+              key={`${selectedFilePath ?? "empty"}-${tabSize}-${fontFamily}-${fontSize}-${isDark ? "dark" : "light"}`}
               value={value}
               height={`${height}px`}
               maxHeight={`${height}px`}
-              theme={isDark ? "dark" : "light"}
+              theme={isDark ? oneDark : "light"}
               style={{ height: "100%", fontSize: `${fontSize}px`, fontFamily }}
               extensions={[
                 languageExtension,

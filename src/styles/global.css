@@ -1,60 +1,7 @@
 @import 'tailwindcss';
 @import './theme/shadcn.css';
-@import 'highlight.js/styles/github.css';
 
-/* Neutralize github.css light page background for our previews */
-.code-preview code.hljs,
-.code-preview .hljs,
-.code-preview pre code.hljs {
-    background: transparent !important;
-    color: inherit !important;
-}
-
-.dark .code-preview pre {
-    background-color: color-mix(in srgb, var(--muted) 35%, #0d1117) !important;
-    color: #e6edf3 !important;
-}
-
-.dark .code-preview code.hljs,
-.dark .code-preview .hljs,
-.dark .code-preview pre code.hljs {
-    background: transparent !important;
-    color: #e6edf3 !important;
-}
-
-.dark .code-preview .hljs-comment,
-.dark .code-preview .hljs-quote {
-    color: #8b949e;
-}
-
-.dark .code-preview .hljs-keyword,
-.dark .code-preview .hljs-selector-tag,
-.dark .code-preview .hljs-literal,
-.dark .code-preview .hljs-section,
-.dark .code-preview .hljs-link {
-    color: #ff7b72;
-}
-
-.dark .code-preview .hljs-string,
-.dark .code-preview .hljs-attr,
-.dark .code-preview .hljs-symbol,
-.dark .code-preview .hljs-bullet {
-    color: #a5d6ff;
-}
-
-.dark .code-preview .hljs-number,
-.dark .code-preview .hljs-variable,
-.dark .code-preview .hljs-template-variable {
-    color: #79c0ff;
-}
-
-.dark .code-preview .hljs-title,
-.dark .code-preview .hljs-name,
-.dark .code-preview .hljs-type,
-.dark .code-preview .hljs-attribute,
-.dark .code-preview .hljs-built_in {
-    color: #d2a8ff;
-}
+/* highlight.js themes: swapped in ThemeSync (github.css / github-dark.css) */
 
 .dark .codemirror-host .cm-editor,
 .dark .codemirror-host .cm-scroller,
@@ -62,6 +9,7 @@
     background-color: #1a1b26 !important;
     color: #e8eaf2 !important;
 }
+
 html,
 body,
 #root {
@@ -359,96 +307,28 @@ textarea,
     color: var(--muted-foreground);
 }
 
-/* Syntax highlighting — light */
-.markdown-preview .hljs-comment,
-.markdown-preview .hljs-quote {
-    color: #6a737d;
-    font-style: italic;
+/*
+ * highlight.js token colors come from official github.css / github-dark.css
+ * (swapped in ThemeSync). Keep only layout so theme colors stay intact.
+ */
+.markdown-preview pre code.hljs,
+.markdown-preview pre .hljs,
+.markdown-preview pre code,
+.code-preview code.hljs,
+.code-preview .hljs {
+    background: transparent !important;
+    padding: 0 !important;
 }
 
-.markdown-preview .hljs-keyword,
-.markdown-preview .hljs-selector-tag,
-.markdown-preview .hljs-addition {
-    color: #d73a49;
+.dark .markdown-preview pre,
+.dark .code-preview pre {
+    background: #0d1117;
+    border-color: #30363d;
 }
 
-.markdown-preview .hljs-string,
-.markdown-preview .hljs-meta .hljs-string,
-.markdown-preview .hljs-attr {
-    color: #032f62;
-}
-
-.markdown-preview .hljs-number,
-.markdown-preview .hljs-literal,
-.markdown-preview .hljs-variable,
-.markdown-preview .hljs-template-variable {
-    color: #005cc5;
-}
-
-.markdown-preview .hljs-title,
-.markdown-preview .hljs-section,
-.markdown-preview .hljs-selector-id {
-    color: #6f42c1;
-}
-
-.markdown-preview .hljs-built_in,
-.markdown-preview .hljs-type,
-.markdown-preview .hljs-params {
-    color: #e36209;
-}
-
-.markdown-preview .hljs-meta,
-.markdown-preview .hljs-doctag {
-    color: #735c0f;
-}
-
-.markdown-preview .hljs-name,
-.markdown-preview .hljs-attribute {
-    color: #22863a;
-}
-
-/* Syntax highlighting — dark */
-.dark .markdown-preview pre {
-    background: color-mix(in srgb, var(--muted) 80%, #000 20%);
-}
-
-.dark .markdown-preview .hljs-comment,
-.dark .markdown-preview .hljs-quote {
-    color: #8b949e;
-}
-
-.dark .markdown-preview .hljs-keyword,
-.dark .markdown-preview .hljs-selector-tag,
-.dark .markdown-preview .hljs-addition {
-    color: #ff7b72;
-}
-
-.dark .markdown-preview .hljs-string,
-.dark .markdown-preview .hljs-meta .hljs-string,
-.dark .markdown-preview .hljs-attr {
-    color: #a5d6ff;
-}
-
-.dark .markdown-preview .hljs-number,
-.dark .markdown-preview .hljs-literal,
-.dark .markdown-preview .hljs-variable,
-.dark .markdown-preview .hljs-template-variable {
-    color: #79c0ff;
-}
-
-.dark .markdown-preview .hljs-title,
-.dark .markdown-preview .hljs-section,
-.dark .markdown-preview .hljs-selector-id {
-    color: #d2a8ff;
-}
-
-.dark .markdown-preview .hljs-built_in,
-.dark .markdown-preview .hljs-type,
-.dark .markdown-preview .hljs-params {
-    color: #ffa657;
-}
-
-.dark .markdown-preview .hljs-name,
-.dark .markdown-preview .hljs-attribute {
-    color: #7ee787;
+.dark .codemirror-host .cm-editor,
+.dark .codemirror-host .cm-scroller,
+.dark .codemirror-host .cm-gutters {
+    background-color: #1a1b26 !important;
+    color: #e8eaf2 !important;
 }
