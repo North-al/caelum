@@ -286,8 +286,8 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             fontSize: `${fontSize}px`,
             fontFamily,
             fontVariationSettings: "normal",
-            backgroundColor: isDark ? "#1e1e2e" : "#ffffff",
-            color: isDark ? "#cdd6f4" : "#1e1e2e",
+            backgroundColor: isDark ? "#1a1b26" : "#ffffff",
+            color: isDark ? "#e8eaf2" : "#1e1e2e",
           },
           ".cm-scroller": {
             overflow: "auto",
@@ -300,8 +300,8 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             fontFamily,
             fontSize: `${fontSize}px`,
             lineHeight: "1.7",
-            caretColor: isDark ? "#cdd6f4" : "#1e1e2e",
-            color: isDark ? "#cdd6f4" : "#1e1e2e",
+            caretColor: isDark ? "#e8eaf2" : "#1e1e2e",
+            color: isDark ? "#e8eaf2" : "#1e1e2e",
             padding: "20px 16px",
             minHeight: "100%",
             fontVariationSettings: "normal",
@@ -313,17 +313,17 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             lineHeight: "1.7",
             minHeight: `${Math.round(fontSize * 1.7)}px`,
             padding: "0 4px",
-            color: isDark ? "#cdd6f4" : "#1e1e2e",
+            color: isDark ? "#e8eaf2" : "#1e1e2e",
           },
           ".cm-cursor, .cm-dropCursor": {
-            borderLeftColor: isDark ? "#cdd6f4" : "#1e1e2e",
+            borderLeftColor: isDark ? "#e8eaf2" : "#1e1e2e",
           },
           "&.cm-focused": {
             outline: "none",
           },
           ".cm-gutters": {
-            backgroundColor: isDark ? "#1e1e2e" : "#ffffff",
-            color: isDark ? "#6c7086" : "#9ca3af",
+            backgroundColor: isDark ? "#1a1b26" : "#ffffff",
+            color: isDark ? "#9aa3b8" : "#6b7280",
             border: "none",
             fontSize: `${fontSize}px`,
             lineHeight: "1.7",
@@ -334,14 +334,14 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             fontSize: `${fontSize}px`,
           },
           ".cm-activeLine": {
-            backgroundColor: isDark ? "rgba(137, 180, 250, 0.08)" : "rgba(37, 99, 235, 0.06)",
+            backgroundColor: isDark ? "rgba(137, 180, 250, 0.12)" : "rgba(37, 99, 235, 0.06)",
           },
           ".cm-activeLineGutter": {
-            backgroundColor: isDark ? "rgba(137, 180, 250, 0.08)" : "rgba(37, 99, 235, 0.06)",
+            backgroundColor: isDark ? "rgba(137, 180, 250, 0.12)" : "rgba(37, 99, 235, 0.06)",
           },
           ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
             backgroundColor: isDark
-              ? "rgba(137, 180, 250, 0.28) !important"
+              ? "rgba(137, 180, 250, 0.35) !important"
               : "rgba(37, 99, 235, 0.2) !important",
           },
         },

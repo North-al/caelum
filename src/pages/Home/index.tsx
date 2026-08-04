@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef } from "react"
 import { Group, Panel, Separator } from "react-resizable-panels"
 import type { GroupImperativeHandle } from "react-resizable-panels"
 import type { EditorView } from "@codemirror/view"
+import { listen } from "@tauri-apps/api/event"
 import { FilePlus2, FileUp, ImagePlus, Settings2 } from "lucide-react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
 import { CaelumLogo } from "~/components/App/CaelumLogo"
+import { CodePreview } from "~/components/App/CodePreview"
+import { ImagePreview } from "~/components/App/ImagePreview"
 import { insertMarkdownAtCursor, MarkdownEditor } from "~/components/App/MarkdownEditor"
 import { MarkdownPreview } from "~/components/App/MarkdownPreview"
 import { OutlinePanel } from "~/components/App/OutlinePanel"
@@ -23,6 +26,7 @@ import { useFileDropOpen } from "~/hooks/use-file-drop-open"
 import { useScrollSync } from "~/hooks/use-scroll-sync"
 import { useWindowSizeMemory } from "~/hooks/use-window-size-memory"
 import { buildImageMarkdown, importImageFromPath } from "~/lib/assets"
+import { getPreviewKind, isBinaryImagePath, isMarkdownPath } from "~/lib/file-types"
 import { DEFAULT_OUTLINE_WIDTH, getLaunchFilePaths } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 
@@ -129,26 +133,56 @@ const Home = () => {
     })()
   }, [initialize])
 
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    void listen<string[]>("open-files", (event) => {
+      const paths = (event.payload ?? []).map((path) => path.replace(/\\/g, "/")).filter(Boolean)
+      if (paths.length === 0) {
+        return
+      }
+      void (async () => {
+        const { selectFile, setViewMode } = useWorkspaceStore.getState()
+        setViewMode("preview")
+        for (const path of paths) {
+          await selectFile(path)
+        }
+        await selectFile(paths[0])
+      })()
+    }).then((fn) => {
+      unlisten = fn
+    })
+    return () => {
+      unlisten?.()
+    }
+  }, [])
+
+  const previewKind = selectedFilePath ? getPreviewKind(selectedFilePath) : "markdown"
+  const isImageFile = selectedFilePath ? isBinaryImagePath(selectedFilePath) : false
+  const isMarkdownFile = selectedFilePath ? isMarkdownPath(selectedFilePath) : false
+  const showEditor = !isImageFile && viewMode !== "preview"
+  const showPreview = isImageFile || viewMode !== "editor"
+  const showSplitHandle = !isImageFile && viewMode === "split"
+  const showOutlineHandle = outlineVisible && showPreview && isMarkdownFile && !isImageFile
+
   const refreshScrollEls = useCallback(() => {
     editorScrollElRef.current = editorViewRef.current?.scrollDOM ?? null
     previewScrollElRef.current = previewContainerRef.current
   }, [])
 
   useEffect(() => {
-    if (scrollSyncEnabled && viewMode === "split") {
+    if (scrollSyncEnabled && viewMode === "split" && isMarkdownFile) {
       refreshScrollEls()
     } else {
       editorScrollElRef.current = null
       previewScrollElRef.current = null
     }
-  }, [scrollSyncEnabled, viewMode, currentContent, refreshScrollEls])
+  }, [scrollSyncEnabled, viewMode, currentContent, refreshScrollEls, isMarkdownFile])
 
   useScrollSync({
     editorScrollEl: editorScrollElRef.current,
     previewScrollEl: previewScrollElRef.current,
-    enabled: scrollSyncEnabled && viewMode === "split",
+    enabled: scrollSyncEnabled && viewMode === "split" && isMarkdownFile,
   })
-
   useEffect(() => {
     if (!selectedFilePath) {
       return
@@ -282,15 +316,12 @@ const Home = () => {
     [queueReadingPositionSave]
   )
 
-  const showEditor = viewMode !== "preview"
-  const showPreview = viewMode !== "editor"
-  const showSplitHandle = viewMode === "split"
-  const showOutlineHandle = outlineVisible && showPreview
-
   const savedSplitRatio = Math.min(85, Math.max(15, config?.uiState.splitRatio ?? 50))
   const savedOutlineWidth = config?.uiState.outlineWidth || DEFAULT_OUTLINE_WIDTH
-  const defaultEditorSize = viewMode === "preview" ? 0 : viewMode === "split" ? `${savedSplitRatio}` : "100"
-  const defaultPreviewSize = viewMode === "editor" ? 0 : viewMode === "split" ? `${100 - savedSplitRatio}` : "100"
+  const defaultEditorSize =
+    isImageFile || viewMode === "preview" ? 0 : viewMode === "split" ? `${savedSplitRatio}` : "100"
+  const defaultPreviewSize =
+    !isImageFile && viewMode === "editor" ? 0 : viewMode === "split" && !isImageFile ? `${100 - savedSplitRatio}` : "100"
 
   useEffect(() => {
     layoutSaveReadyRef.current = false
@@ -329,22 +360,17 @@ const Home = () => {
       onOpenChange={(open) => setSidebarCollapsed(!open)}
       className="bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--primary)_8%,transparent),_transparent_55%),var(--background)]"
     >
-      <Sidebar
-        collapsible="icon"
-        side="left"
-        variant="floating"
-        className="border-none bg-transparent **:data-[slot=sidebar-inner]:rounded-2xl **:data-[slot=sidebar-inner]:bg-card/70 **:data-[slot=sidebar-inner]:shadow-sm **:data-[slot=sidebar-inner]:ring-border/40 **:data-[slot=sidebar-inner]:backdrop-blur-sm"
-      >
+      <Sidebar collapsible="icon" side="left" variant="sidebar" className="border-r border-border/50">
         <WorkspaceSidebar />
       </Sidebar>
-      <SidebarInset className="relative flex h-svh min-h-0 flex-col overflow-hidden bg-transparent p-0 md:rounded-none md:shadow-none">
+      <SidebarInset className="relative flex h-svh min-h-0 flex-col overflow-hidden bg-background p-0 md:rounded-none md:shadow-none">
         <TitleBar />
-        <div className="relative m-3 mt-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/80 shadow-sm backdrop-blur-sm">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
           {!initialized || isLoading ? (
             <PageLoading label="正在打开工作区…" />
           ) : selectedFilePath && config ? (
             <Group
-              key={`layout-${viewMode}-${outlineVisible ? "outline" : "plain"}`}
+              key={`layout-${viewMode}-${outlineVisible ? "outline" : "plain"}-${previewKind}`}
               groupRef={groupRef}
               orientation="horizontal"
               className="h-full min-h-0 w-full"
@@ -378,11 +404,17 @@ const Home = () => {
                   className="overflow-hidden border-l border-border/40"
                   style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}
                 >
-                  <MarkdownPreview
-                    content={currentContent}
-                    containerRef={previewContainerRef}
-                    onScroll={(scrollTop) => queueReadingPositionSave({ previewScrollTop: scrollTop })}
-                  />
+                  {isImageFile ? (
+                    <ImagePreview path={selectedFilePath} />
+                  ) : isMarkdownFile ? (
+                    <MarkdownPreview
+                      content={currentContent}
+                      containerRef={previewContainerRef}
+                      onScroll={(scrollTop) => queueReadingPositionSave({ previewScrollTop: scrollTop })}
+                    />
+                  ) : (
+                    <CodePreview path={selectedFilePath} content={currentContent} />
+                  )}
                 </Panel>
               ) : null}
 
@@ -390,7 +422,7 @@ const Home = () => {
                 <Separator className="w-1.5 shrink-0 bg-border/40 transition-colors hover:bg-primary/20 data-[active]:bg-primary/30" />
               ) : null}
 
-              {outlineVisible && showPreview ? (
+              {showOutlineHandle ? (
                 <Panel
                   id={OUTLINE_PANEL_ID}
                   defaultSize={`${savedOutlineWidth}px`}

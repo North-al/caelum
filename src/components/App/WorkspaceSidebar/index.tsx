@@ -1,4 +1,4 @@
-import { FilePlus2, FolderPlus, MoreHorizontal, Search, Settings2 } from "lucide-react"
+import { FilePlus2, FolderPlus, Search, Settings2 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 import { revealItemInDir } from "@tauri-apps/plugin-opener"
@@ -17,7 +17,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu"
 import {
   SidebarContent,
   SidebarFooter,
@@ -118,42 +117,6 @@ export const WorkspaceSidebar = () => {
 
   const renameDefault = renameTarget ? renameTarget.split(/[\\/]/).pop() ?? "" : ""
 
-  const newMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          collapsed ? (
-            <Button variant="default" size="icon-sm" className="size-8 rounded-lg shadow-sm shadow-primary/20" aria-label="新建" />
-          ) : (
-            <Button
-              variant="default"
-              size="sm"
-              className="h-9 w-full justify-center gap-1.5 rounded-xl shadow-sm shadow-primary/20"
-            />
-          )
-        }
-      >
-        <FilePlus2 className="size-3.5" />
-        {collapsed ? null : (
-          <>
-            <span>新建</span>
-            <MoreHorizontal className="ml-auto size-3.5 opacity-70" />
-          </>
-        )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side={collapsed ? "right" : "bottom"} align={collapsed ? "start" : "center"}>
-        <DropdownMenuItem onClick={() => setCreateTarget({ kind: "file" })}>
-          <FilePlus2 className="mr-2 size-4" />
-          新建 Markdown 文件
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setCreateTarget({ kind: "folder" })}>
-          <FolderPlus className="mr-2 size-4" />
-          新建文件夹
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-
   return (
     <>
       <SidebarHeader className="gap-2.5 pt-3">
@@ -163,13 +126,11 @@ export const WorkspaceSidebar = () => {
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <div className="truncate text-[15px] font-semibold tracking-tight">{config?.workspaceName ?? "Caelum"}</div>
-            <div className="truncate text-[11px] text-muted-foreground">本地工作区</div>
           </div>
         </div>
 
         {collapsed ? (
           <div className="flex flex-col items-center gap-1">
-            {newMenu}
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -188,18 +149,15 @@ export const WorkspaceSidebar = () => {
             </Tooltip>
           </div>
         ) : (
-          <>
-            {newMenu}
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <SidebarInput
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="搜索笔记..."
-                className="h-9 rounded-xl border-border/50 bg-background/60 pl-8 text-[13px]"
-              />
-            </div>
-          </>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <SidebarInput
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="搜索笔记..."
+              className="h-9 rounded-xl border-border/50 bg-background/60 pl-8 text-[13px]"
+            />
+          </div>
         )}
       </SidebarHeader>
 

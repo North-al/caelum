@@ -4,10 +4,10 @@ import { toast } from "sonner"
 
 import { isImagePath } from "~/lib/assets"
 import { EXPLORER_ZONE_ATTR, findDropDirFromPoint } from "~/lib/dnd"
-import { isMarkdownFile, isTextFile } from "~/lib/workspace"
+import { isEditablePath } from "~/lib/file-types"
 import { useWorkspaceStore } from "~/store/workspace"
 
-const isOpenableNote = (path: string) => isMarkdownFile(path) || isTextFile(path)
+const isOpenableNote = (path: string) => isEditablePath(path)
 
 export type ExternalDropZone = "explorer" | "preview" | null
 

@@ -147,9 +147,15 @@ export const ensureMarkdownExtension = (name: string) => {
   return trimmed.includes(".") ? trimmed : `${trimmed}.md`
 }
 
-export const isMarkdownFile = (value: string) => value.toLowerCase().endsWith(".md")
+export const isMarkdownFile = (value: string) => {
+  const lower = value.toLowerCase()
+  return lower.endsWith(".md") || lower.endsWith(".markdown")
+}
 
-export const isTextFile = (value: string) => value.toLowerCase().endsWith(".txt")
+export const isTextFile = (value: string) => {
+  const lower = value.toLowerCase()
+  return lower.endsWith(".txt") || lower.endsWith(".ini")
+}
 
 export const initializeWorkspace = async (): Promise<WorkspaceConfig> =>
   invoke<WorkspaceConfig>("load_workspace_config")

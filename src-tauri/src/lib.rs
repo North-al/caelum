@@ -281,7 +281,7 @@ fn build_tree(path: &Path) -> Result<Vec<FileEntry>, String> {
                 .unwrap_or_default()
                 .to_lowercase();
 
-            if extension == "md" || extension == "txt" {
+            if is_tree_visible_file(&extension) {
                 entries.push(FileEntry {
                     id: entry_path.to_string_lossy().into_owned(),
                     name,
@@ -453,24 +453,45 @@ fn write_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
     fs::write(file_path, contents).map_err(|error| error.to_string())
 }
 
-fn is_openable_note_path(path: &str) -> bool {
-    let lower = path.to_ascii_lowercase();
-    lower.ends_with(".md") || lower.ends_with(".markdown") || lower.ends_with(".txt")
+fn is_tree_visible_file(extension: &str) -> bool {
+    matches!(
+        extension,
+        "md" | "markdown"
+            | "txt"
+            | "ini"
+            | "json"
+            | "xml"
+            | "svg"
+            | "png"
+            | "jpg"
+            | "jpeg"
+            | "gif"
+            | "webp"
+            | "bmp"
+            | "ico"
+            | "avif"
+    )
 }
 
-/// Paths passed via CLI / file association (e.g. double-click a .md file).
-#[tauri::command]
-fn get_launch_file_paths() -> Vec<String> {
-    std::env::args()
+fn is_openable_note_path(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    let extension = Path::new(&lower)
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    is_tree_visible_file(extension)
+}
+
+fn collect_openable_paths(args: &[String]) -> Vec<String> {
+    args.iter()
         .skip(1)
         .filter(|argument| !argument.starts_with('-'))
         .filter(|argument| is_openable_note_path(argument))
         .map(|argument| {
-            let resolved = PathBuf::from(&argument)
+            let resolved = PathBuf::from(argument)
                 .canonicalize()
-                .unwrap_or_else(|_| PathBuf::from(&argument));
+                .unwrap_or_else(|_| PathBuf::from(argument));
             let mut path = resolved.to_string_lossy().into_owned();
-            // Windows may prefix with \\?\
             if let Some(stripped) = path.strip_prefix(r"\\?\") {
                 path = stripped.to_string();
             }
@@ -479,9 +500,27 @@ fn get_launch_file_paths() -> Vec<String> {
         .collect()
 }
 
+/// Paths passed via CLI / file association (e.g. double-click a .md file).
+#[tauri::command]
+fn get_launch_file_paths() -> Vec<String> {
+    let args: Vec<String> = std::env::args().collect();
+    collect_openable_paths(&args)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    use tauri::{Emitter, Manager};
+
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let paths = collect_openable_paths(&argv);
+            let _ = app.emit("open-files", paths);
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())

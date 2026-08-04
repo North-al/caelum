@@ -51,9 +51,16 @@
         "role": "Editor"
       },
       {
-        "ext": ["txt"],
+        "ext": ["txt", "ini"],
         "name": "Plain Text",
         "description": "文本文档",
+        "mimeType": "text/plain",
+        "role": "Editor"
+      },
+      {
+        "ext": ["json", "xml", "svg"],
+        "name": "Structured Text",
+        "description": "结构化文本",
         "mimeType": "text/plain",
         "role": "Editor"
       }

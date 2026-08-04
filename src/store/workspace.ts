@@ -18,6 +18,7 @@ import {
   defaultSettings,
   defaultUiState,
 } from "~/lib/workspace"
+import { isBinaryImagePath } from "~/lib/file-types"
 
 import type { AppSettings, ReadingPosition, WorkspaceConfig } from "~/lib/workspace"
 import type { FileNode } from "~/components/App/FileTree/types"
@@ -87,6 +88,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   ...defaultState,
 
   initialize: async () => {
+    // Settings ↔ Home remounts should not reload session or reopen closed tabs.
+    if (get().initialized) {
+      return
+    }
+
     set({ isLoading: true })
     const config = await initializeWorkspace()
     const tree = await listNotesTree(config.notesPath)
@@ -121,37 +127,39 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       normalizedConfig.uiState.defaultOpenMode === "preview" ? "preview" : "editor"
     )
 
+    const persistedOpenFiles = (normalizedConfig.uiState.openFiles ?? []).filter(Boolean)
+    const persistedActive =
+      normalizedConfig.uiState.activeFilePath &&
+      persistedOpenFiles.includes(normalizedConfig.uiState.activeFilePath)
+        ? normalizedConfig.uiState.activeFilePath
+        : persistedOpenFiles[0] ?? null
+
+    // startWithLastFile only restores when there is a persisted tab session —
+    // never reopen files the user already closed (do not fall back to recentFiles alone).
+    const shouldRestoreSession = persistedOpenFiles.length > 0
+
     set({
-      config: normalizedConfig,
+      config: {
+        ...normalizedConfig,
+        uiState: {
+          ...normalizedConfig.uiState,
+          openFiles: shouldRestoreSession ? persistedOpenFiles : [],
+          activeFilePath: shouldRestoreSession ? persistedActive : null,
+        },
+      },
       tree,
       initialized: true,
       isLoading: false,
       searchQuery: "",
       viewMode: initialViewMode as ViewMode,
-      openFiles: normalizedConfig.uiState.openFiles,
-      selectedFilePath: normalizedConfig.uiState.activeFilePath,
+      openFiles: shouldRestoreSession ? persistedOpenFiles : [],
+      selectedFilePath: shouldRestoreSession ? persistedActive : null,
       sidebarCollapsed: normalizedConfig.uiState.sidebarCollapsed,
       outlineVisible: normalizedConfig.uiState.outlineVisible,
     })
 
-    if (normalizedConfig.uiState.activeFilePath) {
-      await get().selectFile(normalizedConfig.uiState.activeFilePath)
-      return
-    }
-
-    if (normalizedConfig.uiState.openFiles.length > 0) {
-      const [firstOpenFile] = normalizedConfig.uiState.openFiles
-      if (firstOpenFile) {
-        await get().selectFile(firstOpenFile)
-        return
-      }
-    }
-
-    if (normalizedConfig.recentFiles.length > 0 && normalizedConfig.settings.startWithLastFile) {
-      const [latestFile] = normalizedConfig.recentFiles
-      if (latestFile) {
-        await get().selectFile(latestFile)
-      }
+    if (shouldRestoreSession && persistedActive) {
+      await get().selectFile(persistedActive)
     }
   },
 
@@ -238,7 +246,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return
     }
 
-    const content = await readTextFile(normalizedPath)
+    // Binary images are opened as preview tabs without reading as text.
+    let content = ""
+    if (!isBinaryImagePath(normalizedPath)) {
+      content = await readTextFile(normalizedPath)
+    }
+
     const recentFiles = [normalizedPath, ...(config.recentFiles ?? []).filter((item) => item !== normalizedPath)].slice(0, 10)
     const currentOpen = get().openFiles ?? []
     // Keep existing tab order; only append when newly opened.
@@ -634,10 +647,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     const normalizedPath = path.replace(/\\/g, "/")
-    const openFiles = config.uiState.openFiles.filter((item) => item !== normalizedPath)
-    const nextActive = get().selectedFilePath === normalizedPath
-      ? openFiles[openFiles.length - 1] ?? null
-      : get().selectedFilePath
+    const openFiles = get().openFiles.filter((item) => item !== normalizedPath)
+    const nextActive =
+      get().selectedFilePath === normalizedPath
+        ? openFiles[openFiles.length - 1] ?? null
+        : get().selectedFilePath && openFiles.includes(get().selectedFilePath)
+          ? get().selectedFilePath
+          : openFiles[openFiles.length - 1] ?? null
 
     const nextConfig = {
       ...config,
@@ -658,7 +674,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     if (nextActive) {
       await get().selectFile(nextActive)
     } else {
-      set({ currentContent: "", dirty: false })
+      set({ currentContent: "", dirty: false, selectedFilePath: null })
     }
   },
 }))

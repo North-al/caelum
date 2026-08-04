@@ -7,6 +7,7 @@ import {
   ListTree,
   PanelLeft,
   PenSquare,
+  Plus,
   SplitSquareHorizontal,
   X,
 } from "lucide-react"
@@ -101,6 +102,7 @@ export const TitleBar = () => {
     closeAllTabs,
     reorderTabs,
     copyFileToDirectory,
+    createFile,
     viewMode,
     setViewMode,
     outlineVisible,
@@ -112,7 +114,7 @@ export const TitleBar = () => {
   const sessionRef = useRef<DragSession | null>(null)
   const suppressClickRef = useRef(false)
 
-  const openTabs = openFiles.length > 0 ? openFiles : selectedFilePath ? [selectedFilePath] : []
+  const openTabs = openFiles
   const canExport = Boolean(selectedFilePath)
 
   useEffect(() => {
@@ -263,7 +265,7 @@ export const TitleBar = () => {
 
   return (
     <>
-      <div className="flex h-14 shrink-0 items-stretch border-b border-border/40 bg-background/70 backdrop-blur-xl">
+      <div className="flex h-12 shrink-0 items-stretch border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="flex items-center pl-2" data-tauri-drag-region>
           <Button
             variant="ghost"
@@ -276,9 +278,9 @@ export const TitleBar = () => {
           </Button>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto px-1 py-2">
+        <div className="flex min-w-0 flex-1 items-end gap-0.5 overflow-x-auto px-1 pt-2">
           {openTabs.length === 0 ? (
-            <div className="flex flex-1 items-center px-3 text-sm text-muted-foreground" data-tauri-drag-region>
+            <div className="flex flex-1 items-center px-3 pb-2 text-sm text-muted-foreground" data-tauri-drag-region>
               未打开文件
             </div>
           ) : (
@@ -291,10 +293,10 @@ export const TitleBar = () => {
                       <div
                         data-caelum-tab-index={index}
                         className={cn(
-                          "group relative mr-1 flex h-full min-w-0 cursor-grab items-center gap-2 rounded-xl border px-3 text-[13px] transition-all active:cursor-grabbing",
+                          "group relative flex h-full min-w-0 cursor-grab items-center gap-2 border border-b-0 px-3 text-[13px] transition-all active:cursor-grabbing",
                           active
-                            ? "border-primary/25 bg-primary/10 text-foreground shadow-sm"
-                            : "border-transparent bg-transparent text-muted-foreground hover:border-border/50 hover:bg-background/80 hover:text-foreground",
+                            ? "rounded-t-lg border-border/60 bg-card text-foreground shadow-sm"
+                            : "rounded-t-lg border-transparent bg-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                           dragOverIndex === index && "border-primary/40 bg-primary/10"
                         )}
                         onPointerDown={handlePointerDown(index, filePath)}
@@ -382,6 +384,22 @@ export const TitleBar = () => {
               )
             })
           )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="mb-1 ml-0.5 size-8 shrink-0 rounded-lg text-muted-foreground"
+            aria-label="新建 Markdown 文件"
+            onClick={() => {
+              void createFile("note.md").catch((error) => {
+                toast.error("创建失败", {
+                  description: error instanceof Error ? error.message : "无法创建文件",
+                })
+              })
+            }}
+          >
+            <Plus className="size-4" />
+          </Button>
           <div className="min-w-4 flex-1" data-tauri-drag-region />
         </div>
 

@@ -225,7 +225,7 @@ textarea,
     margin: 1em 0;
     padding: 0.25em 0 0.25em 1em;
     border-left: 3px solid color-mix(in srgb, var(--primary) 55%, transparent);
-    color: var(--muted-foreground);
+    color: color-mix(in srgb, var(--foreground) 75%, var(--muted-foreground));
 }
 
 .markdown-preview code {

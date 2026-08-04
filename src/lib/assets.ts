@@ -6,13 +6,9 @@ import {
   resolveJoinedPath,
   writeBinaryFile,
 } from "~/lib/workspace"
+import { IMAGE_EXTENSIONS, isImagePath as isImagePathShared } from "~/lib/file-types"
 
-const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"])
-
-export const isImagePath = (value: string) => {
-  const extension = value.split(".").pop()?.toLowerCase() ?? ""
-  return IMAGE_EXTENSIONS.has(extension)
-}
+export const isImagePath = isImagePathShared
 
 export const extensionFromMime = (mime: string) => {
   const normalized = mime.toLowerCase()

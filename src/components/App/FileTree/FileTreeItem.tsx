@@ -1,13 +1,18 @@
 import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "react"
+import { convertFileSrc } from "@tauri-apps/api/core"
 import {
+  Braces,
   ChevronRight,
+  Code2,
   Copy,
   ExternalLink,
+  FileCode2,
   FilePlus2,
   FileText,
   Folder,
   FolderOpen,
   FolderPlus,
+  ImageIcon,
   PencilLine,
   Trash2,
 } from "lucide-react"
@@ -25,7 +30,8 @@ import {
   ContextMenuTrigger,
 } from "~/components/ui/context-menu"
 import { DROP_DIR_ATTR, getActiveDropDir, subscribeTabDrag } from "~/lib/dnd"
-import { getParentPath } from "~/lib/workspace"
+import { getFileExtension, isBinaryImagePath, isImagePath } from "~/lib/file-types"
+import { getParentPath, normalizePath } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 
 import type { FileNode } from "./types"
@@ -44,6 +50,33 @@ interface Props {
   onReveal?: (path: string) => void
   onCopyPath?: (path: string) => void
   onDropTabFile?: (sourcePath: string, destinationDir: string) => void
+}
+
+const FileTypeIcon = ({ path }: { path: string }) => {
+  const extension = getFileExtension(path)
+  if (isImagePath(path)) {
+    if (isBinaryImagePath(path) || extension === "svg") {
+      return (
+        <img
+          src={convertFileSrc(normalizePath(path))}
+          alt=""
+          className="size-3.5 shrink-0 rounded-[3px] object-cover ring-1 ring-border/50"
+          loading="lazy"
+        />
+      )
+    }
+    return <ImageIcon className="size-3.5 shrink-0 text-emerald-500" />
+  }
+  if (extension === "json") {
+    return <Braces className="size-3.5 shrink-0 text-amber-500" />
+  }
+  if (extension === "xml" || extension === "svg") {
+    return <Code2 className="size-3.5 shrink-0 text-sky-500" />
+  }
+  if (extension === "ini") {
+    return <FileCode2 className="size-3.5 shrink-0 text-violet-500" />
+  }
+  return <FileText className="size-3.5 shrink-0 text-muted-foreground" />
 }
 
 export const FileTreeItem = ({
@@ -222,7 +255,7 @@ export const FileTreeItem = ({
           onClick={() => onSelect?.(node.path)}
           onDoubleClick={() => onRename?.(node.path)}
         >
-          <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+          <FileTypeIcon path={node.path} />
           <span className="min-w-0 flex-1 truncate pl-0.5">{node.name}</span>
         </button>
       </ContextMenuTrigger>
