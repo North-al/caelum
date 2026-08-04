@@ -1,5 +1,5 @@
 /** App version — keep in sync with package.json / tauri.conf.json / Cargo.toml */
-export const APP_VERSION = "1.2.0"
+export const APP_VERSION = "1.2.1"
 
 export const APP_FEATURES = [
   "本地优先：笔记与资源保存在本机目录，无需账号",
@@ -14,6 +14,14 @@ export const APP_FEATURES = [
 ] as const
 
 export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string[] }> = [
+  {
+    version: "1.2.1",
+    date: "2026-08-04",
+    notes: [
+      "深色模式代码高亮改用 highlight.js 官方 github-dark 主题，修复代码块正文几乎不可见",
+      "编辑器深色模式接入 CodeMirror oneDark，语法着色更清晰",
+    ],
+  },
   {
     version: "1.2.0",
     date: "2026-08-04",
