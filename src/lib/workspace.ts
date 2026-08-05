@@ -36,6 +36,10 @@ export interface AppSettings {
   tabSize: number
   livePreview: boolean
   codeHighlight: boolean
+  /** highlight.js theme id; `auto` follows light/dark appearance */
+  codeHighlightTheme: string
+  /** Show line numbers in markdown preview code blocks */
+  codeBlockLineNumbers: boolean
   autoSave: boolean
   autoSaveInterval: number
   startWithLastFile: boolean
@@ -71,6 +75,8 @@ export const defaultSettings: AppSettings = {
   tabSize: 2,
   livePreview: true,
   codeHighlight: true,
+  codeHighlightTheme: "auto",
+  codeBlockLineNumbers: true,
   autoSave: true,
   autoSaveInterval: 600,
   startWithLastFile: true,

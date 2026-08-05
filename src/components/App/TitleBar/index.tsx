@@ -98,6 +98,7 @@ export const TitleBar = () => {
     selectedFilePath,
     selectFile,
     closeFileTab,
+    dirtyFiles,
     closeOtherTabs,
     closeTabsToTheRight,
     closeAllTabs,
@@ -328,6 +329,13 @@ export const TitleBar = () => {
                   >
                     <FileText className={cn("size-3.5 shrink-0", active ? "text-primary" : "text-muted-foreground/70")} />
                     <span className="max-w-[160px] truncate font-medium">{fileNameFromPath(filePath)}</span>
+                    {dirtyFiles[filePath] ? (
+                      <span
+                        className="size-1.5 shrink-0 rounded-full bg-primary"
+                        title="未保存的更改"
+                        aria-label="未保存的更改"
+                      />
+                    ) : null}
                     <button
                       type="button"
                       aria-label="关闭标签"

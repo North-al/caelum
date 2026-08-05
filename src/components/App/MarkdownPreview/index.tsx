@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm"
 import rehypeHighlight from "rehype-highlight"
 
 import { ImageLightbox } from "~/components/App/ImageLightbox"
+import { PreviewCodeBlock } from "~/components/App/PreviewCodeBlock"
 import { resolveMarkdownAssetUrl } from "~/lib/markdown"
 import { normalizeTaskListSyntax } from "~/lib/task-list"
 import { getParentPath } from "~/lib/workspace"
@@ -31,6 +32,7 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
   const { config, selectedFilePath } = useWorkspaceStore()
   const workspaceRoot = config ? getParentPath(config.notesPath) : ""
   const enableHighlight = config?.settings.codeHighlight ?? true
+  const showCodeLineNumbers = config?.settings.codeBlockLineNumbers ?? true
   const [lightbox, setLightbox] = useState<PreviewImage | null>(null)
 
   const normalizedContent = useMemo(() => normalizeTaskListSyntax(content), [content])
@@ -115,10 +117,8 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
           </a>
         )
       },
-      pre: ({ children, ...props }) => (
-        <pre {...props} className="hljs">
-          {children}
-        </pre>
+      pre: ({ children }) => (
+        <PreviewCodeBlock showLineNumbers={showCodeLineNumbers}>{children}</PreviewCodeBlock>
       ),
       table: ({ children, ...props }) => (
         <div className="markdown-table-wrap">
@@ -126,7 +126,7 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
         </div>
       ),
     }),
-    [selectedFilePath, workspaceRoot]
+    [selectedFilePath, workspaceRoot, showCodeLineNumbers]
   )
 
   return (

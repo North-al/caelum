@@ -1,8 +1,6 @@
 import { useEffect } from "react"
 
-import githubDarkHref from "highlight.js/styles/github-dark.css?url"
-import githubLightHref from "highlight.js/styles/github.css?url"
-
+import { resolveHighlightThemeHref } from "~/lib/highlight-themes"
 import { useWorkspaceStore } from "~/store/workspace"
 
 const themeClassMap = {
@@ -44,8 +42,7 @@ export const ThemeSync = () => {
         root.classList.add("dark")
       }
 
-      // Swap official highlight.js themes — do not hand-roll token colors.
-      ensureHljsThemeLink().href = isDark ? githubDarkHref : githubLightHref
+      ensureHljsThemeLink().href = resolveHighlightThemeHref(settings?.codeHighlightTheme, isDark)
     }
 
     applyTheme()

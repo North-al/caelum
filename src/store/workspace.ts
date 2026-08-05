@@ -34,6 +34,10 @@ interface WorkspaceState {
   selectedFilePath: string | null
   currentContent: string
   dirty: boolean
+  /** Per-path unsaved draft contents (survives tab switches). */
+  fileDrafts: Record<string, string>
+  /** Per-path dirty flags for tab indicators. */
+  dirtyFiles: Record<string, boolean>
   isLoading: boolean
   isSaving: boolean
   viewMode: ViewMode
@@ -75,6 +79,8 @@ const defaultState = {
   selectedFilePath: null,
   currentContent: "",
   dirty: false,
+  fileDrafts: {} as Record<string, string>,
+  dirtyFiles: {} as Record<string, boolean>,
   isLoading: false,
   isSaving: false,
   viewMode: "split" as ViewMode,
@@ -83,6 +89,27 @@ const defaultState = {
   searchQuery: "",
   openFiles: [],
   initialized: false,
+}
+
+const pruneFileState = (
+  drafts: Record<string, string>,
+  dirtyFiles: Record<string, boolean>,
+  keepPaths: string[]
+) => {
+  const keep = new Set(keepPaths.map((path) => path.replace(/\\/g, "/")))
+  const nextDrafts: Record<string, string> = {}
+  const nextDirty: Record<string, boolean> = {}
+  for (const [path, content] of Object.entries(drafts)) {
+    if (keep.has(path)) {
+      nextDrafts[path] = content
+    }
+  }
+  for (const [path, dirty] of Object.entries(dirtyFiles)) {
+    if (keep.has(path) && dirty) {
+      nextDirty[path] = true
+    }
+  }
+  return { fileDrafts: nextDrafts, dirtyFiles: nextDirty }
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -247,10 +274,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return
     }
 
-    // Binary images are opened as preview tabs without reading as text.
+    const previousPath = get().selectedFilePath
+    let fileDrafts = { ...get().fileDrafts }
+    let dirtyFiles = { ...get().dirtyFiles }
+
+    // Preserve unsaved buffer when leaving the current tab.
+    if (previousPath && previousPath !== normalizedPath && get().dirty) {
+      fileDrafts[previousPath] = get().currentContent
+      dirtyFiles[previousPath] = true
+    }
+
     let content = ""
-    if (!isBinaryImagePath(normalizedPath)) {
+    let dirty = false
+    if (dirtyFiles[normalizedPath] && fileDrafts[normalizedPath] !== undefined) {
+      content = fileDrafts[normalizedPath]
+      dirty = true
+    } else if (!isBinaryImagePath(normalizedPath)) {
       content = await readTextFile(normalizedPath)
+      delete fileDrafts[normalizedPath]
+      delete dirtyFiles[normalizedPath]
     }
 
     const recentFiles = [normalizedPath, ...(config.recentFiles ?? []).filter((item) => item !== normalizedPath)].slice(0, 10)
@@ -275,7 +317,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({
       selectedFilePath: normalizedPath,
       currentContent: content,
-      dirty: false,
+      dirty,
+      fileDrafts,
+      dirtyFiles,
       config: nextConfig,
       openFiles,
     })
@@ -321,6 +365,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     const normalizedPath = path.replace(/\\/g, "/")
     const openFiles = [normalizedPath]
+    const pruned = pruneFileState(get().fileDrafts, get().dirtyFiles, openFiles)
     const nextConfig = {
       ...config,
       uiState: {
@@ -331,7 +376,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     await saveWorkspaceConfig(nextConfig)
-    set({ config: nextConfig, openFiles, selectedFilePath: normalizedPath })
+    set({ config: nextConfig, openFiles, selectedFilePath: normalizedPath, ...pruned })
     await get().selectFile(normalizedPath)
   },
 
@@ -349,6 +394,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     const openFiles = get().openFiles.slice(0, index + 1)
+    const pruned = pruneFileState(get().fileDrafts, get().dirtyFiles, openFiles)
     const selectedStillOpen = currentSelected ? openFiles.includes(currentSelected) : false
     const nextActive = selectedStillOpen ? currentSelected : normalizedPath
 
@@ -362,7 +408,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     await saveWorkspaceConfig(nextConfig)
-    set({ config: nextConfig, openFiles, selectedFilePath: nextActive })
+    set({ config: nextConfig, openFiles, selectedFilePath: nextActive, ...pruned })
     if (nextActive && nextActive !== currentSelected) {
       await get().selectFile(nextActive)
     }
@@ -390,11 +436,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       selectedFilePath: null,
       currentContent: "",
       dirty: false,
+      fileDrafts: {},
+      dirtyFiles: {},
     })
   },
 
   updateContent: (content) => {
-    set({ currentContent: content, dirty: true })
+    const selectedFilePath = get().selectedFilePath
+    if (selectedFilePath) {
+      set({
+        currentContent: content,
+        dirty: true,
+        fileDrafts: { ...get().fileDrafts, [selectedFilePath]: content },
+        dirtyFiles: { ...get().dirtyFiles, [selectedFilePath]: true },
+      })
+    } else {
+      set({ currentContent: content, dirty: true })
+    }
+
     if (autosaveTimer) {
       clearTimeout(autosaveTimer)
     }
@@ -422,7 +481,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     set({ isSaving: true })
     await writeTextFile(selectedFilePath, currentContent)
-    set({ dirty: false, isSaving: false })
+    const fileDrafts = { ...get().fileDrafts }
+    const dirtyFiles = { ...get().dirtyFiles }
+    delete fileDrafts[selectedFilePath]
+    delete dirtyFiles[selectedFilePath]
+    set({ dirty: false, isSaving: false, fileDrafts, dirtyFiles })
   },
 
   createFile: async (name, parentPath) => {
@@ -478,6 +541,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const { config, selectedFilePath, openFiles } = get()
     const nextOpenFiles = openFiles.map((item) => (item === normalizedOld ? normalizedNext : item))
     const nextSelected = selectedFilePath === normalizedOld ? normalizedNext : selectedFilePath
+    const fileDrafts = { ...get().fileDrafts }
+    const dirtyFiles = { ...get().dirtyFiles }
+    if (fileDrafts[normalizedOld] !== undefined) {
+      fileDrafts[normalizedNext] = fileDrafts[normalizedOld]
+      delete fileDrafts[normalizedOld]
+    }
+    if (dirtyFiles[normalizedOld]) {
+      dirtyFiles[normalizedNext] = true
+      delete dirtyFiles[normalizedOld]
+    }
 
     if (config) {
       const nextConfig = {
@@ -490,7 +563,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         },
       }
       await saveWorkspaceConfig(nextConfig)
-      set({ config: nextConfig, openFiles: nextOpenFiles, selectedFilePath: nextSelected })
+      set({
+        config: nextConfig,
+        openFiles: nextOpenFiles,
+        selectedFilePath: nextSelected,
+        fileDrafts,
+        dirtyFiles,
+        dirty: nextSelected ? Boolean(dirtyFiles[nextSelected]) : false,
+      })
     }
 
     if (selectedFilePath === normalizedOld) {
@@ -662,11 +742,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     const normalizedPath = path.replace(/\\/g, "/")
     const openFiles = get().openFiles.filter((item) => item !== normalizedPath)
+    const currentSelected = get().selectedFilePath
     const nextActive =
-      get().selectedFilePath === normalizedPath
+      currentSelected === normalizedPath
         ? openFiles[openFiles.length - 1] ?? null
-        : get().selectedFilePath && openFiles.includes(get().selectedFilePath)
-          ? get().selectedFilePath
+        : currentSelected && openFiles.includes(currentSelected)
+          ? currentSelected
           : openFiles[openFiles.length - 1] ?? null
 
     const nextConfig = {
@@ -683,12 +764,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       config: nextConfig,
       openFiles,
       selectedFilePath: nextActive,
+      ...pruneFileState(get().fileDrafts, get().dirtyFiles, openFiles),
     })
 
     if (nextActive) {
       await get().selectFile(nextActive)
     } else {
-      set({ currentContent: "", dirty: false, selectedFilePath: null })
+      set({ currentContent: "", dirty: false, selectedFilePath: null, fileDrafts: {}, dirtyFiles: {} })
     }
   },
 }))

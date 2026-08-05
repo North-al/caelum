@@ -20,6 +20,7 @@ import { Separator } from "~/components/ui/separator"
 import { Switch } from "~/components/ui/switch"
 import { WindowControls } from "~/layouts/components/WindowControls"
 import { APP_CHANGELOG, APP_FEATURES, APP_VERSION } from "~/lib/app-meta"
+import { HIGHLIGHT_THEME_OPTIONS } from "~/lib/highlight-themes"
 import {
   defaultSettings,
   getAppPaths,
@@ -345,6 +346,24 @@ const SettingsPage = () => {
                 <Switch
                   checked={settings.codeHighlight}
                   onCheckedChange={(value) => updateSetting({ codeHighlight: value })}
+                />
+              </SettingCard>
+              <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5 sm:col-span-2">
+                <div className="mb-2 text-sm font-medium">代码高亮主题</div>
+                <div className="mb-2 text-[12px] text-muted-foreground">预览区代码块配色（跟随外观或指定主题）</div>
+                <Select
+                  value={settings.codeHighlightTheme || "auto"}
+                  onChange={(event) => updateSetting({ codeHighlightTheme: event.target.value })}
+                  options={HIGHLIGHT_THEME_OPTIONS.map((option) => ({
+                    label: option.label,
+                    value: option.id,
+                  }))}
+                />
+              </div>
+              <SettingCard title="代码块行号" description="预览区代码块显示行号">
+                <Switch
+                  checked={settings.codeBlockLineNumbers ?? true}
+                  onCheckedChange={(value) => updateSetting({ codeBlockLineNumbers: value })}
                 />
               </SettingCard>
               <SettingCard title="滚动联动" description="分屏时同步滚动">

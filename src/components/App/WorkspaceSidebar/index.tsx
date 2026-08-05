@@ -1,4 +1,4 @@
-import { FilePlus2, FolderPlus, Search, Settings2 } from "lucide-react"
+import { Search, Settings2 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 import { revealItemInDir } from "@tauri-apps/plugin-opener"
