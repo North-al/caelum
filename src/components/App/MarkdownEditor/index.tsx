@@ -124,6 +124,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
   const rawFamily = settings?.editorFontFamily?.trim() || MONO_STACK
   // Keep the user-selected stack as-is (Settings only offers monospace fonts).
   const fontFamily = rawFamily || MONO_STACK
+  const wordWrap = settings?.wordWrap ?? true
 
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -461,7 +462,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
         >
           {height > 0 ? (
             <CodeMirror
-              key={`${selectedFilePath ?? "empty"}-${tabSize}-${fontFamily}-${fontSize}-${isDark ? "dark" : "light"}`}
+              key={selectedFilePath ?? "empty"}
               value={value}
               height={`${height}px`}
               maxHeight={`${height}px`}
@@ -469,7 +470,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
               style={{ height: "100%", fontSize: `${fontSize}px`, fontFamily }}
               extensions={[
                 languageExtension,
-                EditorView.lineWrapping,
+                ...(wordWrap ? [EditorView.lineWrapping] : []),
                 EditorState.tabSize.of(tabSize),
                 indentUnit.of(" ".repeat(tabSize)),
                 themeExtension,

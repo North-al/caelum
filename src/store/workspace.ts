@@ -1,3 +1,5 @@
+import { toast } from "sonner"
+
 import { create } from "zustand"
 
 import {
@@ -21,12 +23,14 @@ import {
 } from "~/lib/workspace"
 import { isBinaryImagePath } from "~/lib/file-types"
 
-import type { AppSettings, ReadingPosition, WorkspaceConfig } from "~/lib/workspace"
+import type { AppSettings, WorkspaceConfig } from "~/lib/workspace"
 import type { FileNode } from "~/components/App/FileTree/types"
 
 export type ViewMode = "editor" | "preview" | "split"
 
 let autosaveTimer: number | null = null
+let saveInFlight = false
+let saveRequestedDuringInFlight = false
 
 interface WorkspaceState {
   config: WorkspaceConfig | null
@@ -65,7 +69,6 @@ interface WorkspaceState {
   updateSettings: (settings: Partial<AppSettings>) => Promise<void>
   updateWorkspaceConfig: (config: Partial<Pick<WorkspaceConfig, "notesPath" | "assetsPath" | "workspaceName">>) => Promise<void>
   updateUiState: (patch: Partial<WorkspaceConfig["uiState"]>) => Promise<void>
-  recordReadingPosition: (path: string, position: Partial<ReadingPosition>) => Promise<void>
   closeFileTab: (path: string) => Promise<void>
   reorderTabs: (fromIndex: number, toIndex: number) => Promise<void>
   closeOtherTabs: (path: string) => Promise<void>
@@ -122,72 +125,79 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     set({ isLoading: true })
-    const config = await initializeWorkspace()
-    const tree = await listNotesTree(config.notesPath)
-    const normalizedConfig = {
-      ...config,
-      settings: {
-        ...defaultSettings,
-        ...config.settings,
-        editorFontSize:
-          config.settings?.editorFontSize && config.settings.editorFontSize > 0
-            ? config.settings.editorFontSize
-            : defaultSettings.editorFontSize,
-      },
-      uiState: {
-        ...defaultUiState,
-        ...config.uiState,
-        outlineWidth:
-          config.uiState?.outlineWidth && config.uiState.outlineWidth > 0
-            ? config.uiState.outlineWidth
-            : defaultUiState.outlineWidth,
-        windowWidth:
-          config.uiState?.windowWidth && config.uiState.windowWidth > 0
-            ? config.uiState.windowWidth
-            : defaultUiState.windowWidth,
-        windowHeight:
-          config.uiState?.windowHeight && config.uiState.windowHeight > 0
-            ? config.uiState.windowHeight
-            : defaultUiState.windowHeight,
-      },
-    }
-    const initialViewMode = normalizedConfig.uiState.lastViewMode || (
-      normalizedConfig.uiState.defaultOpenMode === "preview" ? "preview" : "editor"
-    )
-
-    const persistedOpenFiles = (normalizedConfig.uiState.openFiles ?? []).filter(Boolean)
-    const persistedActive =
-      normalizedConfig.uiState.activeFilePath &&
-      persistedOpenFiles.includes(normalizedConfig.uiState.activeFilePath)
-        ? normalizedConfig.uiState.activeFilePath
-        : persistedOpenFiles[0] ?? null
-
-    // startWithLastFile only restores when there is a persisted tab session —
-    // never reopen files the user already closed (do not fall back to recentFiles alone).
-    const shouldRestoreSession = persistedOpenFiles.length > 0
-
-    set({
-      config: {
-        ...normalizedConfig,
-        uiState: {
-          ...normalizedConfig.uiState,
-          openFiles: shouldRestoreSession ? persistedOpenFiles : [],
-          activeFilePath: shouldRestoreSession ? persistedActive : null,
+    try {
+      const config = await initializeWorkspace()
+      const tree = await listNotesTree(config.notesPath)
+      const normalizedConfig = {
+        ...config,
+        settings: {
+          ...defaultSettings,
+          ...config.settings,
+          editorFontSize:
+            config.settings?.editorFontSize && config.settings.editorFontSize > 0
+              ? config.settings.editorFontSize
+              : defaultSettings.editorFontSize,
         },
-      },
-      tree,
-      initialized: true,
-      isLoading: false,
-      searchQuery: "",
-      viewMode: initialViewMode as ViewMode,
-      openFiles: shouldRestoreSession ? persistedOpenFiles : [],
-      selectedFilePath: shouldRestoreSession ? persistedActive : null,
-      sidebarCollapsed: normalizedConfig.uiState.sidebarCollapsed,
-      outlineVisible: normalizedConfig.uiState.outlineVisible,
-    })
+        uiState: {
+          ...defaultUiState,
+          ...config.uiState,
+          outlineWidth:
+            config.uiState?.outlineWidth && config.uiState.outlineWidth > 0
+              ? config.uiState.outlineWidth
+              : defaultUiState.outlineWidth,
+          windowWidth:
+            config.uiState?.windowWidth && config.uiState.windowWidth > 0
+              ? config.uiState.windowWidth
+              : defaultUiState.windowWidth,
+          windowHeight:
+            config.uiState?.windowHeight && config.uiState.windowHeight > 0
+              ? config.uiState.windowHeight
+              : defaultUiState.windowHeight,
+        },
+      }
+      const initialViewMode = normalizedConfig.uiState.lastViewMode || (
+        normalizedConfig.uiState.defaultOpenMode === "preview" ? "preview" : "editor"
+      )
 
-    if (shouldRestoreSession && persistedActive) {
-      await get().selectFile(persistedActive)
+      const persistedOpenFiles = (normalizedConfig.uiState.openFiles ?? []).filter(Boolean)
+      const persistedActive =
+        normalizedConfig.uiState.activeFilePath &&
+        persistedOpenFiles.includes(normalizedConfig.uiState.activeFilePath)
+          ? normalizedConfig.uiState.activeFilePath
+          : persistedOpenFiles[0] ?? null
+
+      // startWithLastFile only restores when there is a persisted tab session —
+      // never reopen files the user already closed (do not fall back to recentFiles alone).
+      const shouldRestoreSession = persistedOpenFiles.length > 0
+
+      set({
+        config: {
+          ...normalizedConfig,
+          uiState: {
+            ...normalizedConfig.uiState,
+            openFiles: shouldRestoreSession ? persistedOpenFiles : [],
+            activeFilePath: shouldRestoreSession ? persistedActive : null,
+          },
+        },
+        tree,
+        initialized: true,
+        isLoading: false,
+        searchQuery: "",
+        viewMode: initialViewMode as ViewMode,
+        openFiles: shouldRestoreSession ? persistedOpenFiles : [],
+        selectedFilePath: shouldRestoreSession ? persistedActive : null,
+        sidebarCollapsed: normalizedConfig.uiState.sidebarCollapsed,
+        outlineVisible: normalizedConfig.uiState.outlineVisible,
+      })
+
+      if (shouldRestoreSession && persistedActive) {
+        await get().selectFile(persistedActive)
+      }
+    } catch (error) {
+      set({ initialized: true, isLoading: false })
+      toast.error("工作区加载失败", {
+        description: error instanceof Error ? error.message : "无法读取工作区配置",
+      })
     }
   },
 
@@ -290,9 +300,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       content = fileDrafts[normalizedPath]
       dirty = true
     } else if (!isBinaryImagePath(normalizedPath)) {
-      content = await readTextFile(normalizedPath)
-      delete fileDrafts[normalizedPath]
-      delete dirtyFiles[normalizedPath]
+      try {
+        content = await readTextFile(normalizedPath)
+        delete fileDrafts[normalizedPath]
+        delete dirtyFiles[normalizedPath]
+      } catch (error) {
+        toast.error("打开文件失败", {
+          description: error instanceof Error ? error.message : "无法读取文件内容",
+        })
+        return
+      }
     }
 
     const recentFiles = [normalizedPath, ...(config.recentFiles ?? []).filter((item) => item !== normalizedPath)].slice(0, 10)
@@ -469,7 +486,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   saveActiveFile: async () => {
-    const { selectedFilePath, currentContent } = get()
+    const { selectedFilePath } = get()
     if (!selectedFilePath) {
       return
     }
@@ -479,13 +496,39 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       autosaveTimer = null
     }
 
+    // Coalesce concurrent saves: if a save is already running, mark a re-save and exit.
+    // The in-flight one will pick up the latest currentContent on its chained follow-up.
+    if (saveInFlight) {
+      saveRequestedDuringInFlight = true
+      return
+    }
+
+    saveInFlight = true
     set({ isSaving: true })
-    await writeTextFile(selectedFilePath, currentContent)
-    const fileDrafts = { ...get().fileDrafts }
-    const dirtyFiles = { ...get().dirtyFiles }
-    delete fileDrafts[selectedFilePath]
-    delete dirtyFiles[selectedFilePath]
-    set({ dirty: false, isSaving: false, fileDrafts, dirtyFiles })
+    try {
+      // Always read the latest content right before writing (it may have changed
+      // between the caller reading and the async tick starting).
+      const contentToWrite = get().currentContent
+      await writeTextFile(selectedFilePath, contentToWrite)
+      const fileDrafts = { ...get().fileDrafts }
+      const dirtyFiles = { ...get().dirtyFiles }
+      delete fileDrafts[selectedFilePath]
+      delete dirtyFiles[selectedFilePath]
+      set({ dirty: false, isSaving: false, fileDrafts, dirtyFiles })
+    } catch (error) {
+      set({ isSaving: false })
+      toast.error("保存失败", {
+        description: error instanceof Error ? error.message : "无法写入文件",
+      })
+    } finally {
+      saveInFlight = false
+    }
+
+    // If another save was requested while we were writing, run it now with the latest content.
+    if (saveRequestedDuringInFlight) {
+      saveRequestedDuringInFlight = false
+      void get().saveActiveFile()
+    }
   },
 
   createFile: async (name, parentPath) => {
@@ -508,9 +551,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             ? '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">\n  <circle cx="60" cy="60" r="48" fill="#38bdf8" />\n</svg>\n'
             : ""
 
-    await createFileEntry(nextPath)
-    if (seedContent) {
-      await writeTextFile(nextPath, seedContent)
+    try {
+      await createFileEntry(nextPath)
+      if (seedContent) {
+        await writeTextFile(nextPath, seedContent)
+      }
+    } catch (error) {
+      toast.error("新建文件失败", {
+        description: error instanceof Error ? error.message : "无法创建文件",
+      })
+      return null
     }
     await get().refreshTree()
     await get().selectFile(nextPath)
@@ -526,7 +576,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const basePath = parentPath ?? config.notesPath
     const nextPath = combinePaths(basePath, name)
 
-    await createFolderEntry(nextPath)
+    try {
+      await createFolderEntry(nextPath)
+    } catch (error) {
+      toast.error("新建文件夹失败", {
+        description: error instanceof Error ? error.message : "无法创建文件夹",
+      })
+      return
+    }
     await get().refreshTree()
   },
 
@@ -536,7 +593,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const normalizedOld = oldPath.replace(/\\/g, "/")
     const normalizedNext = nextPath.replace(/\\/g, "/")
 
-    await renameEntry(oldPath, nextPath)
+    try {
+      await renameEntry(oldPath, nextPath)
+    } catch (error) {
+      toast.error("重命名失败", {
+        description: error instanceof Error ? error.message : "无法重命名",
+      })
+      return
+    }
 
     const { config, selectedFilePath, openFiles } = get()
     const nextOpenFiles = openFiles.map((item) => (item === normalizedOld ? normalizedNext : item))
@@ -581,7 +645,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   deleteNode: async (path) => {
     const normalizedPath = path.replace(/\\/g, "/")
-    await deleteEntry(path)
+    try {
+      await deleteEntry(path)
+    } catch (error) {
+      toast.error("删除失败", {
+        description: error instanceof Error ? error.message : "无法删除",
+      })
+      return
+    }
 
     const { config, selectedFilePath, openFiles, currentContent } = get()
     const nextOpenFiles = openFiles.filter(
@@ -595,6 +666,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       : selectedFilePath
 
     if (config) {
+      const remainingReadingPositions = { ...config.uiState.readingPositions }
+      for (const key of Object.keys(remainingReadingPositions)) {
+        if (key === normalizedPath || key.startsWith(`${normalizedPath}/`)) {
+          delete remainingReadingPositions[key]
+        }
+      }
       const nextConfig = {
         ...config,
         recentFiles: (config.recentFiles ?? []).filter(
@@ -604,6 +681,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           ...config.uiState,
           activeFilePath: nextSelected,
           openFiles: nextOpenFiles,
+          readingPositions: remainingReadingPositions,
         },
       }
       await saveWorkspaceConfig(nextConfig)
@@ -623,7 +701,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   moveNode: async (oldPath, newPath) => {
-    await moveEntry(oldPath, newPath)
+    try {
+      await moveEntry(oldPath, newPath)
+    } catch (error) {
+      toast.error("移动失败", {
+        description: error instanceof Error ? error.message : "无法移动文件或文件夹",
+      })
+      return
+    }
     if (get().selectedFilePath === oldPath) {
       await get().selectFile(newPath)
     }
@@ -636,9 +721,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return null
     }
 
-    const copiedPath = await copyFileEntry(sourcePath, destinationDir)
-    await get().refreshTree()
-    return copiedPath.replace(/\\/g, "/")
+    try {
+      const copiedPath = await copyFileEntry(sourcePath, destinationDir)
+      await get().refreshTree()
+      return copiedPath.replace(/\\/g, "/")
+    } catch (error) {
+      toast.error("复制失败", {
+        description: error instanceof Error ? error.message : "无法复制文件",
+      })
+      return null
+    }
   },
 
   refreshTree: async () => {
@@ -647,8 +739,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return
     }
 
-    const tree = await listNotesTree(config.notesPath)
-    set({ tree })
+    try {
+      const tree = await listNotesTree(config.notesPath)
+      set({ tree })
+    } catch (error) {
+      toast.error("文件树刷新失败", {
+        description: error instanceof Error ? error.message : "无法读取工作区目录",
+      })
+    }
   },
 
   updateSettings: async (settings) => {
@@ -702,36 +800,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     await saveWorkspaceConfig(nextConfig)
     set({ config: nextConfig, openFiles: nextConfig.uiState.openFiles })
-  },
-
-  recordReadingPosition: async (path, position) => {
-    const config = get().config
-    if (!config) {
-      return
-    }
-
-    const normalizedPath = path.replace(/\\/g, "/")
-    const existing = config.uiState.readingPositions[normalizedPath] ?? {
-      editorScrollTop: 0,
-      previewScrollTop: 0,
-    }
-
-    const nextConfig = {
-      ...config,
-      uiState: {
-        ...config.uiState,
-        readingPositions: {
-          ...config.uiState.readingPositions,
-          [normalizedPath]: {
-            ...existing,
-            ...position,
-          },
-        },
-      },
-    }
-
-    await saveWorkspaceConfig(nextConfig)
-    set({ config: nextConfig })
   },
 
   closeFileTab: async (path) => {

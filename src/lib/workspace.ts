@@ -1,6 +1,24 @@
 import { invoke } from "@tauri-apps/api/core"
+import { toast } from "sonner"
 
 import type { FileNode } from "~/components/App/FileTree/types"
+
+/** Normalize a Tauri rejection into a human-friendly message without leaking raw internals. */
+const describeInvokeError = (error: unknown, fallback: string) => {
+  if (error instanceof Error) {
+    return error.message || fallback
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error
+  }
+  if (error && typeof error === "object") {
+    const maybeMessage = (error as { message?: unknown }).message
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+      return maybeMessage
+    }
+  }
+  return fallback
+}
 
 export type ThemeMode = "system" | "light" | "dark"
 export type ThemeColor = "blue" | "purple" | "cyan"
@@ -34,7 +52,6 @@ export interface AppSettings {
   showLineNumbers: boolean
   wordWrap: boolean
   tabSize: number
-  livePreview: boolean
   codeHighlight: boolean
   /** highlight.js theme id; `auto` follows light/dark appearance */
   codeHighlightTheme: string
@@ -73,7 +90,6 @@ export const defaultSettings: AppSettings = {
   showLineNumbers: true,
   wordWrap: true,
   tabSize: 2,
-  livePreview: true,
   codeHighlight: true,
   codeHighlightTheme: "auto",
   codeBlockLineNumbers: true,
@@ -203,8 +219,16 @@ export interface AppPaths {
 
 export const getAppPaths = async (): Promise<AppPaths> => invoke<AppPaths>("get_app_paths")
 
-export const saveWorkspaceConfig = async (config: WorkspaceConfig): Promise<WorkspaceConfig> =>
-  invoke<WorkspaceConfig>("save_workspace_config", { config })
+export const saveWorkspaceConfig = async (config: WorkspaceConfig): Promise<WorkspaceConfig> => {
+  try {
+    return await invoke<WorkspaceConfig>("save_workspace_config", { config })
+  } catch (error) {
+    toast.error("配置保存失败", { description: describeInvokeError(error, "无法写入工作区配置") })
+    // Swallow: callers fire-and-forget; surfacing rejections would surface
+    // unhandled promises across the 11 void sites. UI state stays correct in memory.
+    return config
+  }
+}
 
 export const listNotesTree = async (notesPath: string): Promise<FileNode[]> =>
   invoke<FileNode[]>("list_notes_tree", { path: notesPath })

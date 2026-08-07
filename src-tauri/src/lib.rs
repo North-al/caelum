@@ -13,14 +13,25 @@ struct AppSettings {
     show_line_numbers: bool,
     word_wrap: bool,
     tab_size: u32,
-    live_preview: bool,
     code_highlight: bool,
+    #[serde(default = "default_code_highlight_theme")]
+    code_highlight_theme: String,
+    #[serde(default = "default_code_block_line_numbers")]
+    code_block_line_numbers: bool,
     auto_save: bool,
     auto_save_interval: u32,
     start_with_last_file: bool,
     #[serde(default)]
     scroll_sync: bool,
     language: String,
+}
+
+fn default_code_highlight_theme() -> String {
+    "auto".to_string()
+}
+
+fn default_code_block_line_numbers() -> bool {
+    true
 }
 
 impl Default for AppSettings {
@@ -33,8 +44,9 @@ impl Default for AppSettings {
             show_line_numbers: true,
             word_wrap: true,
             tab_size: 2,
-            live_preview: true,
             code_highlight: true,
+            code_highlight_theme: "auto".to_string(),
+            code_block_line_numbers: true,
             auto_save: true,
             auto_save_interval: 600,
             start_with_last_file: true,
