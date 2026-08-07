@@ -65,11 +65,12 @@ textarea,
     color: inherit;
 }
 
-/* CodeMirror — explicit px font-size (inherit collapses to 0 in this layout) */
+/* CodeMirror — integer px line-height avoids sub-pixel gutter drift (14*1.7=23.8) */
 .codemirror-host {
     font-size: var(--cm-font-size, 14px) !important;
     font-family: var(--cm-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace) !important;
     font-variation-settings: normal !important;
+    --cm-line-height: 24px;
 }
 
 .codemirror-host .cm-editor,
@@ -81,7 +82,7 @@ textarea,
     font-size: var(--cm-font-size, 14px) !important;
     font-family: var(--cm-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace) !important;
     font-variation-settings: normal !important;
-    line-height: 1.7 !important;
+    line-height: var(--cm-line-height, 24px) !important;
 }
 
 .codemirror-host .cm-editor {
@@ -94,19 +95,24 @@ textarea,
     overflow-x: auto !important;
     overflow-y: auto !important;
     height: 100% !important;
+    /* Vertical inset on scroller so gutters + content share the same origin */
+    padding-top: 20px !important;
+    padding-bottom: 20px !important;
+}
+
+.codemirror-host .cm-content {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
 }
 
 .codemirror-host .cm-line {
     display: block !important;
     height: auto !important;
-    min-height: calc(var(--cm-font-size, 14px) * 1.7) !important;
+    min-height: var(--cm-line-height, 24px) !important;
     padding: 0 4px !important;
 }
 
-.codemirror-host .cm-gutterElement {
-    min-height: calc(var(--cm-font-size, 14px) * 1.7) !important;
-}
-
+/* Do not force margin-top:0 — CodeMirror uses it to sync gutter gaps with content. */
 .codemirror-host .cm-gutters {
     border: none !important;
 }

@@ -336,6 +336,9 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
     [allowImageInsert]
   )
 
+  // Integer px line-height — fractional 14*1.7 (=23.8) drifts gutters vs content when scrolling.
+  const lineHeightPx = Math.round(fontSize * 1.7)
+
   const themeExtension = useMemo(
     () =>
       EditorView.theme(
@@ -352,16 +355,17 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             overflow: "auto",
             fontFamily,
             fontSize: `${fontSize}px`,
-            lineHeight: "1.7",
+            lineHeight: `${lineHeightPx}px`,
             fontVariationSettings: "normal",
+            padding: "20px 0",
           },
           ".cm-content": {
             fontFamily,
             fontSize: `${fontSize}px`,
-            lineHeight: "1.7",
+            lineHeight: `${lineHeightPx}px`,
             caretColor: isDark ? "#e8eaf2" : "#1e1e2e",
             color: isDark ? "#e8eaf2" : "#1e1e2e",
-            padding: "20px 16px",
+            padding: "0 16px",
             minHeight: "100%",
             fontVariationSettings: "normal",
           },
@@ -369,8 +373,8 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             display: "block",
             fontFamily,
             fontSize: `${fontSize}px`,
-            lineHeight: "1.7",
-            minHeight: `${Math.round(fontSize * 1.7)}px`,
+            lineHeight: `${lineHeightPx}px`,
+            minHeight: `${lineHeightPx}px`,
             padding: "0 4px",
             color: isDark ? "#e8eaf2" : "#1e1e2e",
           },
@@ -385,11 +389,10 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             color: isDark ? "#9aa3b8" : "#6b7280",
             border: "none",
             fontSize: `${fontSize}px`,
-            lineHeight: "1.7",
+            lineHeight: `${lineHeightPx}px`,
           },
           ".cm-gutterElement": {
-            minHeight: `${Math.round(fontSize * 1.7)}px`,
-            lineHeight: "1.7",
+            lineHeight: `${lineHeightPx}px`,
             fontSize: `${fontSize}px`,
           },
           ".cm-activeLine": {
@@ -406,7 +409,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
         },
         { dark: isDark }
       ),
-    [fontFamily, fontSize, isDark]
+    [fontFamily, fontSize, isDark, lineHeightPx]
   )
 
   return (
@@ -455,6 +458,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
           style={
             {
               "--cm-font-size": `${fontSize}px`,
+              "--cm-line-height": `${lineHeightPx}px`,
               "--cm-font-family": fontFamily,
               fontSize: `${fontSize}px`,
             } as CSSProperties
