@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from "react"
 import { Group, Panel, Separator } from "react-resizable-panels"
 import type { GroupImperativeHandle } from "react-resizable-panels"
 import type { EditorView } from "@codemirror/view"
-import { listen } from "@tauri-apps/api/event"
 import { FilePlus2, FileUp, ImagePlus, Settings2 } from "lucide-react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -24,10 +23,9 @@ import {
 } from "~/components/ui/sidebar"
 import { useFileDropOpen } from "~/hooks/use-file-drop-open"
 import { useScrollSync } from "~/hooks/use-scroll-sync"
-import { useWindowSizeMemory } from "~/hooks/use-window-size-memory"
 import { buildImageMarkdown, importImageFromPath } from "~/lib/assets"
 import { getPreviewKind, isBinaryImagePath, isMarkdownPath } from "~/lib/file-types"
-import { DEFAULT_OUTLINE_WIDTH, getLaunchFilePaths } from "~/lib/workspace"
+import { DEFAULT_OUTLINE_WIDTH } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 
 const EDITOR_PANEL_ID = "editor"
@@ -38,7 +36,6 @@ const Home = () => {
   const navigate = useNavigate()
   const {
     currentContent,
-    initialize,
     updateContent,
     saveActiveFile,
     createFile,
@@ -111,50 +108,6 @@ const Home = () => {
     onInsertImages: handleInsertDroppedImages,
     onImportNotesToExplorer: handleImportNotesToExplorer,
   })
-  useWindowSizeMemory()
-
-  useEffect(() => {
-    void (async () => {
-      await initialize()
-      try {
-        const launchPaths = await getLaunchFilePaths()
-        if (launchPaths.length === 0) {
-          return
-        }
-        const { selectFile, setViewMode } = useWorkspaceStore.getState()
-        setViewMode("preview")
-        for (const path of launchPaths) {
-          await selectFile(path.replace(/\\/g, "/"))
-        }
-        await selectFile(launchPaths[0].replace(/\\/g, "/"))
-      } catch {
-        // Browser / non-Tauri preview ignores launch args.
-      }
-    })()
-  }, [initialize])
-
-  useEffect(() => {
-    let unlisten: (() => void) | undefined
-    void listen<string[]>("open-files", (event) => {
-      const paths = (event.payload ?? []).map((path) => path.replace(/\\/g, "/")).filter(Boolean)
-      if (paths.length === 0) {
-        return
-      }
-      void (async () => {
-        const { selectFile, setViewMode } = useWorkspaceStore.getState()
-        setViewMode("preview")
-        for (const path of paths) {
-          await selectFile(path)
-        }
-        await selectFile(paths[0])
-      })()
-    }).then((fn) => {
-      unlisten = fn
-    })
-    return () => {
-      unlisten?.()
-    }
-  }, [])
 
   const previewKind = selectedFilePath ? getPreviewKind(selectedFilePath) : "markdown"
   const isImageFile = selectedFilePath ? isBinaryImagePath(selectedFilePath) : false

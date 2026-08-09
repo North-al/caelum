@@ -43,7 +43,7 @@ import {
   setActiveDropDir,
 } from "~/lib/dnd"
 import { exportNote, type ExportFormat } from "~/lib/export"
-import { getParentPath } from "~/lib/workspace"
+import { getParentPath, writeTextToClipboard } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 import { useWorkspaceStore } from "~/store/workspace"
 import { useSidebar } from "~/components/ui/sidebar"
@@ -360,7 +360,11 @@ export const TitleBar = () => {
                     <ContextMenuSeparator />
                     <ContextMenuItem
                       onClick={() => {
-                        void navigator.clipboard.writeText(filePath)
+                        void writeTextToClipboard(filePath).catch((error) => {
+                          toast.error("复制失败", {
+                            description: error instanceof Error ? error.message : "无法写入剪贴板",
+                          })
+                        })
                       }}
                     >
                       复制路径

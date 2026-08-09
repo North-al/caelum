@@ -1,7 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
+
+mod clipboard;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -399,56 +402,32 @@ fn path_exists(path: String) -> bool {
 
 #[tauri::command]
 fn get_clipboard_file_paths() -> Result<Vec<String>, String> {
-    #[cfg(windows)]
-    {
-        use clipboard_win::{formats, get_clipboard};
-
-        match get_clipboard::<Vec<String>, _>(formats::FileList) {
-            Ok(list) => Ok(list
-                .into_iter()
-                .map(|path| {
-                    let mut normalized = path.replace('\\', "/");
-                    if let Some(stripped) = normalized.strip_prefix("//?/") {
-                        normalized = stripped.to_string();
-                    }
-                    normalized
-                })
-                .collect()),
-            Err(_) => Ok(Vec::new()),
-        }
-    }
-
-    #[cfg(not(windows))]
-    {
-        Ok(Vec::new())
-    }
+    clipboard::read_file_paths()
 }
 
 #[tauri::command]
 fn set_clipboard_file_paths(paths: Vec<String>) -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        use clipboard_win::{formats, Clipboard, Setter};
+    clipboard::write_file_paths(paths)
+}
 
-        let normalized: Vec<String> = paths
-            .into_iter()
-            .map(|path| path.replace('/', "\\"))
-            .collect();
-        if normalized.is_empty() {
-            return Err("No paths to copy".to_string());
-        }
-        // FileList implements Setter<[T]>; open clipboard then write the slice.
-        let _clip = Clipboard::new_attempts(10).map_err(|error| error.to_string())?;
-        formats::FileList
-            .write_clipboard(normalized.as_slice())
-            .map_err(|error| error.to_string())
-    }
+#[tauri::command]
+fn clipboard_read_text() -> Result<String, String> {
+    clipboard::read_text()
+}
 
-    #[cfg(not(windows))]
-    {
-        let _ = paths;
-        Err("Clipboard file copy is only supported on Windows".to_string())
-    }
+#[tauri::command]
+fn clipboard_write_text(text: String) -> Result<(), String> {
+    clipboard::write_text(text)
+}
+
+#[tauri::command]
+fn clipboard_read_image() -> Result<clipboard::ClipboardImage, String> {
+    clipboard::read_image()
+}
+
+#[tauri::command]
+fn clipboard_write_image(image: clipboard::ClipboardImage) -> Result<(), String> {
+    clipboard::write_image(image)
 }
 
 #[tauri::command]
@@ -571,11 +550,29 @@ fn collect_openable_paths(args: &[String]) -> Vec<String> {
         .collect()
 }
 
+/// Launch file paths captured once at process start. First command call takes them;
+/// subsequent calls return an empty list (CLI args are only meaningful on cold start).
+static LAUNCH_FILE_PATHS: Mutex<Option<Vec<String>>> = Mutex::new(None);
+
+fn ensure_launch_paths_cached() {
+    let mut guard = LAUNCH_FILE_PATHS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if guard.is_none() {
+        let args: Vec<String> = std::env::args().collect();
+        *guard = Some(collect_openable_paths(&args));
+    }
+}
+
 /// Paths passed via CLI / file association (e.g. double-click a .md file).
+/// Consumed on first read so remounting the frontend does not reopen the same files.
 #[tauri::command]
 fn get_launch_file_paths() -> Vec<String> {
-    let args: Vec<String> = std::env::args().collect();
-    collect_openable_paths(&args)
+    ensure_launch_paths_cached();
+    let mut guard = LAUNCH_FILE_PATHS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    guard.take().unwrap_or_default()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -583,6 +580,10 @@ pub fn run() {
     use tauri::{Emitter, Manager};
 
     tauri::Builder::default()
+        .setup(|_| {
+            ensure_launch_paths_cached();
+            Ok(())
+        })
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             let paths = collect_openable_paths(&argv);
             let _ = app.emit("open-files", paths);
@@ -614,6 +615,10 @@ pub fn run() {
             path_exists,
             get_clipboard_file_paths,
             set_clipboard_file_paths,
+            clipboard_read_text,
+            clipboard_write_text,
+            clipboard_read_image,
+            clipboard_write_image,
             get_launch_file_paths
         ])
         .run(tauri::generate_context!())

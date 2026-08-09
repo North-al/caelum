@@ -120,9 +120,11 @@ export const FileTree = ({
     try {
       await setClipboardFilePaths(paths)
       toast.success(paths.length === 1 ? "已复制文件" : `已复制 ${paths.length} 个项目`)
-    } catch {
+    } catch (error) {
       // Memory clipboard still works for in-app paste.
-      toast.success(paths.length === 1 ? "已复制（应用内）" : `已复制 ${paths.length} 个项目（应用内）`)
+      toast.success(paths.length === 1 ? "已复制（应用内）" : `已复制 ${paths.length} 个项目（应用内）`, {
+        description: error instanceof Error ? error.message : "系统剪贴板不可用",
+      })
     }
   }, [selectedPaths, activeFilePath])
 

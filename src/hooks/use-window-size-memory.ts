@@ -5,30 +5,60 @@ import { LogicalSize } from "@tauri-apps/api/dpi"
 import {
   DEFAULT_WINDOW_HEIGHT,
   DEFAULT_WINDOW_WIDTH,
+  MIN_WINDOW_HEIGHT,
+  MIN_WINDOW_WIDTH,
 } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 
-/** Restore remembered window size and persist user resizes. */
+/** Apply remembered size at most once per app session (survives route remounts). */
+let sizeAppliedThisSession = false
+
+const clampWindowSize = (width: number, height: number) => {
+  const safeWidth = Number.isFinite(width) ? Math.round(width) : DEFAULT_WINDOW_WIDTH
+  const safeHeight = Number.isFinite(height) ? Math.round(height) : DEFAULT_WINDOW_HEIGHT
+
+  // Reject corrupt / transient tiny sizes (common race before the window is ready).
+  if (safeWidth < MIN_WINDOW_WIDTH || safeHeight < MIN_WINDOW_HEIGHT) {
+    return { width: DEFAULT_WINDOW_WIDTH, height: DEFAULT_WINDOW_HEIGHT }
+  }
+
+  // Guard against absurdly large values (e.g. maximized physical pixels saved by mistake).
+  const maxWidth = 6000
+  const maxHeight = 4000
+  return {
+    width: Math.min(safeWidth, maxWidth),
+    height: Math.min(safeHeight, maxHeight),
+  }
+}
+
+/** Restore remembered window size once and persist user resizes across all pages. */
 export const useWindowSizeMemory = () => {
   const updateUiState = useWorkspaceStore((state) => state.updateUiState)
   const config = useWorkspaceStore((state) => state.config)
-  const appliedRef = useRef(false)
   const saveTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
-    if (!config || appliedRef.current) {
+    if (!config || sizeAppliedThisSession) {
       return
     }
 
-    const width = Math.round(config.uiState.windowWidth || DEFAULT_WINDOW_WIDTH)
-    const height = Math.round(config.uiState.windowHeight || DEFAULT_WINDOW_HEIGHT)
-    appliedRef.current = true
+    const { width, height } = clampWindowSize(
+      config.uiState.windowWidth || DEFAULT_WINDOW_WIDTH,
+      config.uiState.windowHeight || DEFAULT_WINDOW_HEIGHT
+    )
+    sizeAppliedThisSession = true
 
-    void getCurrentWindow()
-      .setSize(new LogicalSize(width, height))
-      .catch(() => {
+    void (async () => {
+      try {
+        const appWindow = getCurrentWindow()
+        if (await appWindow.isMaximized()) {
+          return
+        }
+        await appWindow.setSize(new LogicalSize(width, height))
+      } catch {
         // Ignore when not running inside Tauri.
-      })
+      }
+    })()
   }, [config])
 
   useEffect(() => {
@@ -38,10 +68,23 @@ export const useWindowSizeMemory = () => {
     void getCurrentWindow()
       .onResized(async () => {
         try {
-          const size = await getCurrentWindow().innerSize()
-          const factor = await getCurrentWindow().scaleFactor()
-          const width = Math.round(size.width / factor)
-          const height = Math.round(size.height / factor)
+          const appWindow = getCurrentWindow()
+          // Maximized / fullscreen should not overwrite the restored normal size.
+          if (await appWindow.isMaximized()) {
+            return
+          }
+
+          const size = await appWindow.innerSize()
+          const factor = await appWindow.scaleFactor()
+          const logicalWidth = Math.round(size.width / factor)
+          const logicalHeight = Math.round(size.height / factor)
+
+          // Ignore transient invalid sizes during DPI / monitor changes.
+          if (logicalWidth < MIN_WINDOW_WIDTH || logicalHeight < MIN_WINDOW_HEIGHT) {
+            return
+          }
+
+          const { width, height } = clampWindowSize(logicalWidth, logicalHeight)
 
           if (saveTimerRef.current) {
             window.clearTimeout(saveTimerRef.current)

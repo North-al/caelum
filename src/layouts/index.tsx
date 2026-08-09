@@ -1,13 +1,63 @@
-import { Outlet } from 'react-router'
-import { Toaster } from 'sonner'
-import { TooltipProvider } from '~/components/ui/tooltip'
-import { ThemeSync } from '~/components/App/ThemeSync'
-import { useWorkspaceStore } from '~/store/workspace'
+import { useEffect } from "react"
+import { Outlet } from "react-router"
+import { listen } from "@tauri-apps/api/event"
+import { Toaster } from "sonner"
+import { TooltipProvider } from "~/components/ui/tooltip"
+import { ThemeSync } from "~/components/App/ThemeSync"
+import { useWindowSizeMemory } from "~/hooks/use-window-size-memory"
+import { getLaunchFilePaths } from "~/lib/workspace"
+import { useWorkspaceStore } from "~/store/workspace"
 
 export const Layouts = () => {
   const settings = useWorkspaceStore((state) => state.config?.settings)
-  const themeMode = settings?.themeMode ?? 'system'
-  const resolvedTheme = themeMode === 'system' ? 'system' : themeMode
+  const themeMode = settings?.themeMode ?? "system"
+  const resolvedTheme = themeMode === "system" ? "system" : themeMode
+  const initialize = useWorkspaceStore((state) => state.initialize)
+
+  useWindowSizeMemory()
+
+  useEffect(() => {
+    void (async () => {
+      await initialize()
+      try {
+        const launchPaths = await getLaunchFilePaths()
+        if (launchPaths.length === 0) {
+          return
+        }
+        const { selectFile, setViewMode } = useWorkspaceStore.getState()
+        setViewMode("preview")
+        for (const path of launchPaths) {
+          await selectFile(path.replace(/\\/g, "/"))
+        }
+        await selectFile(launchPaths[0].replace(/\\/g, "/"))
+      } catch {
+        // Browser / non-Tauri preview ignores launch args.
+      }
+    })()
+  }, [initialize])
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    void listen<string[]>("open-files", (event) => {
+      const paths = (event.payload ?? []).map((path) => path.replace(/\\/g, "/")).filter(Boolean)
+      if (paths.length === 0) {
+        return
+      }
+      void (async () => {
+        const { selectFile, setViewMode } = useWorkspaceStore.getState()
+        setViewMode("preview")
+        for (const path of paths) {
+          await selectFile(path)
+        }
+        await selectFile(paths[0])
+      })()
+    }).then((fn) => {
+      unlisten = fn
+    })
+    return () => {
+      unlisten?.()
+    }
+  }, [])
 
   return (
     <TooltipProvider delay={200}>

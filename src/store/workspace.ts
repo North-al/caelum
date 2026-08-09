@@ -20,6 +20,10 @@ import {
   writeTextFile,
   defaultSettings,
   defaultUiState,
+  MIN_WINDOW_HEIGHT,
+  MIN_WINDOW_WIDTH,
+  DEFAULT_WINDOW_HEIGHT,
+  DEFAULT_WINDOW_WIDTH,
 } from "~/lib/workspace"
 import { isBinaryImagePath } from "~/lib/file-types"
 
@@ -29,8 +33,131 @@ import type { FileNode } from "~/components/App/FileTree/types"
 export type ViewMode = "editor" | "preview" | "split"
 
 let autosaveTimer: number | null = null
-let saveInFlight = false
-let saveRequestedDuringInFlight = false
+let autosavePath: string | null = null
+/** Latest content queued per path; drained sequentially to avoid lost writes. */
+const pendingSaves = new Map<string, string>()
+let saveDrainRunning = false
+
+const contentForPath = (
+  path: string,
+  state: { selectedFilePath: string | null; currentContent: string; fileDrafts: Record<string, string> }
+) => {
+  if (state.selectedFilePath === path) {
+    return state.currentContent
+  }
+  if (Object.prototype.hasOwnProperty.call(state.fileDrafts, path)) {
+    return state.fileDrafts[path]
+  }
+  return null
+}
+
+const clearAutosaveTimer = () => {
+  if (autosaveTimer) {
+    window.clearTimeout(autosaveTimer)
+    autosaveTimer = null
+  }
+  autosavePath = null
+}
+
+const markPathClean = (
+  path: string,
+  writtenContent: string,
+  get: () => WorkspaceState,
+  set: (partial: Partial<WorkspaceState>) => void
+) => {
+  const state = get()
+  const live = contentForPath(path, state)
+  // Only clear dirty/draft when the buffer still matches what we wrote (no newer edits).
+  if (live !== null && live !== writtenContent) {
+    return
+  }
+
+  const fileDrafts = { ...state.fileDrafts }
+  const dirtyFiles = { ...state.dirtyFiles }
+  delete fileDrafts[path]
+  delete dirtyFiles[path]
+  const dirty = state.selectedFilePath
+    ? Boolean(dirtyFiles[state.selectedFilePath])
+    : Object.keys(dirtyFiles).length > 0
+  set({ fileDrafts, dirtyFiles, dirty })
+}
+
+const drainPendingSaves = async (
+  get: () => WorkspaceState,
+  set: (partial: Partial<WorkspaceState>) => void
+) => {
+  if (saveDrainRunning) {
+    return
+  }
+  saveDrainRunning = true
+  set({ isSaving: true })
+  try {
+    while (pendingSaves.size > 0) {
+      const path = pendingSaves.keys().next().value
+      if (!path) {
+        break
+      }
+      const content = pendingSaves.get(path)
+      pendingSaves.delete(path)
+      if (content === undefined) {
+        continue
+      }
+      try {
+        await writeTextFile(path, content)
+        markPathClean(path, content, get, set)
+      } catch (error) {
+        toast.error("保存失败", {
+          description: error instanceof Error ? error.message : "无法写入文件",
+        })
+      }
+    }
+  } finally {
+    saveDrainRunning = false
+    set({ isSaving: false })
+    // New saves may have been queued while we were clearing isSaving.
+    if (pendingSaves.size > 0) {
+      void drainPendingSaves(get, set)
+    }
+  }
+}
+
+const enqueueSave = (
+  path: string,
+  content: string,
+  get: () => WorkspaceState,
+  set: (partial: Partial<WorkspaceState>) => void
+) => {
+  pendingSaves.set(path, content)
+  void drainPendingSaves(get, set)
+}
+
+const scheduleAutosave = (
+  path: string,
+  get: () => WorkspaceState,
+  set: (partial: Partial<WorkspaceState>) => void
+) => {
+  const autoSaveEnabled = get().config?.settings.autoSave ?? true
+  const interval = get().config?.settings.autoSaveInterval ?? 600
+  if (!autoSaveEnabled) {
+    return
+  }
+
+  clearAutosaveTimer()
+  autosavePath = path
+  autosaveTimer = window.setTimeout(() => {
+    const targetPath = autosavePath
+    autosaveTimer = null
+    autosavePath = null
+    if (!targetPath) {
+      return
+    }
+    const content = contentForPath(targetPath, get())
+    if (content === null) {
+      return
+    }
+    enqueueSave(targetPath, content, get, set)
+  }, interval)
+}
 
 interface WorkspaceState {
   config: WorkspaceConfig | null
@@ -145,14 +272,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
             config.uiState?.outlineWidth && config.uiState.outlineWidth > 0
               ? config.uiState.outlineWidth
               : defaultUiState.outlineWidth,
-          windowWidth:
-            config.uiState?.windowWidth && config.uiState.windowWidth > 0
-              ? config.uiState.windowWidth
-              : defaultUiState.windowWidth,
-          windowHeight:
-            config.uiState?.windowHeight && config.uiState.windowHeight > 0
-              ? config.uiState.windowHeight
-              : defaultUiState.windowHeight,
+          windowWidth: (() => {
+            const width =
+              config.uiState?.windowWidth && config.uiState.windowWidth > 0
+                ? config.uiState.windowWidth
+                : defaultUiState.windowWidth
+            return width < MIN_WINDOW_WIDTH ? DEFAULT_WINDOW_WIDTH : width
+          })(),
+          windowHeight: (() => {
+            const height =
+              config.uiState?.windowHeight && config.uiState.windowHeight > 0
+                ? config.uiState.windowHeight
+                : defaultUiState.windowHeight
+            return height < MIN_WINDOW_HEIGHT ? DEFAULT_WINDOW_HEIGHT : height
+          })(),
         },
       }
       const initialViewMode = normalizedConfig.uiState.lastViewMode || (
@@ -288,10 +421,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     let fileDrafts = { ...get().fileDrafts }
     let dirtyFiles = { ...get().dirtyFiles }
 
-    // Preserve unsaved buffer when leaving the current tab.
-    if (previousPath && previousPath !== normalizedPath && get().dirty) {
-      fileDrafts[previousPath] = get().currentContent
-      dirtyFiles[previousPath] = true
+    // Flush pending autosave for the tab we are leaving so it cannot write the new file.
+    if (previousPath && previousPath !== normalizedPath) {
+      const leavingDirty = get().dirty || Boolean(dirtyFiles[previousPath])
+      const leavingContent = get().currentContent
+      if (autosavePath === previousPath) {
+        clearAutosaveTimer()
+      }
+      if (leavingDirty) {
+        fileDrafts[previousPath] = leavingContent
+        dirtyFiles[previousPath] = true
+        enqueueSave(previousPath, leavingContent, get, set)
+      }
     }
 
     let content = ""
@@ -467,67 +608,29 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         fileDrafts: { ...get().fileDrafts, [selectedFilePath]: content },
         dirtyFiles: { ...get().dirtyFiles, [selectedFilePath]: true },
       })
+      scheduleAutosave(selectedFilePath, get, set)
     } else {
       set({ currentContent: content, dirty: true })
-    }
-
-    if (autosaveTimer) {
-      clearTimeout(autosaveTimer)
-    }
-
-    const autoSaveEnabled = get().config?.settings.autoSave ?? true
-    const interval = get().config?.settings.autoSaveInterval ?? 600
-
-    if (get().selectedFilePath && autoSaveEnabled) {
-      autosaveTimer = window.setTimeout(() => {
-        void get().saveActiveFile()
-      }, interval)
     }
   },
 
   saveActiveFile: async () => {
-    const { selectedFilePath } = get()
+    const selectedFilePath = get().selectedFilePath
     if (!selectedFilePath) {
       return
     }
 
-    if (autosaveTimer) {
-      clearTimeout(autosaveTimer)
-      autosaveTimer = null
-    }
-
-    // Coalesce concurrent saves: if a save is already running, mark a re-save and exit.
-    // The in-flight one will pick up the latest currentContent on its chained follow-up.
-    if (saveInFlight) {
-      saveRequestedDuringInFlight = true
+    clearAutosaveTimer()
+    const content = contentForPath(selectedFilePath, get())
+    if (content === null) {
       return
     }
+    enqueueSave(selectedFilePath, content, get, set)
 
-    saveInFlight = true
-    set({ isSaving: true })
-    try {
-      // Always read the latest content right before writing (it may have changed
-      // between the caller reading and the async tick starting).
-      const contentToWrite = get().currentContent
-      await writeTextFile(selectedFilePath, contentToWrite)
-      const fileDrafts = { ...get().fileDrafts }
-      const dirtyFiles = { ...get().dirtyFiles }
-      delete fileDrafts[selectedFilePath]
-      delete dirtyFiles[selectedFilePath]
-      set({ dirty: false, isSaving: false, fileDrafts, dirtyFiles })
-    } catch (error) {
-      set({ isSaving: false })
-      toast.error("保存失败", {
-        description: error instanceof Error ? error.message : "无法写入文件",
-      })
-    } finally {
-      saveInFlight = false
-    }
-
-    // If another save was requested while we were writing, run it now with the latest content.
-    if (saveRequestedDuringInFlight) {
-      saveRequestedDuringInFlight = false
-      void get().saveActiveFile()
+    // Wait until this path is no longer queued and the drain loop is idle,
+    // so Ctrl+S callers can await a durable write.
+    while (pendingSaves.has(selectedFilePath) || saveDrainRunning) {
+      await new Promise((resolve) => window.setTimeout(resolve, 16))
     }
   },
 

@@ -3,6 +3,7 @@ import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "~/components/ui/button"
+import { writeTextToClipboard } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 
 interface Props {
@@ -61,11 +62,13 @@ export const PreviewCodeBlock = ({ children, className, showLineNumbers = false 
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(plainText)
+      await writeTextToClipboard(plainText)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1600)
-    } catch {
-      toast.error("复制失败")
+    } catch (error) {
+      toast.error("复制失败", {
+        description: error instanceof Error ? error.message : "无法写入剪贴板",
+      })
     }
   }
 

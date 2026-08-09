@@ -35,6 +35,7 @@ import {
 } from "~/components/ui/tooltip"
 import { useWorkspaceStore } from "~/store/workspace"
 import { EXPLORER_ZONE_ATTR } from "~/lib/dnd"
+import { writeTextToClipboard } from "~/lib/workspace"
 
 import type { FileNode } from "~/components/App/FileTree/types"
 
@@ -182,8 +183,13 @@ export const WorkspaceSidebar = () => {
               onCreateFile={(parentPath) => setCreateTarget({ kind: "file", parentPath })}
               onCreateFolder={(parentPath) => setCreateTarget({ kind: "folder", parentPath })}
               onCopyPath={(path) => {
-                void navigator.clipboard.writeText(path)
-                toast.success("已复制路径")
+                void writeTextToClipboard(path)
+                  .then(() => toast.success("已复制路径"))
+                  .catch((error) => {
+                    toast.error("复制失败", {
+                      description: error instanceof Error ? error.message : "无法写入剪贴板",
+                    })
+                  })
               }}
               onReveal={(path) => {
                 void revealItemInDir(path).catch(() => {

@@ -80,6 +80,8 @@ export interface WorkspacePaths {
 
 export const DEFAULT_WINDOW_WIDTH = 1200
 export const DEFAULT_WINDOW_HEIGHT = 760
+export const MIN_WINDOW_WIDTH = 900
+export const MIN_WINDOW_HEIGHT = 560
 export const DEFAULT_OUTLINE_WIDTH = 250
 
 export const defaultSettings: AppSettings = {
@@ -270,6 +272,36 @@ export const getClipboardFilePaths = async (): Promise<string[]> =>
 
 export const setClipboardFilePaths = async (paths: string[]): Promise<void> =>
   invoke<void>("set_clipboard_file_paths", { paths })
+
+export interface ClipboardImagePayload {
+  width: number
+  height: number
+  bytes: number[]
+}
+
+export const clipboardReadText = async (): Promise<string> => invoke<string>("clipboard_read_text")
+
+export const clipboardWriteText = async (text: string): Promise<void> =>
+  invoke<void>("clipboard_write_text", { text })
+
+export const clipboardReadImage = async (): Promise<ClipboardImagePayload> =>
+  invoke<ClipboardImagePayload>("clipboard_read_image")
+
+export const clipboardWriteImage = async (image: ClipboardImagePayload): Promise<void> =>
+  invoke<void>("clipboard_write_image", { image })
+
+/** Prefer native Tauri clipboard; fall back to Web Clipboard API in browser preview. */
+export const writeTextToClipboard = async (text: string): Promise<void> => {
+  try {
+    await clipboardWriteText(text)
+  } catch (error) {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return
+    }
+    throw error
+  }
+}
 
 export const getLaunchFilePaths = async (): Promise<string[]> =>
   invoke<string[]>("get_launch_file_paths")

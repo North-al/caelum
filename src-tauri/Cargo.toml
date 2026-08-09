@@ -26,5 +26,5 @@ tauri-plugin-fs = "2.5.1"
 directories = "6.0.0"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-single-instance = "2"
-clipboard-win = "5"
+arboard = { version = "3", features = ["wayland-data-control"] }
 
