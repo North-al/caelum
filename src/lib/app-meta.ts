@@ -1,5 +1,5 @@
 /** App version — keep in sync with package.json / tauri.conf.json / Cargo.toml */
-export const APP_VERSION = '1.2.2'
+export const APP_VERSION = '1.3.0'
 
 export const APP_FEATURES = [
     '本地优先：笔记与资源保存在本机目录，无需账号',
@@ -12,10 +12,27 @@ export const APP_FEATURES = [
     '多标签页脏标记：未保存文件在标签上显示圆点',
     '大纲面板、窗口尺寸与阅读位置记忆',
     '导出解析后 HTML、源码、纯文本与 PDF',
+    '笔记双链 [[名称]]：预览点击跳转；重命名自动同步引用',
     'Ctrl + 滚轮缩放编辑区字号，主题与强调色可切换'
 ] as const
 
 export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string[] }> = [
+    {
+        version: '1.3.0',
+        date: '2026-08-09',
+        notes: [
+            '工作区顶栏改为功能栏 + 标签栏双行布局，更接近现代编辑器习惯',
+            '查找/替换改为右上角浮层（区分大小写 / 全词 / 正则），交互贴近 Cursor',
+            '编辑器快捷键：Ctrl+F 查找、Ctrl+R 替换、Ctrl+D 复制行、Ctrl+J 选中相同',
+            '设置页新增「快捷键」一览（只读展示当前可用快捷键）',
+            '重命名弹窗支持主体与后缀分区、非法字符校验与无效后缀确认',
+            '重命名后同步标签、侧栏树与全文 [[双链]]；修复旧标签关不掉',
+            '分栏比例记忆、Ctrl+\\ 隐藏预览；打开大纲后滚动联动仍可用',
+            'JSON / XML / INI 一键格式化（JSON 保留重复键，XML 真正缩进）',
+            '代码预览去掉多余卡片底；自定义滚动条；行选中跟随主题强调色',
+            '标签栏滚轮横向滚动，新建按钮固定在右侧'
+        ]
+    },
     {
         version: '1.2.2',
         date: '2026-08-06',

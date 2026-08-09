@@ -1,7 +1,7 @@
 {
     "name": "caelum",
     "private": true,
-    "version": "1.2.2",
+    "version": "1.3.0",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -14,6 +14,7 @@
     },
     "dependencies": {
         "@base-ui/react": "^1.6.0",
+        "@codemirror/commands": "6.10.0",
         "@codemirror/lang-json": "^6.0.2",
         "@codemirror/lang-markdown": "^6.5.1",
         "@codemirror/lang-xml": "^6.1.0",

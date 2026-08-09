@@ -742,17 +742,39 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const remap = (path: string) => remapPathPrefix(path, normalizedOld, normalizedNext)
 
     const { config, selectedFilePath, openFiles, fileDrafts, dirtyFiles, currentContent } = get()
-    const nextOpenFiles = openFiles.map(remap)
-    const nextSelected = selectedFilePath ? remap(selectedFilePath) : null
+    const wasOpen = openFiles.some((item) => item.replace(/\\/g, "/") === normalizedOld)
+    const nextOpenFiles = Array.from(
+      new Set(
+        openFiles
+          .map((item) => item.replace(/\\/g, "/"))
+          .map((item) => remap(item))
+          .filter((item) => item !== normalizedOld && !item.startsWith(`${normalizedOld}/`))
+      )
+    )
+    if (wasOpen && !nextOpenFiles.includes(normalizedNext)) {
+      nextOpenFiles.push(normalizedNext)
+    }
+    const nextSelected = selectedFilePath
+      ? selectedFilePath.replace(/\\/g, "/") === normalizedOld
+        ? normalizedNext
+        : remap(selectedFilePath.replace(/\\/g, "/"))
+      : null
 
     const nextDrafts: Record<string, string> = {}
     for (const [key, value] of Object.entries(fileDrafts)) {
-      nextDrafts[remap(key)] = value
+      const nextKey = remap(key.replace(/\\/g, "/"))
+      if (nextKey !== normalizedOld) {
+        nextDrafts[nextKey] = value
+      }
     }
     const nextDirty: Record<string, boolean> = {}
     for (const [key, value] of Object.entries(dirtyFiles)) {
-      if (value) {
-        nextDirty[remap(key)] = true
+      if (!value) {
+        continue
+      }
+      const nextKey = remap(key.replace(/\\/g, "/"))
+      if (nextKey !== normalizedOld) {
+        nextDirty[nextKey] = true
       }
     }
 
@@ -792,11 +814,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     if (config) {
       const nextReading: Record<string, { editorScrollTop: number; previewScrollTop: number }> = {}
       for (const [key, value] of Object.entries(config.uiState.readingPositions ?? {})) {
-        nextReading[remap(key)] = value
+        const nextKey = remap(key.replace(/\\/g, "/"))
+        if (nextKey !== normalizedOld) {
+          nextReading[nextKey] = value
+        }
       }
       const nextConfig = {
         ...config,
-        recentFiles: (config.recentFiles ?? []).map(remap),
+        recentFiles: Array.from(
+          new Set(
+            (config.recentFiles ?? [])
+              .map((item) => remap(item.replace(/\\/g, "/")))
+              .filter((item) => item !== normalizedOld)
+          )
+        ),
         uiState: {
           ...config.uiState,
           activeFilePath: nextSelected,
@@ -819,8 +850,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       })
     }
 
-    if (selectedFilePath && remap(selectedFilePath) !== selectedFilePath) {
-      await get().selectFile(remap(selectedFilePath))
+    // Avoid selectFile re-appending paths; only reload when the active file was renamed.
+    if (wasOpen && nextSelected === normalizedNext) {
+      const stillSelected = get().selectedFilePath === normalizedNext
+      if (stillSelected) {
+        try {
+          if (!isBinaryImagePath(normalizedNext) && nextDrafts[normalizedNext] === undefined) {
+            const content = await readTextFile(normalizedNext)
+            set({ currentContent: content, dirty: false })
+          }
+        } catch {
+          // File renamed but unreadable — keep in-memory content.
+        }
+      } else {
+        await get().selectFile(normalizedNext)
+      }
     }
     await get().refreshTree()
 
@@ -997,12 +1041,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     const normalizedPath = path.replace(/\\/g, "/")
-    const openFiles = get().openFiles.filter((item) => item !== normalizedPath)
-    const currentSelected = get().selectedFilePath
+    const openFiles = get().openFiles.filter((item) => {
+      const normalized = item.replace(/\\/g, "/")
+      return normalized !== normalizedPath
+    })
+    const currentSelected = get().selectedFilePath?.replace(/\\/g, "/") ?? null
     const nextActive =
       currentSelected === normalizedPath
         ? openFiles[openFiles.length - 1] ?? null
-        : currentSelected && openFiles.includes(currentSelected)
+        : currentSelected && openFiles.some((item) => item.replace(/\\/g, "/") === currentSelected)
           ? currentSelected
           : openFiles[openFiles.length - 1] ?? null
 
@@ -1024,7 +1071,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     })
 
     if (nextActive) {
-      await get().selectFile(nextActive)
+      if (get().selectedFilePath !== nextActive) {
+        await get().selectFile(nextActive)
+      }
     } else {
       set({ currentContent: "", dirty: false, selectedFilePath: null, fileDrafts: {}, dirtyFiles: {} })
     }

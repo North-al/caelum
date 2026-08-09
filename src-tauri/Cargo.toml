@@ -1,6 +1,6 @@
 [package]
 name = "caelum"
-version = "1.2.2"
+version = "1.3.0"
 description = "Caelum — local-first Markdown notes"
 authors = ["North"]
 edition = "2021"

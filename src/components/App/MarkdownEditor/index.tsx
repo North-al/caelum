@@ -6,12 +6,22 @@ import { xml } from "@codemirror/lang-xml"
 import { indentUnit, StreamLanguage } from "@codemirror/language"
 import { EditorState } from "@codemirror/state"
 import { oneDark } from "@codemirror/theme-one-dark"
+import { copyLineDown } from "@codemirror/commands"
 import { EditorView, keymap } from "@codemirror/view"
-import { search, searchKeymap } from "@codemirror/search"
+import {
+  openSearchPanel,
+  search,
+  searchKeymap,
+  selectNextOccurrence,
+} from "@codemirror/search"
 import { AlignLeft, ImagePlus, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
 import { EditorEmptyGuide } from "~/components/App/EditorEmptyGuide"
+import {
+  createEditorSearchPanel,
+  openEditorReplacePanel,
+} from "~/components/App/EditorSearchPanel/create-search-panel"
 import { Button } from "~/components/ui/button"
 import {
   buildImageMarkdown,
@@ -573,8 +583,16 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
                 EditorState.tabSize.of(tabSize),
                 indentUnit.of(" ".repeat(tabSize)),
                 themeExtension,
-                search({ top: true }),
-                keymap.of(searchKeymap),
+                search({ top: true, createPanel: createEditorSearchPanel }),
+                keymap.of([
+                  { key: "Mod-f", run: openSearchPanel, preventDefault: true },
+                  { key: "Mod-r", run: openEditorReplacePanel, preventDefault: true },
+                  { key: "Mod-d", run: copyLineDown, preventDefault: true },
+                  { key: "Mod-j", run: selectNextOccurrence, preventDefault: true },
+                  ...searchKeymap.filter(
+                    (binding) => binding.key !== "Mod-f" && binding.key !== "Mod-d"
+                  ),
+                ]),
                 imageHandlers,
               ].flat()}
               basicSetup={{

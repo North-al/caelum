@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   FolderOpen,
   Info,
+  Keyboard,
   RotateCcw,
   Settings2,
   Sparkles,
@@ -21,6 +22,7 @@ import { Switch } from "~/components/ui/switch"
 import { WindowControls } from "~/layouts/components/WindowControls"
 import { APP_CHANGELOG, APP_FEATURES, APP_VERSION } from "~/lib/app-meta"
 import { HIGHLIGHT_THEME_OPTIONS } from "~/lib/highlight-themes"
+import { APP_SHORTCUTS } from "~/lib/shortcuts"
 import {
   defaultSettings,
   getAppPaths,
@@ -39,6 +41,7 @@ const sections = [
   { key: "editor", label: "编辑器", description: "字体与阅读体验", icon: Sparkles },
   { key: "appearance", label: "外观", description: "主题与强调色", icon: Palette },
   { key: "files", label: "文件", description: "本地存储路径", icon: FolderOpen },
+  { key: "shortcuts", label: "快捷键", description: "当前可用快捷键一览", icon: Keyboard },
   { key: "about", label: "关于", description: "版本、功能与更新说明", icon: Info },
 ] as const
 
@@ -455,6 +458,49 @@ const SettingsPage = () => {
                 <RotateCcw className="mr-1.5 size-3.5" />
                 恢复默认笔记 / 资源路径
               </Button>
+            </div>
+          ) : null}
+
+          {activeSection === "shortcuts" ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
+                <p className="text-[13px] leading-relaxed text-muted-foreground">
+                  以下为当前版本已启用的快捷键，仅供查看，暂不支持自定义。编辑器相关快捷键需在编辑区聚焦时生效。
+                </p>
+              </div>
+              {APP_SHORTCUTS.map((group) => (
+                <div
+                  key={group.id}
+                  className="overflow-hidden rounded-2xl border border-border/50 bg-background/60"
+                >
+                  <div className="border-b border-border/40 px-4 py-3">
+                    <div className="text-sm font-medium">{group.title}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">{group.description}</div>
+                  </div>
+                  <ul className="divide-y divide-border/35">
+                    {group.items.map((item) => (
+                      <li
+                        key={`${group.id}-${item.keys.join("-")}-${item.action}`}
+                        className="flex items-center justify-between gap-4 px-4 py-2.5"
+                      >
+                        <span className="min-w-0 text-[13px] text-foreground/85">{item.action}</span>
+                        <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                          {item.keys.map((key, index) => (
+                            <span key={`${key}-${index}`} className="inline-flex items-center gap-1">
+                              {index > 0 ? (
+                                <span className="px-0.5 text-[11px] text-muted-foreground/70">+</span>
+                              ) : null}
+                              <kbd className="inline-flex min-w-[1.5rem] items-center justify-center rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground/80 shadow-[0_1px_0_color-mix(in_srgb,var(--border)_80%,transparent)]">
+                                {key}
+                              </kbd>
+                            </span>
+                          ))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           ) : null}
 

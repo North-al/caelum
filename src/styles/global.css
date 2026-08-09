@@ -1,6 +1,7 @@
-@import 'tailwindcss';
+﻿@import 'tailwindcss';
 @import './theme/shadcn.css';
 @import './frosted.css';
+@import './search-panel.css';
 
 /* highlight.js themes: swapped in ThemeSync (github.css / github-dark.css) */
 
@@ -99,7 +100,7 @@ textarea,
     color: inherit;
 }
 
-/* CodeMirror ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ integer px line-height avoids sub-pixel gutter drift (14*1.7=23.8) */
+/* CodeMirror èèèèèèèåèèèèèèèèèèèèèèèè° integer px line-height avoids sub-pixel gutter drift (14*1.7=23.8) */
 .codemirror-host {
     font-size: var(--cm-font-size, 14px) !important;
     font-family: var(--cm-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace) !important;
@@ -146,7 +147,7 @@ textarea,
     padding: 0 4px !important;
 }
 
-/* Do not force margin-top:0 ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ CodeMirror uses it to sync gutter gaps with content. */
+/* Do not force margin-top:0 èèèèèèèåèèèèèèèèèèèèèèèè° CodeMirror uses it to sync gutter gaps with content. */
 .codemirror-host .cm-gutters {
     border: none !important;
 }
@@ -436,161 +437,4 @@ textarea,
 .dark .markdown-preview pre code.hljs,
 .dark .code-preview code.hljs {
     filter: saturate(0.72) brightness(1.05);
-}
-
-/* Tab strip: thin horizontal scrollbar */
-.caelum-tab-scroll {
-    scrollbar-width: thin;
-}
-
-.caelum-tab-scroll::-webkit-scrollbar {
-    height: 4px;
-}
-
-/* —— CodeMirror find/replace (VS Code-like) —— */
-.cm-panels {
-    background: color-mix(in srgb, var(--muted) 88%, var(--background)) !important;
-    border-color: color-mix(in srgb, var(--border) 80%, transparent) !important;
-    color: var(--foreground) !important;
-}
-
-.cm-panels.cm-panels-top {
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent) !important;
-}
-
-.cm-panel.cm-search {
-    display: flex !important;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 8px;
-    padding: 8px 10px !important;
-    font-family: inherit !important;
-    font-size: 12.5px !important;
-}
-
-.cm-panel.cm-search input[type='text'],
-.cm-panel.cm-search input:not([type]) {
-    height: 26px !important;
-    min-width: 180px;
-    max-width: 280px;
-    margin: 0 !important;
-    padding: 0 8px !important;
-    border: 1px solid color-mix(in srgb, var(--border) 90%, transparent) !important;
-    border-radius: 6px !important;
-    background: var(--background) !important;
-    color: var(--foreground) !important;
-    box-shadow: none !important;
-    outline: none !important;
-}
-
-.cm-panel.cm-search input[type='text']:focus,
-.cm-panel.cm-search input:not([type]):focus {
-    border-color: color-mix(in srgb, var(--primary) 55%, transparent) !important;
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent) !important;
-}
-
-.cm-panel.cm-search button {
-    height: 26px !important;
-    min-width: 26px;
-    margin: 0 !important;
-    padding: 0 8px !important;
-    border: 1px solid transparent !important;
-    border-radius: 6px !important;
-    background: transparent !important;
-    color: var(--muted-foreground) !important;
-    font-size: 12px !important;
-    line-height: 1 !important;
-    cursor: pointer;
-    box-shadow: none !important;
-}
-
-.cm-panel.cm-search button:hover {
-    background: color-mix(in srgb, var(--muted) 80%, var(--foreground) 6%) !important;
-    color: var(--foreground) !important;
-}
-
-.cm-panel.cm-search button[name='close'] {
-    margin-left: auto !important;
-    width: 26px;
-    padding: 0 !important;
-    font-size: 16px !important;
-    opacity: 0.7;
-}
-
-.cm-panel.cm-search button[name='close']:hover {
-    opacity: 1;
-}
-
-.cm-panel.cm-search label {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin: 0 !important;
-    padding: 0 4px;
-    height: 26px;
-    border-radius: 6px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-    user-select: none;
-}
-
-.cm-panel.cm-search label:hover {
-    background: color-mix(in srgb, var(--muted) 80%, var(--foreground) 6%);
-    color: var(--foreground);
-}
-
-.cm-panel.cm-search input[type='checkbox'] {
-    width: 14px;
-    height: 14px;
-    margin: 0 !important;
-    accent-color: var(--primary);
-}
-
-.cm-panel.cm-search br {
-    display: none;
-}
-
-/* Localize default English labels via button name mapping */
-.cm-panel.cm-search button[name='next'] {
-    font-size: 0 !important;
-}
-.cm-panel.cm-search button[name='next']::after {
-    content: '下一个';
-    font-size: 12px;
-}
-.cm-panel.cm-search button[name='prev'] {
-    font-size: 0 !important;
-}
-.cm-panel.cm-search button[name='prev']::after {
-    content: '上一个';
-    font-size: 12px;
-}
-.cm-panel.cm-search button[name='select'] {
-    font-size: 0 !important;
-}
-.cm-panel.cm-search button[name='select']::after {
-    content: '全选';
-    font-size: 12px;
-}
-.cm-panel.cm-search button[name='replace'] {
-    font-size: 0 !important;
-}
-.cm-panel.cm-search button[name='replace']::after {
-    content: '替换';
-    font-size: 12px;
-}
-.cm-panel.cm-search button[name='replaceAll'] {
-    font-size: 0 !important;
-}
-.cm-panel.cm-search button[name='replaceAll']::after {
-    content: '全部替换';
-    font-size: 12px;
-}
-
-.cm-searchMatch {
-    background-color: color-mix(in srgb, var(--primary) 22%, transparent) !important;
-}
-
-.cm-searchMatch.cm-searchMatch-selected {
-    background-color: color-mix(in srgb, var(--primary) 42%, transparent) !important;
 }
