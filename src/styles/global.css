@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import './theme/shadcn.css';
+@import './frosted.css';
 
 /* highlight.js themes: swapped in ThemeSync (github.css / github-dark.css) */
 
@@ -65,7 +66,7 @@ textarea,
     color: inherit;
 }
 
-/* CodeMirror — integer px line-height avoids sub-pixel gutter drift (14*1.7=23.8) */
+/* CodeMirror Ã¢ÂÂ integer px line-height avoids sub-pixel gutter drift (14*1.7=23.8) */
 .codemirror-host {
     font-size: var(--cm-font-size, 14px) !important;
     font-family: var(--cm-font-family, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace) !important;
@@ -112,7 +113,7 @@ textarea,
     padding: 0 4px !important;
 }
 
-/* Do not force margin-top:0 — CodeMirror uses it to sync gutter gaps with content. */
+/* Do not force margin-top:0 Ã¢ÂÂ CodeMirror uses it to sync gutter gaps with content. */
 .codemirror-host .cm-gutters {
     border: none !important;
 }
@@ -380,15 +381,39 @@ textarea,
     padding: 0 !important;
 }
 
+.markdown-preview-loose h1 {
+    margin-top: 1.6em;
+    margin-bottom: 0.7em;
+}
+
+.markdown-preview-loose h2 {
+    margin-top: 1.4em;
+    margin-bottom: 0.6em;
+}
+
+.markdown-preview-loose p,
+.markdown-preview-loose li {
+    line-height: 1.85;
+}
+
+.markdown-preview-loose p {
+    margin-bottom: 1.05em;
+}
+
 .dark .markdown-preview pre,
 .dark .code-preview pre {
-    background: #0d1117;
-    border-color: #30363d;
+    background: #12141a;
+    border-color: #2a2d36;
+}
+
+.dark .markdown-preview pre code.hljs,
+.dark .code-preview code.hljs {
+    filter: saturate(0.72) brightness(1.05);
 }
 
 .dark .codemirror-host .cm-editor,
 .dark .codemirror-host .cm-scroller,
 .dark .codemirror-host .cm-gutters {
-    background-color: #1a1b26 !important;
-    color: #e8eaf2 !important;
+    background-color: #16171d !important;
+    color: #e6e8ef !important;
 }

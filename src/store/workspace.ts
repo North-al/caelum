@@ -25,7 +25,8 @@ import {
   DEFAULT_WINDOW_HEIGHT,
   DEFAULT_WINDOW_WIDTH,
 } from "~/lib/workspace"
-import { isBinaryImagePath } from "~/lib/file-types"
+import { isBinaryImagePath, isMarkdownPath } from "~/lib/file-types"
+import { remapPathPrefix, rewriteWikiLinks, splitFileName } from "~/lib/rename"
 
 import type { AppSettings, WorkspaceConfig } from "~/lib/workspace"
 import type { FileNode } from "~/components/App/FileTree/types"
@@ -695,6 +696,39 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const nextPath = parentPath ? combinePaths(parentPath, newName) : newName
     const normalizedOld = oldPath.replace(/\\/g, "/")
     const normalizedNext = nextPath.replace(/\\/g, "/")
+    const oldStem = splitFileName(normalizedOld).stem
+    const nextStem = splitFileName(normalizedNext).stem
+    const stemChanged = Boolean(oldStem) && oldStem !== nextStem
+
+    const findNodeType = (nodes: FileNode[], target: string): FileNode["type"] | null => {
+      for (const node of nodes) {
+        if (node.path.replace(/\\/g, "/") === target) {
+          return node.type
+        }
+        if (node.children?.length) {
+          const found = findNodeType(node.children, target)
+          if (found) {
+            return found
+          }
+        }
+      }
+      return null
+    }
+
+    const collectMarkdownPaths = (nodes: FileNode[]): string[] => {
+      const result: string[] = []
+      for (const node of nodes) {
+        if (node.type === "file" && isMarkdownPath(node.path)) {
+          result.push(node.path.replace(/\\/g, "/"))
+        }
+        if (node.children?.length) {
+          result.push(...collectMarkdownPaths(node.children))
+        }
+      }
+      return result
+    }
+
+    const nodeType = findNodeType(get().tree, normalizedOld) ?? "file"
 
     try {
       await renameEntry(oldPath, nextPath)
@@ -705,28 +739,69 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return
     }
 
-    const { config, selectedFilePath, openFiles } = get()
-    const nextOpenFiles = openFiles.map((item) => (item === normalizedOld ? normalizedNext : item))
-    const nextSelected = selectedFilePath === normalizedOld ? normalizedNext : selectedFilePath
-    const fileDrafts = { ...get().fileDrafts }
-    const dirtyFiles = { ...get().dirtyFiles }
-    if (fileDrafts[normalizedOld] !== undefined) {
-      fileDrafts[normalizedNext] = fileDrafts[normalizedOld]
-      delete fileDrafts[normalizedOld]
+    const remap = (path: string) => remapPathPrefix(path, normalizedOld, normalizedNext)
+
+    const { config, selectedFilePath, openFiles, fileDrafts, dirtyFiles, currentContent } = get()
+    const nextOpenFiles = openFiles.map(remap)
+    const nextSelected = selectedFilePath ? remap(selectedFilePath) : null
+
+    const nextDrafts: Record<string, string> = {}
+    for (const [key, value] of Object.entries(fileDrafts)) {
+      nextDrafts[remap(key)] = value
     }
-    if (dirtyFiles[normalizedOld]) {
-      dirtyFiles[normalizedNext] = true
-      delete dirtyFiles[normalizedOld]
+    const nextDirty: Record<string, boolean> = {}
+    for (const [key, value] of Object.entries(dirtyFiles)) {
+      if (value) {
+        nextDirty[remap(key)] = true
+      }
+    }
+
+    let wikiUpdated = 0
+    if (stemChanged && nodeType === "file") {
+      const markdownPaths = collectMarkdownPaths(get().tree).map((path) =>
+        path === normalizedOld ? normalizedNext : remap(path)
+      )
+      const uniquePaths = [...new Set(markdownPaths)]
+
+      for (const path of uniquePaths) {
+        try {
+          const draftKey = path
+          const openDraft = nextDrafts[draftKey]
+          const source =
+            openDraft !== undefined
+              ? openDraft
+              : path === nextSelected
+                ? currentContent
+                : await readTextFile(path === normalizedNext ? nextPath : path)
+          const rewritten = rewriteWikiLinks(source, oldStem, nextStem)
+          if (rewritten === source) {
+            continue
+          }
+          await writeTextFile(path === normalizedNext ? nextPath : path, rewritten)
+          wikiUpdated += 1
+          if (openDraft !== undefined || path === nextSelected) {
+            nextDrafts[draftKey] = rewritten
+            delete nextDirty[draftKey]
+          }
+        } catch {
+          // Skip unreadable files; rename itself already succeeded.
+        }
+      }
     }
 
     if (config) {
+      const nextReading: Record<string, { editorScrollTop: number; previewScrollTop: number }> = {}
+      for (const [key, value] of Object.entries(config.uiState.readingPositions ?? {})) {
+        nextReading[remap(key)] = value
+      }
       const nextConfig = {
         ...config,
-        recentFiles: (config.recentFiles ?? []).map((item) => (item === normalizedOld ? normalizedNext : item)),
+        recentFiles: (config.recentFiles ?? []).map(remap),
         uiState: {
           ...config.uiState,
           activeFilePath: nextSelected,
           openFiles: nextOpenFiles,
+          readingPositions: nextReading,
         },
       }
       await saveWorkspaceConfig(nextConfig)
@@ -734,16 +809,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         config: nextConfig,
         openFiles: nextOpenFiles,
         selectedFilePath: nextSelected,
-        fileDrafts,
-        dirtyFiles,
-        dirty: nextSelected ? Boolean(dirtyFiles[nextSelected]) : false,
+        fileDrafts: nextDrafts,
+        dirtyFiles: nextDirty,
+        dirty: nextSelected ? Boolean(nextDirty[nextSelected]) : false,
+        currentContent:
+          nextSelected && nextDrafts[nextSelected] !== undefined
+            ? nextDrafts[nextSelected]
+            : get().currentContent,
       })
     }
 
-    if (selectedFilePath === normalizedOld) {
-      await get().selectFile(normalizedNext)
+    if (selectedFilePath && remap(selectedFilePath) !== selectedFilePath) {
+      await get().selectFile(remap(selectedFilePath))
     }
     await get().refreshTree()
+
+    if (wikiUpdated > 0) {
+      toast.success("已同步双链引用", {
+        description: `更新了 ${wikiUpdated} 个文件中的 [[${oldStem}]]`,
+      })
+    }
   },
 
   deleteNode: async (path) => {

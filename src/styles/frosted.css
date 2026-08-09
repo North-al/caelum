@@ -1,0 +1,106 @@
+﻿
+/* —— App mica / frosted glass surfaces —— */
+.app-mica {
+    background:
+        radial-gradient(ellipse 90% 55% at 15% -10%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 58%),
+        radial-gradient(ellipse 70% 45% at 90% 0%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 52%),
+        radial-gradient(ellipse 60% 40% at 50% 110%, color-mix(in srgb, var(--muted) 55%, transparent), transparent 60%),
+        var(--background);
+}
+
+.dark .app-mica {
+    background:
+        radial-gradient(ellipse 90% 55% at 12% -12%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 55%),
+        radial-gradient(ellipse 70% 45% at 92% 5%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 50%),
+        radial-gradient(ellipse 55% 35% at 50% 115%, rgba(0, 0, 0, 0.35), transparent 60%),
+        var(--background);
+}
+
+.workspace-main {
+    background: color-mix(in srgb, var(--background) 55%, transparent);
+    backdrop-filter: blur(22px) saturate(1.15);
+    -webkit-backdrop-filter: blur(22px) saturate(1.15);
+}
+
+.dark .workspace-main {
+    background: color-mix(in srgb, var(--background) 42%, transparent);
+}
+
+.welcome-empty-aura {
+    pointer-events: none;
+    position: absolute;
+    inset: 8% 12% auto;
+    height: 42%;
+    background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 70%);
+    filter: blur(8px);
+}
+
+.welcome-glass {
+    background: color-mix(in srgb, var(--card) 62%, transparent);
+    backdrop-filter: blur(28px) saturate(1.2);
+    -webkit-backdrop-filter: blur(28px) saturate(1.2);
+}
+
+.dark .welcome-glass {
+    background: color-mix(in srgb, var(--card) 48%, transparent);
+}
+
+.settings-shell {
+    background: transparent;
+}
+
+.settings-rail,
+.settings-content {
+    background: color-mix(in srgb, var(--background) 48%, transparent);
+}
+
+.settings-content {
+    background: color-mix(in srgb, var(--background) 35%, transparent);
+}
+
+/* —— Lightweight page loading —— */
+@keyframes page-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.page-loading-ring {
+    animation: page-loading-spin 0.9s linear infinite;
+}
+
+/* —— Empty document / preview placeholders —— */
+.empty-document-card {
+    background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 70%),
+        color-mix(in srgb, var(--card) 72%, transparent);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.empty-document-glow {
+    pointer-events: none;
+    position: absolute;
+    inset: -20% -10% auto;
+    height: 60%;
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 65%);
+    opacity: 0.9;
+}
+
+.dark .empty-document-card {
+    background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 70%),
+        color-mix(in srgb, var(--card) 55%, transparent);
+}
+
+.window-control-btn svg {
+    shape-rendering: geometricPrecision;
+}
+
+/* Sidebar frosted rail */
+[data-slot='sidebar-inner'],
+.group\/sidebar-wrapper [data-side='left'] > div {
+    background: color-mix(in srgb, var(--sidebar) 58%, transparent) !important;
+    backdrop-filter: blur(20px) saturate(1.1);
+    -webkit-backdrop-filter: blur(20px) saturate(1.1);
+}

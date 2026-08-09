@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 import {
   ChevronDown,
+  Columns2,
   Download,
   Eye,
   ExternalLink,
@@ -8,13 +9,16 @@ import {
   ListTree,
   PanelLeft,
   PenSquare,
+  Pencil,
   Plus,
-  SplitSquareHorizontal,
+  Rows2,
   X,
 } from "lucide-react"
 import { revealItemInDir } from "@tauri-apps/plugin-opener"
 import { toast } from "sonner"
 
+import { FileTypeIcon } from "~/components/App/FileTypeIcon"
+import { RenameDialog } from "~/components/App/RenameDialog"
 import { Button } from "~/components/ui/button"
 import {
   ContextMenu,
@@ -48,40 +52,11 @@ import { cn } from "~/lib/utils"
 import { useWorkspaceStore } from "~/store/workspace"
 import { useSidebar } from "~/components/ui/sidebar"
 
-import type { ViewMode } from "~/store/workspace"
+import type { SplitOrientation } from "~/lib/workspace"
 
 const fileNameFromPath = (value: string) => value.split(/[\\/]/).pop() ?? value
 
-interface ViewModeButtonProps {
-  active: boolean
-  mode: ViewMode
-  label: string
-  onSelect: (mode: ViewMode) => void
-  icon: React.ReactNode
-}
-
-const ViewModeButton = ({ active, mode, label, onSelect, icon }: ViewModeButtonProps) => (
-  <Tooltip>
-    <TooltipTrigger
-      render={
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className={cn(
-            "rounded-lg",
-            active ? "bg-background text-foreground shadow-sm ring-1 ring-border/60" : "text-muted-foreground"
-          )}
-          onClick={() => onSelect(mode)}
-          aria-label={label}
-          aria-pressed={active}
-        />
-      }
-    >
-      {icon}
-    </TooltipTrigger>
-    <TooltipContent side="bottom">{label}</TooltipContent>
-  </Tooltip>
-)
+type LayoutChoice = "editor" | "split-h" | "split-v" | "preview"
 
 interface DragSession {
   index: number
@@ -105,19 +80,57 @@ export const TitleBar = () => {
     reorderTabs,
     copyFileToDirectory,
     createFile,
+    renameNode,
     viewMode,
     setViewMode,
     outlineVisible,
     setOutlineVisible,
+    config,
+    updateUiState,
   } = useWorkspaceStore()
   const { toggleSidebar } = useSidebar()
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [ghost, setGhost] = useState<{ x: number; y: number; label: string } | null>(null)
+  const [renamePath, setRenamePath] = useState<string | null>(null)
   const sessionRef = useRef<DragSession | null>(null)
   const suppressClickRef = useRef(false)
 
   const openTabs = openFiles
   const canExport = Boolean(selectedFilePath)
+  const splitOrientation = (config?.uiState.splitOrientation ?? "horizontal") as SplitOrientation
+
+  const layoutChoice: LayoutChoice =
+    viewMode === "editor"
+      ? "editor"
+      : viewMode === "preview"
+        ? "preview"
+        : splitOrientation === "vertical"
+          ? "split-v"
+          : "split-h"
+
+  const applyLayout = (choice: LayoutChoice) => {
+    if (choice === "editor") {
+      setViewMode("editor")
+      return
+    }
+    if (choice === "preview") {
+      setViewMode("preview")
+      return
+    }
+    void updateUiState({
+      splitOrientation: choice === "split-v" ? "vertical" : "horizontal",
+    })
+    setViewMode("split")
+  }
+
+  const layoutLabel =
+    layoutChoice === "editor"
+      ? "仅编辑"
+      : layoutChoice === "preview"
+        ? "仅预览"
+        : layoutChoice === "split-v"
+          ? "上下分栏"
+          : "左右分栏"
 
   useEffect(() => {
     return () => {
@@ -267,17 +280,24 @@ export const TitleBar = () => {
 
   return (
     <>
-      <div className="flex h-12 shrink-0 items-stretch border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      <div className="flex h-12 shrink-0 items-stretch border-b border-border/40 bg-background/45 backdrop-blur-xl">
         <div className="flex items-center pl-2" data-tauri-drag-region>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="rounded-lg text-muted-foreground"
-            onClick={toggleSidebar}
-            aria-label="切换侧边栏"
-          >
-            <PanelLeft className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="rounded-lg text-muted-foreground transition-all duration-150 hover:bg-muted/80 hover:text-foreground active:scale-[0.94]"
+                  onClick={toggleSidebar}
+                  aria-label="切换侧边栏"
+                />
+              }
+            >
+              <PanelLeft className="size-4" strokeWidth={1.75} />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">切换侧边栏</TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="flex min-w-0 flex-1 items-stretch gap-0.5 overflow-x-auto px-1 pt-2">
@@ -327,8 +347,17 @@ export const TitleBar = () => {
                       />
                     }
                   >
-                    <FileText className={cn("size-3.5 shrink-0", active ? "text-primary" : "text-muted-foreground/70")} />
-                    <span className="max-w-[160px] truncate font-medium">{fileNameFromPath(filePath)}</span>
+                    <FileTypeIcon path={filePath} />
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <span className="max-w-[160px] truncate font-medium" />
+                        }
+                      >
+                        {fileNameFromPath(filePath)}
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">{fileNameFromPath(filePath)}</TooltipContent>
+                    </Tooltip>
                     {dirtyFiles[filePath] ? (
                       <span
                         className="size-1.5 shrink-0 rounded-full bg-primary"
@@ -353,7 +382,22 @@ export const TitleBar = () => {
                     </button>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
-                    <ContextMenuItem onClick={() => void closeFileTab(filePath)}>关闭</ContextMenuItem>
+                    <ContextMenuItem onClick={() => setRenamePath(filePath)}>
+                      <Pencil className="mr-2 size-4" />
+                      重命名
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => {
+                        void revealItemInDir(filePath).catch(() => {
+                          toast.error("无法在资源管理器中打开")
+                        })
+                      }}
+                    >
+                      <ExternalLink className="mr-2 size-4" />
+                      打开目录
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => void closeFileTab(filePath)}>关闭标签</ContextMenuItem>
+                    <ContextMenuSeparator />
                     <ContextMenuItem onClick={() => void closeOtherTabs(filePath)}>关闭其他</ContextMenuItem>
                     <ContextMenuItem onClick={() => void closeTabsToTheRight(filePath)}>关闭右侧</ContextMenuItem>
                     <ContextMenuItem onClick={() => void closeAllTabs()}>全部关闭</ContextMenuItem>
@@ -368,16 +412,6 @@ export const TitleBar = () => {
                       }}
                     >
                       复制路径
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => {
-                        void revealItemInDir(filePath).catch(() => {
-                          toast.error("无法在资源管理器中打开")
-                        })
-                      }}
-                    >
-                      <ExternalLink className="mr-2 size-4" />
-                      在资源管理器中显示
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem onClick={() => void handleExport("md", filePath)}>
@@ -459,29 +493,49 @@ export const TitleBar = () => {
         </div>
 
         <div className="flex items-center gap-0.5 px-1.5">
-          <div className="mr-0.5 flex items-center gap-0.5 rounded-xl border border-border/40 bg-muted/40 p-0.5">
-            <ViewModeButton
-              mode="editor"
-              label="仅编辑"
-              active={viewMode === "editor"}
-              onSelect={setViewMode}
-              icon={<PenSquare className="size-3.5" />}
-            />
-            <ViewModeButton
-              mode="split"
-              label="分屏"
-              active={viewMode === "split"}
-              onSelect={setViewMode}
-              icon={<SplitSquareHorizontal className="size-3.5" />}
-            />
-            <ViewModeButton
-              mode="preview"
-              label="仅预览"
-              active={viewMode === "preview"}
-              onSelect={setViewMode}
-              icon={<Eye className="size-3.5" />}
-            />
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 rounded-lg px-2 text-[12px] text-muted-foreground"
+                  aria-label="布局"
+                />
+              }
+            >
+              {layoutChoice === "editor" ? (
+                <PenSquare className="size-3.5" />
+              ) : layoutChoice === "split-v" ? (
+                <Rows2 className="size-3.5" />
+              ) : layoutChoice === "preview" ? (
+                <Eye className="size-3.5" />
+              ) : (
+                <Columns2 className="size-3.5" />
+              )}
+              {layoutLabel}
+              <ChevronDown className="size-3.5 opacity-60" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="bottom" className="min-w-[10rem]">
+              <DropdownMenuItem onClick={() => applyLayout("editor")}>
+                <PenSquare className="size-4" />
+                仅编辑
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => applyLayout("split-h")}>
+                <Columns2 className="size-4" />
+                左右分栏
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => applyLayout("split-v")}>
+                <Rows2 className="size-4" />
+                上下分栏
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => applyLayout("preview")}>
+                <Eye className="size-4" />
+                仅预览
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="mx-1 h-4 w-px bg-border/50" />
 
@@ -554,6 +608,22 @@ export const TitleBar = () => {
           {ghost.label}
         </div>
       ) : null}
+
+      <RenameDialog
+        open={renamePath !== null}
+        path={renamePath}
+        confirmInvalidExtension={config?.settings.confirmInvalidExtension ?? true}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRenamePath(null)
+          }
+        }}
+        onSubmit={async (value) => {
+          if (renamePath) {
+            await renameNode(renamePath, value)
+          }
+        }}
+      />
     </>
   )
 }

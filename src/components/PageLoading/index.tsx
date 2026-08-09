@@ -1,32 +1,42 @@
 import { CaelumLogo } from "~/components/App/CaelumLogo"
 import { cn } from "~/lib/utils"
 
+export type PageLoadingScene = "workspace" | "document" | "tree" | "settings" | "route"
+
 interface Props {
   className?: string
+  /** Lightweight scene copy. */
   label?: string
+  scene?: PageLoadingScene
 }
 
-export const PageLoading = ({ className, label = "正在加载…" }: Props) => {
+const SCENE_LABELS: Record<PageLoadingScene, string> = {
+  workspace: "读取资源目录...",
+  document: "加载文档中...",
+  tree: "读取资源目录...",
+  settings: "加载设置...",
+  route: "加载页面...",
+}
+
+/** Theme-aware lightweight loading surface (no flashy ping). */
+export const PageLoading = ({ className, label, scene = "route" }: Props) => {
+  const text = label ?? SCENE_LABELS[scene]
+
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 w-full flex-col items-center justify-center gap-5 bg-background text-foreground",
+        "page-loading flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 bg-background text-foreground",
         className
       )}
+      role="status"
+      aria-live="polite"
+      aria-label={text}
     >
-      <div className="relative flex size-16 items-center justify-center">
-        <span className="absolute inset-0 animate-ping rounded-2xl bg-primary/15" />
-        <span className="absolute inset-1 animate-pulse rounded-xl bg-primary/10" />
-        <CaelumLogo className="relative size-12 text-primary drop-shadow-sm" />
+      <div className="relative flex size-12 items-center justify-center">
+        <span className="page-loading-ring absolute inset-0 rounded-full border-2 border-border/60 border-t-primary/70" />
+        <CaelumLogo className="relative size-6 text-primary/90" />
       </div>
-      <div className="flex flex-col items-center gap-2">
-        <div className="text-sm font-medium tracking-tight text-foreground/85">{label}</div>
-        <div className="flex items-center gap-1.5" aria-hidden>
-          <span className="size-1.5 animate-bounce rounded-full bg-primary/70 [animation-delay:-0.2s]" />
-          <span className="size-1.5 animate-bounce rounded-full bg-primary/70 [animation-delay:-0.1s]" />
-          <span className="size-1.5 animate-bounce rounded-full bg-primary/70" />
-        </div>
-      </div>
+      <p className="text-[13px] text-muted-foreground">{text}</p>
     </div>
   )
 }

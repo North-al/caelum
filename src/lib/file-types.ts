@@ -27,6 +27,18 @@ const EDITABLE_EXTENSIONS = new Set([
   "svg",
 ])
 
+/**
+ * Files that can be opened via OS drag-drop into the workspace window.
+ * Matches the product-supported note formats (excludes images / binaries).
+ */
+const DROP_OPENABLE_EXTENSIONS = new Set([
+  ...MARKDOWN_EXTENSIONS,
+  "txt",
+  "ini",
+  "json",
+  "xml",
+])
+
 /** All files listed in the file tree (editable + raster images). */
 const TREE_VISIBLE_EXTENSIONS = new Set([...EDITABLE_EXTENSIONS, ...IMAGE_EXTENSIONS])
 
@@ -48,6 +60,10 @@ export const isPlainTextPath = (value: string) => PLAIN_TEXT_EXTENSIONS.has(getF
 export const isCodePath = (value: string) => CODE_EXTENSIONS.has(getFileExtension(value))
 
 export const isEditablePath = (value: string) => EDITABLE_EXTENSIONS.has(getFileExtension(value))
+
+/** Drag-drop openable notes: .md / .txt / .ini / .json / .xml */
+export const isDropOpenablePath = (value: string) =>
+  DROP_OPENABLE_EXTENSIONS.has(getFileExtension(value))
 
 export const isTreeVisiblePath = (value: string) => TREE_VISIBLE_EXTENSIONS.has(getFileExtension(value))
 
@@ -78,4 +94,5 @@ export const getPreviewKind = (path: string): PreviewKind => {
 
 export const TREE_VISIBLE_EXTENSIONS_LIST = [...TREE_VISIBLE_EXTENSIONS]
 export const EDITABLE_EXTENSIONS_LIST = [...EDITABLE_EXTENSIONS]
+export const DROP_OPENABLE_EXTENSIONS_LIST = [...DROP_OPENABLE_EXTENSIONS]
 export { IMAGE_EXTENSIONS }

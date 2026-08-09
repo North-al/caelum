@@ -1,4 +1,4 @@
-import { Check, Monitor, Moon, Paintbrush, Sun } from "lucide-react"
+import { Check, Monitor, Moon, Palette, Sun } from "lucide-react"
 
 import { Button } from "~/components/ui/button"
 import {
@@ -7,6 +7,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "~/components/ui/tooltip"
 import { cn } from "~/lib/utils"
 import { useWorkspaceStore } from "~/store/workspace"
 
@@ -29,32 +34,44 @@ interface AppearanceMenuProps {
   compact?: boolean
 }
 
+/** Theme mode + accent color quick menu. */
 export const AppearanceMenu = ({ triggerClassName, compact = false }: AppearanceMenuProps) => {
   const { config, updateSettings } = useWorkspaceStore()
   const themeMode = config?.settings.themeMode ?? "system"
   const themeColor = config?.settings.themeColor ?? "blue"
 
+  const trigger = (
+    <DropdownMenuTrigger
+      render={
+        <Button
+          variant="ghost"
+          size={compact ? "icon-sm" : "sm"}
+          className={cn(
+            compact
+              ? "size-8 rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-background/80 hover:text-foreground"
+              : "h-9 w-full justify-start gap-2 rounded-xl px-3 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-muted/80 hover:text-foreground",
+            triggerClassName
+          )}
+          aria-label="主题"
+        />
+      }
+    >
+      <Palette className="size-4 shrink-0" strokeWidth={1.75} />
+      {compact ? null : <span>主题</span>}
+    </DropdownMenuTrigger>
+  )
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size={compact ? "icon-sm" : "sm"}
-            className={cn(
-              compact
-                ? "text-muted-foreground"
-                : "h-8 w-full justify-start gap-2 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              triggerClassName
-            )}
-            aria-label="外观设置"
-          />
-        }
-      >
-        <Paintbrush className="size-4 shrink-0" />
-        {compact ? null : <span>外观</span>}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="w-72 p-2">
+      {compact ? (
+        <Tooltip>
+          <TooltipTrigger render={<span className="inline-flex">{trigger}</span>} />
+          <TooltipContent side="right">主题</TooltipContent>
+        </Tooltip>
+      ) : (
+        trigger
+      )}
+      <DropdownMenuContent align="start" side="top" className="w-72 rounded-xl p-2 shadow-lg">
         <div className="px-1.5 pb-1 text-xs font-medium text-muted-foreground">主题模式</div>
         <div className="grid grid-cols-3 gap-1.5">
           {themeModes.map((mode) => {
@@ -66,13 +83,13 @@ export const AppearanceMenu = ({ triggerClassName, compact = false }: Appearance
                 type="button"
                 onClick={() => void updateSettings({ themeMode: mode.value })}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-colors",
+                  "flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-colors duration-150",
                   active
-                    ? "border-primary/40 bg-primary/10 text-foreground"
-                    : "border-border/60 bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+                    ? "border-primary/35 bg-primary/10 text-foreground"
+                    : "border-border/50 bg-background/60 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                 )}
               >
-                <Icon className="size-4" />
+                <Icon className="size-4" strokeWidth={1.75} />
                 <span className="text-[11px] font-medium">{mode.label}</span>
               </button>
             )
@@ -91,15 +108,19 @@ export const AppearanceMenu = ({ triggerClassName, compact = false }: Appearance
                 type="button"
                 onClick={() => void updateSettings({ themeColor: color.value })}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-2 py-2 text-left text-[13px] transition-colors",
-                  active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+                  "flex items-center gap-2.5 rounded-lg px-2 py-2 text-left text-[13px] transition-colors duration-150",
+                  active
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                 )}
               >
                 <span
                   className="flex size-5 items-center justify-center rounded-full"
                   style={{
                     backgroundColor: color.swatch,
-                    boxShadow: active ? `0 0 0 2px var(--background), 0 0 0 4px ${color.swatch}` : undefined,
+                    boxShadow: active
+                      ? `0 0 0 2px var(--background), 0 0 0 4px ${color.swatch}`
+                      : undefined,
                   }}
                 >
                   {active ? <Check className="size-3 text-white" strokeWidth={3} /> : null}

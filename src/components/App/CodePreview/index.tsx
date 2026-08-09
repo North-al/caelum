@@ -1,10 +1,12 @@
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { convertFileSrc } from "@tauri-apps/api/core"
 import hljs from "highlight.js/lib/core"
 import json from "highlight.js/lib/languages/json"
 import xml from "highlight.js/lib/languages/xml"
 import ini from "highlight.js/lib/languages/ini"
 
+import { PreviewEmptyHint } from "~/components/App/EditorEmptyGuide"
+import { tryFormatByExtension } from "~/lib/format-code"
 import { getFileExtension, getPreviewKind } from "~/lib/file-types"
 import { normalizePath } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
@@ -17,14 +19,8 @@ interface Props {
   path: string
   content: string
   className?: string
-}
-
-const formatJson = (value: string) => {
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2)
-  } catch {
-    return value
-  }
+  containerRef?: React.RefObject<HTMLDivElement | null>
+  onScroll?: (scrollTop: number) => void
 }
 
 const highlightLanguage = (extension: string) => {
@@ -34,15 +30,24 @@ const highlightLanguage = (extension: string) => {
   return null
 }
 
-export const CodePreview = ({ path, content, className }: Props) => {
+export const CodePreview = ({ path, content, className, containerRef, onScroll }: Props) => {
   const kind = getPreviewKind(path)
   const extension = getFileExtension(path)
+  const internalRef = useRef<HTMLDivElement | null>(null)
+
+  const setRefs = (node: HTMLDivElement | null) => {
+    internalRef.current = node
+    if (containerRef) {
+      containerRef.current = node
+    }
+  }
 
   const display = useMemo(() => {
-    if (extension === "json") {
-      return formatJson(content)
+    if (!content.trim()) {
+      return ""
     }
-    return content
+    const formatted = tryFormatByExtension(extension, content)
+    return formatted ?? content
   }, [content, extension])
 
   const highlighted = useMemo(() => {
@@ -57,7 +62,6 @@ export const CodePreview = ({ path, content, className }: Props) => {
     }
   }, [display, extension])
 
-  // Prefer live SVG content so edits refresh immediately (asset URL is cached by path).
   const svgObjectUrl = useMemo(() => {
     if (kind !== "svg") {
       return null
@@ -79,7 +83,11 @@ export const CodePreview = ({ path, content, className }: Props) => {
   if (kind === "svg") {
     const fallbackSrc = convertFileSrc(normalizePath(path))
     return (
-      <div className={cn("code-preview flex h-full min-h-0 flex-col overflow-auto bg-background", className)}>
+      <div
+        ref={setRefs}
+        className={cn("code-preview relative flex h-full min-h-0 flex-col overflow-auto bg-background", className)}
+        onScroll={(event) => onScroll?.(event.currentTarget.scrollTop)}
+      >
         <div className="flex min-h-0 flex-1 items-center justify-center p-6">
           <img
             key={svgObjectUrl ?? fallbackSrc}
@@ -88,7 +96,7 @@ export const CodePreview = ({ path, content, className }: Props) => {
             className="max-h-[min(70vh,640px)] max-w-full rounded-xl border border-border/40 bg-muted/20 object-contain p-4"
           />
         </div>
-      <pre className="max-h-[35%] overflow-auto border-t border-border/40 bg-muted/20 px-4 py-3 font-mono text-[12px] leading-relaxed text-foreground/90 dark:bg-[#0d1117] dark:text-[#e6edf3]">
+        <pre className="max-h-[35%] overflow-auto border-t border-border/40 bg-muted/20 px-4 py-3 font-mono text-[12px] leading-relaxed text-foreground/90 dark:bg-[#12141a] dark:text-[#d7dae3]">
           {highlighted ? (
             <code
               className="hljs"
@@ -104,18 +112,26 @@ export const CodePreview = ({ path, content, className }: Props) => {
   }
 
   return (
-    <div className={cn("code-preview h-full min-h-0 overflow-auto bg-background px-6 py-5", className)}>
-      <pre className="mx-auto max-w-4xl overflow-auto rounded-xl border border-border/50 bg-muted/30 p-4 font-mono text-[13px] leading-relaxed text-foreground whitespace-pre-wrap break-words dark:bg-[#0d1117] dark:text-[#e6edf3]">
-        {highlighted ? (
-          <code
-            className="hljs"
-            style={{ background: "transparent", color: "inherit" }}
-            dangerouslySetInnerHTML={{ __html: highlighted }}
-          />
-        ) : (
-          display || "（空文件）"
-        )}
-      </pre>
+    <div
+      ref={setRefs}
+      className={cn("code-preview h-full min-h-0 overflow-auto bg-background px-6 py-5", className)}
+      onScroll={(event) => onScroll?.(event.currentTarget.scrollTop)}
+    >
+      {!display.trim() ? (
+        <PreviewEmptyHint />
+      ) : (
+        <pre className="mx-auto max-w-4xl overflow-auto rounded-xl border border-border/50 bg-muted/30 p-4 font-mono text-[13px] leading-relaxed text-foreground whitespace-pre-wrap break-words dark:bg-[#12141a] dark:text-[#d7dae3]">
+          {highlighted ? (
+            <code
+              className="hljs"
+              style={{ background: "transparent", color: "inherit" }}
+              dangerouslySetInnerHTML={{ __html: highlighted }}
+            />
+          ) : (
+            display
+          )}
+        </pre>
+      )}
     </div>
   )
 }

@@ -24,9 +24,19 @@ struct AppSettings {
     auto_save: bool,
     auto_save_interval: u32,
     start_with_last_file: bool,
-    #[serde(default)]
+    #[serde(default = "default_scroll_sync")]
     scroll_sync: bool,
+    #[serde(default = "default_confirm_invalid_extension")]
+    confirm_invalid_extension: bool,
     language: String,
+}
+
+fn default_scroll_sync() -> bool {
+    true
+}
+
+fn default_confirm_invalid_extension() -> bool {
+    true
 }
 
 fn default_code_highlight_theme() -> String {
@@ -53,7 +63,8 @@ impl Default for AppSettings {
             auto_save: true,
             auto_save_interval: 600,
             start_with_last_file: true,
-            scroll_sync: false,
+            scroll_sync: true,
+            confirm_invalid_extension: true,
             language: "zh-CN".to_string(),
         }
     }
@@ -72,6 +83,8 @@ struct WorkspaceUiState {
     open_files: Vec<String>,
     #[serde(default = "default_split_ratio")]
     split_ratio: f64,
+    #[serde(default = "default_split_orientation")]
+    split_orientation: String,
     #[serde(default)]
     reading_positions: std::collections::HashMap<String, serde_json::Value>,
     #[serde(default)]
@@ -98,6 +111,10 @@ fn default_split_ratio() -> f64 {
     50.0
 }
 
+fn default_split_orientation() -> String {
+    "horizontal".to_string()
+}
+
 fn default_outline_width() -> f64 {
     250.0
 }
@@ -118,6 +135,7 @@ impl Default for WorkspaceUiState {
             active_file_path: None,
             open_files: Vec::new(),
             split_ratio: default_split_ratio(),
+            split_orientation: default_split_orientation(),
             reading_positions: std::collections::HashMap::new(),
             sidebar_collapsed: false,
             outline_visible: false,

@@ -1,23 +1,19 @@
 import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "react"
-import { convertFileSrc } from "@tauri-apps/api/core"
 import {
-  Braces,
   ChevronRight,
   ClipboardPaste,
-  Code2,
   Copy,
   ExternalLink,
-  FileCode2,
   FilePlus2,
   FileText,
   Folder,
   FolderOpen,
   FolderPlus,
-  ImageIcon,
   PencilLine,
   Trash2,
 } from "lucide-react"
 
+import { FileTypeIcon } from "~/components/App/FileTypeIcon"
 import {
   Collapsible,
   CollapsibleContent,
@@ -30,7 +26,6 @@ import {
   ContextMenuTrigger,
 } from "~/components/ui/context-menu"
 import { DROP_DIR_ATTR, getActiveDropDir, subscribeTabDrag } from "~/lib/dnd"
-import { getFileExtension, isBinaryImagePath, isImagePath } from "~/lib/file-types"
 import { getParentPath, normalizePath } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 
@@ -57,36 +52,25 @@ interface Props {
   onCreateFolder?: (parentPath: string) => void
   onReveal?: (path: string) => void
   onCopyPath?: (path: string) => void
+  onCopyWikiLink?: (path: string) => void
   onDropTabFile?: (sourcePath: string, destinationDir: string) => void
   onPasteFiles?: (destinationDir: string) => void
   onCopySelection?: () => void
 }
 
-const FileTypeIcon = ({ path }: { path: string }) => {
-  const extension = getFileExtension(path)
-  if (isImagePath(path)) {
-    if (isBinaryImagePath(path) || extension === "svg") {
-      return (
-        <img
-          src={convertFileSrc(normalizePath(path))}
-          alt=""
-          className="size-3.5 shrink-0 rounded-[3px] object-cover ring-1 ring-border/50"
-          loading="lazy"
-        />
-      )
-    }
-    return <ImageIcon className="size-3.5 shrink-0 text-emerald-500" />
+const FileNameLabel = ({ name }: { name: string }) => {
+  const dot = name.lastIndexOf(".")
+  if (dot <= 0 || dot === name.length - 1) {
+    return <span className="min-w-0 flex-1 truncate pl-0.5 text-left text-foreground/90">{name}</span>
   }
-  if (extension === "json") {
-    return <Braces className="size-3.5 shrink-0 text-amber-500" />
-  }
-  if (extension === "xml" || extension === "svg") {
-    return <Code2 className="size-3.5 shrink-0 text-sky-500" />
-  }
-  if (extension === "ini") {
-    return <FileCode2 className="size-3.5 shrink-0 text-violet-500" />
-  }
-  return <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+  const stem = name.slice(0, dot)
+  const ext = name.slice(dot)
+  return (
+    <span className="min-w-0 flex-1 truncate pl-0.5 text-left" title={name}>
+      <span className="text-foreground/90">{stem}</span>
+      <span className="text-muted-foreground/55">{ext}</span>
+    </span>
+  )
 }
 
 export const FileTreeItem = ({
@@ -104,6 +88,7 @@ export const FileTreeItem = ({
   onCreateFolder,
   onReveal,
   onCopyPath,
+  onCopyWikiLink,
   onDropTabFile,
   onPasteFiles,
   onCopySelection,
@@ -113,18 +98,18 @@ export const FileTreeItem = ({
   const isSelected = selectedPaths.has(nodePath)
   const isActiveFile = !isFolder && activeFilePath != null && normalizePath(activeFilePath) === nodePath
   const isExpanded = isFolder && (expandedPaths.has(node.path) || expandedPaths.has(nodePath))
-  const paddingLeft = 12 + level * 12
+  const paddingLeft = 10 + level * 14
   const dropDir = isFolder ? node.path : getParentPath(node.path)
   const activeDropDir = useSyncExternalStore(subscribeTabDrag, getActiveDropDir, () => null)
   const dropActive = Boolean(dropDir && activeDropDir === normalizePath(dropDir))
 
   const rowClassName = cn(
-    "group flex h-[30px] w-full items-center gap-1 rounded-md px-1 pr-2 text-[13px] outline-none transition-colors",
+    "group file-tree-row flex h-8 w-full items-center gap-1.5 rounded-lg px-1.5 pr-2 text-[13px] outline-none transition-colors duration-150",
     isSelected
-      ? "bg-primary/25 text-foreground ring-1 ring-inset ring-primary/40 hover:bg-primary/30"
-      : "hover:bg-sidebar-accent/70",
-    isActiveFile && !isSelected && "bg-sidebar-accent/80 text-sidebar-accent-foreground",
-    dropActive && !isSelected && "bg-primary/15 ring-1 ring-inset ring-primary/35"
+      ? "bg-primary/18 text-foreground ring-1 ring-inset ring-primary/25 hover:bg-primary/22"
+      : "hover:bg-primary/8",
+    isActiveFile && !isSelected && "bg-primary/12 text-foreground",
+    dropActive && !isSelected && "bg-primary/15 ring-1 ring-inset ring-primary/30"
   )
 
   const stop = (event: MouseEvent) => {
@@ -191,6 +176,10 @@ export const FileTreeItem = ({
         <Copy className="mr-2 size-4" />
         复制路径
       </ContextMenuItem>
+      <ContextMenuItem onClick={() => onCopyWikiLink?.(node.path)}>
+        <FileText className="mr-2 size-4 text-primary" />
+        复制双链引用
+      </ContextMenuItem>
       <ContextMenuItem onClick={() => onReveal?.(node.path)}>
         <ExternalLink className="mr-2 size-4" />
         在资源管理器中显示
@@ -240,11 +229,13 @@ export const FileTreeItem = ({
                 <ChevronRight className={cn("size-3.5 transition-transform", isExpanded && "rotate-90")} />
               </button>
               {isExpanded ? (
-                <FolderOpen className="size-3.5 shrink-0 text-amber-500/90" />
+                <FolderOpen className="size-3.5 shrink-0 text-amber-500/90" strokeWidth={1.75} />
               ) : (
-                <Folder className="size-3.5 shrink-0 text-amber-500/90" />
+                <Folder className="size-3.5 shrink-0 text-amber-500/90" strokeWidth={1.75} />
               )}
-              <span className="min-w-0 flex-1 truncate pl-0.5 text-left">{node.name}</span>
+              <span className="min-w-0 flex-1 truncate pl-0.5 text-left text-foreground/90" title={node.name}>
+                {node.name}
+              </span>
               <div className="ml-auto hidden shrink-0 items-center group-hover:flex">
                 <button
                   type="button"
@@ -282,6 +273,7 @@ export const FileTreeItem = ({
                 onCreateFolder={onCreateFolder}
                 onReveal={onReveal}
                 onCopyPath={onCopyPath}
+                onCopyWikiLink={onCopyWikiLink}
                 onDropTabFile={onDropTabFile}
                 onPasteFiles={onPasteFiles}
                 onCopySelection={onCopySelection}
@@ -324,8 +316,8 @@ export const FileTreeItem = ({
             onItemDoubleClick?.(node.path, false)
           }}
         >
-          <FileTypeIcon path={node.path} />
-          <span className="min-w-0 flex-1 truncate pl-0.5">{node.name}</span>
+          <FileTypeIcon path={node.path} showThumbnail />
+          <FileNameLabel name={node.name} />
         </button>
       </ContextMenuTrigger>
       <ContextMenuContent>{fileMenu}</ContextMenuContent>
@@ -424,5 +416,25 @@ export const useExpandedPaths = (nodes: FileNode[], selectedPath?: string | null
     })
   }
 
-  return { expandedPaths, toggleExpand, ensureExpanded }
+  const expandAll = () => {
+    const next = new Set<string>()
+    const walk = (items: FileNode[]) => {
+      for (const item of items) {
+        if (item.type === "folder") {
+          next.add(item.path)
+          if (item.children?.length) {
+            walk(item.children)
+          }
+        }
+      }
+    }
+    walk(nodes)
+    setExpandedPaths(next)
+  }
+
+  const collapseAll = () => {
+    setExpandedPaths(new Set())
+  }
+
+  return { expandedPaths, toggleExpand, ensureExpanded, expandAll, collapseAll }
 }

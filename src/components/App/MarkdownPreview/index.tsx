@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm"
 import rehypeHighlight from "rehype-highlight"
 
 import { ImageLightbox } from "~/components/App/ImageLightbox"
+import { PreviewEmptyHint } from "~/components/App/EditorEmptyGuide"
 import { PreviewCodeBlock } from "~/components/App/PreviewCodeBlock"
 import { resolveMarkdownAssetUrl } from "~/lib/markdown"
 import { normalizeTaskListSyntax } from "~/lib/task-list"
@@ -133,18 +134,22 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
     <>
       <div
         ref={containerRef}
-        className="markdown-preview h-full min-h-0 overflow-auto bg-background px-8 py-7"
+        className="markdown-preview markdown-preview-loose relative h-full min-h-0 overflow-auto bg-background px-10 py-9"
         onScroll={(event) => onScroll?.(event.currentTarget.scrollTop)}
       >
-        <div className="mx-auto max-w-3xl">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={rehypePlugins}
-            components={components}
-          >
-            {normalizedContent}
-          </ReactMarkdown>
-        </div>
+        {!normalizedContent.trim() ? (
+          <PreviewEmptyHint />
+        ) : (
+          <div className="mx-auto max-w-3xl space-y-1">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={rehypePlugins}
+              components={components}
+            >
+              {normalizedContent}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
 
       <ImageLightbox

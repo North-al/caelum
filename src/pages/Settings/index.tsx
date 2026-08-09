@@ -131,10 +131,6 @@ const SettingsPage = () => {
   }, [navigate, pathDialog])
 
   const goBackToWorkspace = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
     navigate("/")
   }
 
@@ -168,72 +164,75 @@ const SettingsPage = () => {
   const fontSelectValue = matchedFont.id
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--primary)_8%,transparent),_transparent_55%),var(--background)]">
-      <header className="flex h-14 shrink-0 items-stretch border-b border-border/40 bg-background/70 backdrop-blur-xl">
-        <div className="flex min-w-0 flex-1 items-center gap-3 px-3" data-tauri-drag-region>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-9 gap-2 rounded-full border border-border/50 bg-background px-3.5 text-[13px] font-medium text-foreground shadow-sm hover:bg-accent"
-            onClick={goBackToWorkspace}
-          >
-            <ArrowLeft className="size-3.5" />
-            返回工作区
-          </Button>
-          <div className="h-5 w-px bg-border/60" />
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
-              <CaelumLogo className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[15px] font-semibold tracking-tight">
-                <span>设置</span>
-                <span className="text-muted-foreground/50">/</span>
-                <span className="text-foreground/85">{activeMeta.label}</span>
-              </div>
-              <div className="truncate text-[11px] text-muted-foreground">
-                {activeMeta.description} · Esc 返回
-              </div>
-            </div>
-          </div>
+    <div className="settings-shell flex h-full flex-col overflow-hidden animate-in fade-in duration-200">
+      <header className="flex h-11 shrink-0 items-stretch border-b border-border/30 bg-background/40 backdrop-blur-xl">
+        <div className="flex min-w-0 flex-1 items-center px-3" data-tauri-drag-region>
+          <span className="text-[13px] font-medium text-muted-foreground">设置</span>
+          <span className="mx-1.5 text-muted-foreground/40">/</span>
+          <span className="text-[13px] font-medium text-foreground/85">{activeMeta.label}</span>
         </div>
         <WindowControls />
       </header>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 gap-5 overflow-hidden p-5">
-        <aside className="flex w-[220px] shrink-0 flex-col gap-2 overflow-auto rounded-2xl border border-border/40 bg-card/70 p-2.5 shadow-sm backdrop-blur-sm">
-          {sections.map((section) => {
-            const Icon = section.icon
-            const active = activeSection === section.key
-            return (
-              <button
-                key={section.key}
-                type="button"
-                onClick={() => setActiveSection(section.key)}
-                className={cn(
-                  "flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all",
-                  active
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                    : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                )}
-              >
-                <Icon className={cn("mt-0.5 size-4 shrink-0", active ? "opacity-95" : "opacity-70")} />
-                <span className="min-w-0">
-                  <span className="block text-[13px] font-medium">{section.label}</span>
-                  <span className={cn("mt-0.5 block text-[11px]", active ? "text-primary-foreground/75" : "text-muted-foreground")}>
-                    {section.description}
-                  </span>
-                </span>
-              </button>
-            )
-          })}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <aside className="settings-rail flex w-[232px] shrink-0 flex-col border-r border-border/30 bg-background/25 backdrop-blur-xl">
+          <div className="p-2.5 pb-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 w-full justify-start gap-2 rounded-xl px-2.5 text-[13px] font-medium text-foreground/85 transition-all duration-150 hover:bg-muted/70 active:scale-[0.99]"
+              onClick={goBackToWorkspace}
+            >
+              <ArrowLeft className="size-3.5" strokeWidth={1.75} />
+              返回工作区
+            </Button>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-4 overflow-auto px-2.5 pb-4 pt-2">
+            <div>
+              <div className="mb-1 px-2.5 text-[11px] font-medium tracking-wide text-muted-foreground/70">
+                个人
+              </div>
+              <div className="flex flex-col gap-0.5">
+                {sections.map((section) => {
+                  const Icon = section.icon
+                  const active = activeSection === section.key
+                  return (
+                    <button
+                      key={section.key}
+                      type="button"
+                      onClick={() => setActiveSection(section.key)}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all duration-150",
+                        active
+                          ? "bg-muted/90 text-foreground"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                      )}
+                    >
+                      <Icon
+                        className={cn("size-4 shrink-0", active ? "text-foreground" : "opacity-70")}
+                        strokeWidth={1.75}
+                      />
+                      <span className="text-[13px] font-medium">{section.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
         </aside>
 
-        <main className="min-w-0 flex-1 overflow-auto rounded-2xl border border-border/40 bg-card/80 p-6 shadow-sm backdrop-blur-sm">
-          <div className="mb-5">
-            <h2 className="text-lg font-semibold tracking-tight">{activeMeta.label}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{activeMeta.description}</p>
-          </div>
+        <main
+          key={activeSection}
+          className="settings-content min-w-0 flex-1 overflow-auto px-8 py-7 animate-in fade-in duration-200"
+        >
+          <div className="mx-auto w-full max-w-3xl">
+            <div className="mb-6">
+              <h2 className="text-[1.65rem] font-semibold tracking-tight text-foreground/95">
+                {activeMeta.label}
+              </h2>
+              <p className="mt-1 text-[13px] text-muted-foreground">{activeMeta.description}</p>
+            </div>
 
           {activeSection === "general" ? (
             <div className="space-y-4">
@@ -366,8 +365,14 @@ const SettingsPage = () => {
                   onCheckedChange={(value) => updateSetting({ codeBlockLineNumbers: value })}
                 />
               </SettingCard>
-              <SettingCard title="滚动联动" description="分屏时同步滚动">
+              <SettingCard title="滚动联动" description="分屏时同步滚动编辑区与预览区">
                 <Switch checked={settings.scrollSync} onCheckedChange={(value) => updateSetting({ scrollSync: value })} />
+              </SettingCard>
+              <SettingCard title="无效后缀确认" description="重命名为不受支持的后缀时弹出轻确认">
+                <Switch
+                  checked={settings.confirmInvalidExtension ?? true}
+                  onCheckedChange={(value) => updateSetting({ confirmInvalidExtension: value })}
+                />
               </SettingCard>
             </div>
           ) : null}
@@ -517,6 +522,7 @@ const SettingsPage = () => {
               </div>
             </div>
           ) : null}
+          </div>
         </main>
       </div>
 
@@ -551,15 +557,19 @@ const SettingCard = ({
 }) => (
   <label
     className={cn(
-      "flex items-center justify-between gap-4 rounded-2xl border px-4 py-3.5",
-      recommended ? "border-primary/25 bg-primary/5" : "border-border/50 bg-background/60"
+      "flex items-center justify-between gap-4 rounded-2xl border px-4 py-3.5 backdrop-blur-md transition-colors duration-150",
+      recommended
+        ? "border-border/50 bg-background/55"
+        : "border-border/40 bg-background/45 hover:bg-background/60"
     )}
   >
     <div>
       <div className="flex items-center gap-2 text-sm font-medium">
         {title}
         {recommended ? (
-          <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">推荐</span>
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            推荐
+          </span>
         ) : null}
       </div>
       <div className="mt-0.5 text-xs text-muted-foreground">{description}</div>
@@ -581,20 +591,20 @@ const PathCard = ({
   onEdit?: () => void
   onOpen?: () => void
 }) => (
-  <div className="rounded-2xl border border-border/50 bg-background/60 p-4">
+  <div className="rounded-2xl border border-border/40 bg-background/45 p-4 backdrop-blur-md">
     <div className="mb-0.5 text-sm font-medium">{title}</div>
     <div className="mb-2 text-xs text-muted-foreground">{description}</div>
-    <div className="mb-3 break-all rounded-lg bg-muted/50 px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground/80">
+    <div className="mb-3 break-all rounded-xl bg-muted/40 px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground/80">
       {path || "未加载"}
     </div>
     <div className="flex gap-2">
       {onEdit ? (
-        <Button variant="outline" size="sm" className="rounded-full" onClick={onEdit}>
+        <Button variant="outline" size="sm" className="rounded-full bg-background/50" onClick={onEdit}>
           修改路径
         </Button>
       ) : null}
       {onOpen ? (
-        <Button variant="outline" size="sm" className="rounded-full" onClick={onOpen}>
+        <Button variant="outline" size="sm" className="rounded-full bg-background/50" onClick={onOpen}>
           打开位置
         </Button>
       ) : null}

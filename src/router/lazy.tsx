@@ -15,8 +15,8 @@ export const lazyLoad = (
     const Component = lazy(loader)
 
     return (
-        <Suspense fallback={ <PageLoading/> }>
-            <Component/>
+        <Suspense fallback={<PageLoading scene="route" />}>
+            <Component />
         </Suspense>
     )
 

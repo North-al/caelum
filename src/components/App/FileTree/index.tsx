@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent } from "react"
-import { ClipboardPaste, FilePlus2, FolderPlus } from "lucide-react"
+import {
+  ClipboardPaste,
+  FilePlus2,
+  FolderPlus,
+  FoldVertical,
+  RefreshCw,
+  UnfoldVertical,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -35,8 +42,10 @@ interface Props {
   onCreateFolder?: (parentPath?: string) => void
   onReveal?: (path: string) => void
   onCopyPath?: (path: string) => void
+  onCopyWikiLink?: (path: string) => void
   onDropTabFile?: (sourcePath: string, destinationDir: string) => void
   onPasteFiles?: (sourcePaths: string[], destinationDir: string) => Promise<void> | void
+  onRefresh?: () => void
 }
 
 const flattenVisible = (nodes: FileNode[], expanded: Set<string>): FileNode[] => {
@@ -64,10 +73,15 @@ export const FileTree = ({
   onCreateFolder,
   onReveal,
   onCopyPath,
+  onCopyWikiLink,
   onDropTabFile,
   onPasteFiles,
+  onRefresh,
 }: Props) => {
-  const { expandedPaths, toggleExpand, ensureExpanded } = useExpandedPaths(data, activeFilePath)
+  const { expandedPaths, toggleExpand, ensureExpanded, expandAll, collapseAll } = useExpandedPaths(
+    data,
+    activeFilePath
+  )
   const activeDropDir = useSyncExternalStore(subscribeTabDrag, getActiveDropDir, () => null)
   const activeTabPath = useSyncExternalStore(subscribeTabDrag, getActiveTabDragPath, () => null)
   const rootDropActive = Boolean(notesPath && activeDropDir === notesPath.replace(/\\/g, "/"))
@@ -351,9 +365,15 @@ export const FileTree = ({
           }}
         >
           {data.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-1.5 px-3 py-8 text-center">
-              <div className="text-[12px] text-muted-foreground">暂无文件</div>
-              <div className="text-[11px] text-muted-foreground/70">右键新建，或 Ctrl+C / Ctrl+V 复制粘贴</div>
+            <div className="flex flex-col items-center justify-center gap-2 px-3 py-10 text-center">
+              <div className="text-[12px] text-muted-foreground">右键新建文档，或拖拽本地文件导入</div>
+              <button
+                type="button"
+                className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/15"
+                onClick={() => onCreateFile?.(notesPath)}
+              >
+                新建笔记
+              </button>
             </div>
           ) : (
             data.map((item) => (
@@ -378,6 +398,7 @@ export const FileTree = ({
                 onCreateFolder={handleCreateFolder}
                 onReveal={onReveal}
                 onCopyPath={onCopyPath}
+                onCopyWikiLink={onCopyWikiLink}
                 onDropTabFile={onDropTabFile}
                 onPasteFiles={(destinationDir) => void pasteInto(destinationDir)}
                 onCopySelection={() => void copySelection()}
@@ -386,22 +407,39 @@ export const FileTree = ({
           )}
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onClick={() => handleCreateFile()}>
-          <FilePlus2 className="mr-2 size-4" />
+      <ContextMenuContent className="min-w-44 rounded-xl p-1.5 shadow-lg duration-200">
+        <ContextMenuItem className="rounded-lg" onClick={() => handleCreateFile()}>
+          <FilePlus2 className="mr-2 size-4 text-primary" />
           新建文件
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => handleCreateFolder()}>
-          <FolderPlus className="mr-2 size-4" />
+        <ContextMenuItem className="rounded-lg" onClick={() => handleCreateFolder()}>
+          <FolderPlus className="mr-2 size-4 text-primary" />
           新建文件夹
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => void copySelection()} disabled={selectedPaths.length === 0}>
+        <ContextMenuItem
+          className="rounded-lg"
+          onClick={() => void copySelection()}
+          disabled={selectedPaths.length === 0}
+        >
           复制
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => void pasteInto(pasteTargetDir)}>
+        <ContextMenuItem className="rounded-lg" onClick={() => void pasteInto(pasteTargetDir)}>
           <ClipboardPaste className="mr-2 size-4" />
           粘贴
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem className="rounded-lg" onClick={() => expandAll()}>
+          <UnfoldVertical className="mr-2 size-4" />
+          全部展开
+        </ContextMenuItem>
+        <ContextMenuItem className="rounded-lg" onClick={() => collapseAll()}>
+          <FoldVertical className="mr-2 size-4" />
+          全部折叠
+        </ContextMenuItem>
+        <ContextMenuItem className="rounded-lg" onClick={() => onRefresh?.()}>
+          <RefreshCw className="mr-2 size-4" />
+          刷新资源目录
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

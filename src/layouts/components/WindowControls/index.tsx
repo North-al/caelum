@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
-import { Copy, Maximize2, Minus, X } from "lucide-react"
+import { Copy, Minus, Square, X } from "lucide-react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 
 import { cn } from "~/lib/utils"
 
+/** Linear window chrome buttons — shared stroke weight with TitleBar tools. */
 export const WindowControls = () => {
   const [isMaximized, setIsMaximized] = useState(false)
 
@@ -35,13 +36,23 @@ export const WindowControls = () => {
     await getCurrentWindow().close()
   }
 
-  const buttonClass =
-    "flex h-full w-11 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+  const buttonClass = cn(
+    "window-control-btn flex h-full w-11 items-center justify-center text-muted-foreground",
+    "transition-[background-color,color,transform] duration-150",
+    "hover:bg-accent hover:text-foreground",
+    "active:scale-[0.94]"
+  )
 
   return (
     <div className="flex h-full shrink-0 items-stretch">
-      <button type="button" className={buttonClass} title="最小化" aria-label="最小化" onClick={() => void handleMinimize()}>
-        <Minus className="size-3.5" strokeWidth={1.75} />
+      <button
+        type="button"
+        className={buttonClass}
+        title="最小化"
+        aria-label="最小化"
+        onClick={() => void handleMinimize()}
+      >
+        <Minus className="size-3.5" strokeWidth={1.6} />
       </button>
       <button
         type="button"
@@ -51,9 +62,9 @@ export const WindowControls = () => {
         onClick={() => void handleMaximize()}
       >
         {isMaximized ? (
-          <Copy className="size-3 rotate-90" strokeWidth={1.75} />
+          <Copy className="size-3 rotate-90" strokeWidth={1.6} />
         ) : (
-          <Maximize2 className="size-3" strokeWidth={1.75} />
+          <Square className="size-3.5" strokeWidth={1.6} />
         )}
       </button>
       <button
@@ -63,7 +74,7 @@ export const WindowControls = () => {
         aria-label="关闭"
         onClick={() => void handleClose()}
       >
-        <X className="size-3.5" strokeWidth={1.75} />
+        <X className="size-3.5" strokeWidth={1.6} />
       </button>
     </div>
   )

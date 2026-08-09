@@ -29,12 +29,16 @@ export interface ReadingPosition {
   previewScrollTop: number
 }
 
+export type SplitOrientation = "horizontal" | "vertical"
+
 export interface WorkspaceUiState {
   defaultOpenMode: DefaultOpenMode
   lastViewMode: "editor" | "preview" | "split"
   activeFilePath: string | null
   openFiles: string[]
   splitRatio: number
+  /** Editor/preview split direction when viewMode is split */
+  splitOrientation: SplitOrientation
   readingPositions: Record<string, ReadingPosition>
   sidebarCollapsed: boolean
   outlineVisible: boolean
@@ -61,6 +65,8 @@ export interface AppSettings {
   autoSaveInterval: number
   startWithLastFile: boolean
   scrollSync: boolean
+  /** Confirm before saving a rename with an unsupported extension */
+  confirmInvalidExtension: boolean
   language: string
 }
 
@@ -98,7 +104,8 @@ export const defaultSettings: AppSettings = {
   autoSave: true,
   autoSaveInterval: 600,
   startWithLastFile: true,
-  scrollSync: false,
+  scrollSync: true,
+  confirmInvalidExtension: true,
   language: "zh-CN",
 }
 
@@ -108,6 +115,7 @@ export const defaultUiState: WorkspaceUiState = {
   activeFilePath: null,
   openFiles: [],
   splitRatio: 50,
+  splitOrientation: "horizontal",
   readingPositions: {},
   sidebarCollapsed: false,
   outlineVisible: false,

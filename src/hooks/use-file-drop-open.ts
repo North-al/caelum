@@ -4,10 +4,10 @@ import { toast } from "sonner"
 
 import { isImagePath } from "~/lib/assets"
 import { EXPLORER_ZONE_ATTR, findDropDirFromPoint } from "~/lib/dnd"
-import { isEditablePath } from "~/lib/file-types"
+import { isDropOpenablePath } from "~/lib/file-types"
 import { useWorkspaceStore } from "~/store/workspace"
 
-const isOpenableNote = (path: string) => isEditablePath(path)
+const SUPPORTED_DROP_HINT = ".md / .txt / .ini / .json / .xml"
 
 export type ExternalDropZone = "explorer" | "preview" | null
 
@@ -39,8 +39,8 @@ const resolveZone = (position: { x: number; y: number } | undefined): ExternalDr
 
 /**
  * OS file drops:
- * - Explorer zone → copy notes into workspace
- * - Preview / editor zone → open notes or insert images
+ * - Explorer zone → copy supported notes into workspace
+ * - Preview / editor zone → open notes as tabs or insert images
  */
 export const useFileDropOpen = ({
   enabled = true,
@@ -48,7 +48,7 @@ export const useFileDropOpen = ({
   onImportNotesToExplorer,
 }: Options = {}) => {
   const [isDragging, setIsDragging] = useState(false)
-  const [dragKind, setDragKind] = useState<"note" | "image" | "mixed" | null>(null)
+  const [dragKind, setDragKind] = useState<"note" | "image" | "mixed" | "unsupported" | null>(null)
   const [dropZone, setDropZone] = useState<ExternalDropZone>(null)
   const selectFile = useWorkspaceStore((state) => state.selectFile)
   const setViewMode = useWorkspaceStore((state) => state.setViewMode)
@@ -70,18 +70,21 @@ export const useFileDropOpen = ({
               : null
 
           if (paths) {
-            const hasNotes = paths.some(isOpenableNote)
+            const hasNotes = paths.some(isDropOpenablePath)
             const hasImages = paths.some(isImagePath)
+            const hasUnsupported = paths.some((path) => !isDropOpenablePath(path) && !isImagePath(path))
             if (hasNotes && hasImages) {
               setDragKind("mixed")
             } else if (hasImages) {
               setDragKind("image")
             } else if (hasNotes) {
               setDragKind("note")
+            } else if (hasUnsupported) {
+              setDragKind("unsupported")
             } else {
               setDragKind(null)
             }
-            setIsDragging(hasNotes || hasImages)
+            setIsDragging(hasNotes || hasImages || hasUnsupported)
           } else {
             setIsDragging(true)
           }
@@ -110,8 +113,9 @@ export const useFileDropOpen = ({
         setDropZone(null)
 
         const paths = (event.payload.paths ?? []).map((path) => path.replace(/\\/g, "/"))
-        const notePaths = paths.filter(isOpenableNote)
+        const notePaths = paths.filter(isDropOpenablePath)
         const imagePaths = paths.filter(isImagePath)
+        const unsupportedPaths = paths.filter((path) => !isDropOpenablePath(path) && !isImagePath(path))
         const hasOpenNote = Boolean(useWorkspaceStore.getState().selectedFilePath)
         const notesPath = useWorkspaceStore.getState().config?.notesPath
 
@@ -120,6 +124,9 @@ export const useFileDropOpen = ({
           const destinationDir = findDropDirFromPoint(point.x, point.y) || notesPath
           try {
             await onImportNotesToExplorer(notePaths, destinationDir)
+            if (unsupportedPaths.length > 0) {
+              toast.message("当前不支持该类型文件打开")
+            }
           } catch (error) {
             toast.error("导入失败", {
               description: error instanceof Error ? error.message : "无法复制到资源管理器",
@@ -131,6 +138,9 @@ export const useFileDropOpen = ({
         if (imagePaths.length > 0 && hasOpenNote && onInsertImages && zone !== "explorer") {
           try {
             await onInsertImages(imagePaths)
+            if (unsupportedPaths.length > 0) {
+              toast.message("当前不支持该类型文件打开")
+            }
           } catch (error) {
             toast.error("插入图片失败", {
               description: error instanceof Error ? error.message : "无法导入图片",
@@ -140,18 +150,20 @@ export const useFileDropOpen = ({
         }
 
         if (notePaths.length === 0) {
+          if (unsupportedPaths.length > 0) {
+            toast.message("当前不支持该类型文件打开")
+            return
+          }
           if (imagePaths.length > 0) {
             toast.message(zone === "explorer" ? "图片请拖到编辑区插入" : "请先打开一篇笔记", {
               description:
                 zone === "explorer"
-                  ? "资源管理器目前支持导入 .md / .txt"
+                  ? `资源管理器支持导入 ${SUPPORTED_DROP_HINT}`
                   : "打开笔记后再拖入图片，会复制到 assets",
             })
             return
           }
-          toast.error("未识别到可打开文件", {
-            description: "请拖入 .md / .txt",
-          })
+          toast.message("当前不支持该类型文件打开")
           return
         }
 
@@ -161,9 +173,12 @@ export const useFileDropOpen = ({
             await selectFile(path)
           }
           await selectFile(notePaths[0])
-          toast.success(notePaths.length === 1 ? "已打开预览" : `已打开 ${notePaths.length} 个文件`, {
+          toast.success(notePaths.length === 1 ? "已打开预览" : `已打开 ${notePaths.length} 个标签`, {
             description: notePaths[0].split("/").pop(),
           })
+          if (unsupportedPaths.length > 0) {
+            toast.message("当前不支持该类型文件打开")
+          }
         } catch (error) {
           toast.error("打开失败", {
             description: error instanceof Error ? error.message : "无法读取拖入的文件",

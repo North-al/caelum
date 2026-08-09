@@ -2,17 +2,16 @@ import { useCallback, useEffect, useRef } from "react"
 import { Group, Panel, Separator } from "react-resizable-panels"
 import type { GroupImperativeHandle } from "react-resizable-panels"
 import type { EditorView } from "@codemirror/view"
-import { FilePlus2, FileUp, ImagePlus, Settings2 } from "lucide-react"
-import { useNavigate } from "react-router"
+import { FileUp, ImagePlus, Link2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { CaelumLogo } from "~/components/App/CaelumLogo"
 import { CodePreview } from "~/components/App/CodePreview"
 import { ImagePreview } from "~/components/App/ImagePreview"
 import { insertMarkdownAtCursor, MarkdownEditor } from "~/components/App/MarkdownEditor"
 import { MarkdownPreview } from "~/components/App/MarkdownPreview"
 import { OutlinePanel } from "~/components/App/OutlinePanel"
 import { TitleBar } from "~/components/App/TitleBar"
+import { WelcomeEmptyState } from "~/components/App/WelcomeEmptyState"
 import { WorkspaceSidebar } from "~/components/App/WorkspaceSidebar"
 import { PageLoading } from "~/components/PageLoading"
 import { Button } from "~/components/ui/button"
@@ -21,28 +20,34 @@ import {
   SidebarProvider,
   SidebarInset,
 } from "~/components/ui/sidebar"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "~/components/ui/tooltip"
 import { useFileDropOpen } from "~/hooks/use-file-drop-open"
 import { useScrollSync } from "~/hooks/use-scroll-sync"
 import { buildImageMarkdown, importImageFromPath } from "~/lib/assets"
 import { getPreviewKind, isBinaryImagePath, isMarkdownPath } from "~/lib/file-types"
 import { DEFAULT_OUTLINE_WIDTH } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
+import { cn } from "~/lib/utils"
 
 const EDITOR_PANEL_ID = "editor"
 const PREVIEW_PANEL_ID = "preview"
 const OUTLINE_PANEL_ID = "outline"
 
 const Home = () => {
-  const navigate = useNavigate()
   const {
     currentContent,
     updateContent,
     saveActiveFile,
-    createFile,
     viewMode,
+    setViewMode,
     selectedFilePath,
     config,
     updateUiState,
+    updateSettings,
     setSidebarCollapsed,
     sidebarCollapsed,
     outlineVisible,
@@ -60,7 +65,9 @@ const Home = () => {
   const splitSaveTimerRef = useRef<number | null>(null)
   const layoutSaveReadyRef = useRef(false)
 
-  const scrollSyncEnabled = config?.settings.scrollSync ?? false
+  const scrollSyncEnabled = config?.settings.scrollSync ?? true
+  const splitOrientation = config?.uiState.splitOrientation ?? "horizontal"
+  const sidebarOpen = !sidebarCollapsed
 
   const handleInsertDroppedImages = useCallback(
     async (paths: string[]) => {
@@ -123,19 +130,20 @@ const Home = () => {
   }, [])
 
   useEffect(() => {
-    if (scrollSyncEnabled && viewMode === "split" && isMarkdownFile) {
+    if (scrollSyncEnabled && viewMode === "split" && !isImageFile) {
       refreshScrollEls()
     } else {
       editorScrollElRef.current = null
       previewScrollElRef.current = null
     }
-  }, [scrollSyncEnabled, viewMode, currentContent, refreshScrollEls, isMarkdownFile])
+  }, [scrollSyncEnabled, viewMode, currentContent, refreshScrollEls, isImageFile, selectedFilePath])
 
   useScrollSync({
     editorScrollEl: editorScrollElRef.current,
     previewScrollEl: previewScrollElRef.current,
-    enabled: scrollSyncEnabled && viewMode === "split" && isMarkdownFile,
+    enabled: scrollSyncEnabled && viewMode === "split" && !isImageFile,
   })
+
   useEffect(() => {
     if (!selectedFilePath) {
       return
@@ -241,14 +249,24 @@ const Home = () => {
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "s") {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault()
         void handleSave()
+        return
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key === "\\") {
+        event.preventDefault()
+        const mode = useWorkspaceStore.getState().viewMode
+        if (mode === "editor") {
+          setViewMode("split")
+        } else {
+          setViewMode("editor")
+        }
       }
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [handleSave])
+  }, [handleSave, setViewMode])
 
   const handleEditorCreate = useCallback(
     (view: EditorView) => {
@@ -282,7 +300,7 @@ const Home = () => {
       layoutSaveReadyRef.current = true
     }, 450)
     return () => window.clearTimeout(timer)
-  }, [viewMode, outlineVisible, selectedFilePath])
+  }, [viewMode, outlineVisible, selectedFilePath, splitOrientation])
 
   const handleOutlineResize = useCallback(
     (panelSize: { asPercentage: number; inPixels: number }) => {
@@ -307,25 +325,37 @@ const Home = () => {
     [updateUiState]
   )
 
+  const groupOrientation =
+    viewMode === "split" && splitOrientation === "vertical" && !showOutlineHandle
+      ? "vertical"
+      : "horizontal"
+
   return (
     <SidebarProvider
-      open={!sidebarCollapsed}
-      onOpenChange={(open) => setSidebarCollapsed(!open)}
-      className="bg-[radial-gradient(ellipse_at_top,_color-mix(in_srgb,var(--primary)_8%,transparent),_transparent_55%),var(--background)]"
+      open={sidebarOpen}
+      onOpenChange={(open) => {
+        setSidebarCollapsed(!open)
+      }}
+      className="workspace-shell bg-transparent"
     >
-      <Sidebar collapsible="icon" side="left" variant="sidebar" className="border-r border-border/50">
+      <Sidebar
+        collapsible="icon"
+        side="left"
+        variant="sidebar"
+        className="border-r border-border/40 transition-[width] duration-200 ease-out"
+      >
         <WorkspaceSidebar />
       </Sidebar>
-      <SidebarInset className="relative flex h-svh min-h-0 flex-col overflow-hidden bg-background p-0 md:rounded-none md:shadow-none">
+      <SidebarInset className="relative flex h-svh min-h-0 flex-col overflow-hidden bg-transparent p-0 md:rounded-none md:shadow-none">
         <TitleBar />
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
+        <div className="workspace-main relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {!initialized || isLoading ? (
-            <PageLoading label="正在打开工作区…" />
+            <PageLoading scene="workspace" />
           ) : selectedFilePath && config ? (
             <Group
-              key={`layout-${viewMode}-${outlineVisible ? "outline" : "plain"}-${previewKind}`}
+              key={`layout-${viewMode}-${splitOrientation}-${outlineVisible ? "outline" : "plain"}-${previewKind}`}
               groupRef={groupRef}
-              orientation="horizontal"
+              orientation={groupOrientation}
               className="h-full min-h-0 w-full"
               onLayoutChanged={handleLayoutChanged}
             >
@@ -346,7 +376,12 @@ const Home = () => {
               ) : null}
 
               {showSplitHandle ? (
-                <Separator className="w-1.5 shrink-0 bg-border/40 transition-colors hover:bg-primary/20 data-[active]:bg-primary/30" />
+                <Separator
+                  className={cn(
+                    "shrink-0 bg-border/50 transition-colors hover:bg-primary/25 data-[active]:bg-primary/35",
+                    groupOrientation === "vertical" ? "h-px w-full" : "w-px"
+                  )}
+                />
               ) : null}
 
               {showPreview ? (
@@ -354,25 +389,62 @@ const Home = () => {
                   id={PREVIEW_PANEL_ID}
                   defaultSize={defaultPreviewSize}
                   minSize={showSplitHandle ? "20" : outlineVisible ? 200 : "100"}
-                  className="overflow-hidden border-l border-border/40"
+                  className={cn(
+                    "overflow-hidden",
+                    groupOrientation === "horizontal" && "border-l border-border/40",
+                    groupOrientation === "vertical" && "border-t border-border/40"
+                  )}
                   style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}
                 >
-                  {isImageFile ? (
-                    <ImagePreview path={selectedFilePath} />
-                  ) : isMarkdownFile ? (
-                    <MarkdownPreview
-                      content={currentContent}
-                      containerRef={previewContainerRef}
-                      onScroll={(scrollTop) => queueReadingPositionSave({ previewScrollTop: scrollTop })}
-                    />
-                  ) : (
-                    <CodePreview path={selectedFilePath} content={currentContent} />
-                  )}
+                  {!isImageFile && viewMode === "split" ? (
+                    <div className="flex h-8 shrink-0 items-center justify-end gap-1 border-b border-border/40 bg-muted/15 px-2">
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className={cn(
+                                "h-6 gap-1 rounded-md px-2 text-[11px]",
+                                scrollSyncEnabled
+                                  ? "bg-primary/10 text-primary"
+                                  : "text-muted-foreground"
+                              )}
+                              onClick={() => void updateSettings({ scrollSync: !scrollSyncEnabled })}
+                            />
+                          }
+                        >
+                          <Link2 className="size-3" strokeWidth={1.75} />
+                          同步滚动
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">双区联动滚动</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  ) : null}
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    {isImageFile ? (
+                      <ImagePreview path={selectedFilePath} />
+                    ) : isMarkdownFile ? (
+                      <MarkdownPreview
+                        content={currentContent}
+                        containerRef={previewContainerRef}
+                        onScroll={(scrollTop) => queueReadingPositionSave({ previewScrollTop: scrollTop })}
+                      />
+                    ) : (
+                      <CodePreview
+                        path={selectedFilePath}
+                        content={currentContent}
+                        containerRef={previewContainerRef}
+                        onScroll={(scrollTop) => queueReadingPositionSave({ previewScrollTop: scrollTop })}
+                      />
+                    )}
+                  </div>
                 </Panel>
               ) : null}
 
               {showOutlineHandle ? (
-                <Separator className="w-1.5 shrink-0 bg-border/40 transition-colors hover:bg-primary/20 data-[active]:bg-primary/30" />
+                <Separator className="w-px shrink-0 bg-border/50 transition-colors hover:bg-primary/25 data-[active]:bg-primary/35" />
               ) : null}
 
               {showOutlineHandle ? (
@@ -390,42 +462,7 @@ const Home = () => {
               ) : null}
             </Group>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center p-8">
-              <div className="w-full max-w-md rounded-2xl border border-border/50 bg-background/60 p-8 text-center shadow-sm">
-                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15">
-                  <CaelumLogo className="size-8" />
-                </div>
-                <h2 className="text-lg font-semibold tracking-tight">开始写作</h2>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                  从左侧选择笔记，或新建一篇 Markdown。也可将 `.md` / `.txt` 拖入窗口打开。
-                </p>
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                  <Button
-                    size="sm"
-                    className="rounded-full shadow-sm shadow-primary/20"
-                    onClick={() => {
-                      void createFile("note.md").catch((error) => {
-                        toast.error("创建失败", {
-                          description: error instanceof Error ? error.message : "无法创建文件",
-                        })
-                      })
-                    }}
-                  >
-                    <FilePlus2 className="mr-1.5 size-3.5" />
-                    新建笔记
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full"
-                    onClick={() => navigate("/settings")}
-                  >
-                    <Settings2 className="mr-1.5 size-3.5" />
-                    打开设置
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <WelcomeEmptyState />
           )}
         </div>
 
@@ -450,10 +487,12 @@ const Home = () => {
               </div>
               <div className="text-xs text-muted-foreground">
                 {dropZone === "explorer"
-                  ? "将复制 .md / .txt 到当前工作区"
+                  ? "将复制 .md / .txt / .ini / .json / .xml 到当前工作区"
                   : dragKind === "image"
                     ? "图片将复制到 assets 并以相对路径写入 Markdown"
-                    : "支持 Markdown（.md）与文本（.txt）"}
+                    : dragKind === "unsupported"
+                      ? "当前不支持该类型文件打开"
+                      : "支持 .md / .txt / .ini / .json / .xml"}
               </div>
             </div>
           </div>

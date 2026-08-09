@@ -61,7 +61,7 @@ export const Layouts = () => {
 
   return (
     <TooltipProvider delay={200}>
-      <main className="h-full w-full overflow-hidden bg-background text-foreground">
+      <main className="app-mica relative h-full w-full overflow-hidden text-foreground">
         <ThemeSync />
         <Outlet />
         <Toaster theme={resolvedTheme} richColors closeButton position="bottom-right" />
