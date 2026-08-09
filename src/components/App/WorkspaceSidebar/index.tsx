@@ -353,7 +353,11 @@ export const WorkspaceSidebar = () => {
                 onCopyWikiLink={(path) => {
                   const name = path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, "") ?? path
                   void writeTextToClipboard(`[[${name}]]`)
-                    .then(() => toast.success("已复制双链", { description: `[[${name}]]` }))
+                    .then(() =>
+                      toast.success("已复制笔记链接", {
+                        description: `粘贴 [[${name}]] 到正文，预览中点击即可跳转到该笔记`,
+                      })
+                    )
                     .catch((error) => {
                       toast.error("复制失败", {
                         description: error instanceof Error ? error.message : "无法写入剪贴板",

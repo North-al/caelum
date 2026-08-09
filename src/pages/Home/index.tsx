@@ -58,7 +58,6 @@ const Home = () => {
   const editorViewRef = useRef<EditorView | null>(null)
   const previewContainerRef = useRef<HTMLDivElement | null>(null)
   const editorScrollElRef = useRef<HTMLElement | null>(null)
-  const previewScrollElRef = useRef<HTMLElement | null>(null)
   const groupRef = useRef<GroupImperativeHandle | null>(null)
   const scrollSaveTimerRef = useRef<number | null>(null)
   const outlineSaveTimerRef = useRef<number | null>(null)
@@ -126,22 +125,40 @@ const Home = () => {
 
   const refreshScrollEls = useCallback(() => {
     editorScrollElRef.current = editorViewRef.current?.scrollDOM ?? null
-    previewScrollElRef.current = previewContainerRef.current
   }, [])
 
   useEffect(() => {
     if (scrollSyncEnabled && viewMode === "split" && !isImageFile) {
       refreshScrollEls()
-    } else {
-      editorScrollElRef.current = null
-      previewScrollElRef.current = null
     }
-  }, [scrollSyncEnabled, viewMode, currentContent, refreshScrollEls, isImageFile, selectedFilePath])
+  }, [
+    scrollSyncEnabled,
+    viewMode,
+    currentContent,
+    refreshScrollEls,
+    isImageFile,
+    selectedFilePath,
+    splitOrientation,
+    outlineVisible,
+    showOutlineHandle,
+  ])
+
+  const scrollSyncRevision = [
+    viewMode,
+    selectedFilePath ?? "",
+    splitOrientation,
+    showEditor ? 1 : 0,
+    showPreview ? 1 : 0,
+    showOutlineHandle ? 1 : 0,
+    outlineVisible ? 1 : 0,
+    currentContent.length,
+  ].join(":")
 
   useScrollSync({
-    editorScrollEl: editorScrollElRef.current,
-    previewScrollEl: previewScrollElRef.current,
+    editorRef: editorScrollElRef,
+    previewRef: previewContainerRef,
     enabled: scrollSyncEnabled && viewMode === "split" && !isImageFile,
+    revision: scrollSyncRevision,
   })
 
   useEffect(() => {
@@ -271,6 +288,7 @@ const Home = () => {
   const handleEditorCreate = useCallback(
     (view: EditorView) => {
       editorViewRef.current = view
+      editorScrollElRef.current = view.scrollDOM
       const activePath = useWorkspaceStore.getState().selectedFilePath
       const savedPosition = activePath
         ? useWorkspaceStore.getState().config?.uiState.readingPositions[activePath]

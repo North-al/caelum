@@ -13,7 +13,7 @@ interface EditorEmptyGuideProps {
 const MD_GUIDE = `开始书写吧。
 
 # 标题
-用空行分隔段落，支持 **粗体**、*斜体* 与 [[双链]]。
+用空行分隔段落。用 [[笔记名]] 链接其他笔记，预览里点击即可跳转。
 `
 
 const JSON_TEMPLATE = `{

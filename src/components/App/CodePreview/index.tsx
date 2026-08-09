@@ -6,6 +6,7 @@ import xml from "highlight.js/lib/languages/xml"
 import ini from "highlight.js/lib/languages/ini"
 
 import { PreviewEmptyHint } from "~/components/App/EditorEmptyGuide"
+import { WikiAwareText } from "~/components/App/WikiAwareText"
 import { tryFormatByExtension } from "~/lib/format-code"
 import { getFileExtension, getPreviewKind } from "~/lib/file-types"
 import { normalizePath } from "~/lib/workspace"
@@ -119,18 +120,18 @@ export const CodePreview = ({ path, content, className, containerRef, onScroll }
     >
       {!display.trim() ? (
         <PreviewEmptyHint />
-      ) : (
-        <pre className="mx-auto max-w-4xl overflow-auto rounded-xl border border-border/50 bg-muted/30 p-4 font-mono text-[13px] leading-relaxed text-foreground whitespace-pre-wrap break-words dark:bg-[#12141a] dark:text-[#d7dae3]">
-          {highlighted ? (
-            <code
-              className="hljs"
-              style={{ background: "transparent", color: "inherit" }}
-              dangerouslySetInnerHTML={{ __html: highlighted }}
-            />
-          ) : (
-            display
-          )}
+      ) : highlighted ? (
+        <pre className="mx-auto max-w-4xl overflow-auto font-mono text-[13px] leading-relaxed text-foreground whitespace-pre-wrap break-words dark:text-[#d7dae3]">
+          <code
+            className="hljs"
+            style={{ background: "transparent", color: "inherit" }}
+            dangerouslySetInnerHTML={{ __html: highlighted }}
+          />
         </pre>
+      ) : (
+        <div className="mx-auto max-w-4xl font-mono text-[13px] leading-relaxed text-foreground dark:text-[#d7dae3]">
+          <WikiAwareText text={display} />
+        </div>
       )}
     </div>
   )

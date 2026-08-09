@@ -1,35 +1,129 @@
 /** Lightweight formatters for structured text files in the editor. */
 
+/**
+ * Pretty-print JSON without parsing to an object, so duplicate keys are preserved.
+ * Falls back to native stringify when the input is already uniquely-keyed valid JSON
+ * that the structural walk can't improve (never used to drop keys).
+ */
 export const formatJsonContent = (value: string) => {
-  const trimmed = value.trim()
-  if (!trimmed) {
+  const source = value.replace(/^\uFEFF/, "").trim()
+  if (!source) {
     return "{\n  \n}\n"
   }
-  return `${JSON.stringify(JSON.parse(trimmed), null, 2)}\n`
+
+  let result = ""
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  const indent = () => "  ".repeat(depth)
+  const lastNonWs = () => {
+    for (let i = result.length - 1; i >= 0; i -= 1) {
+      const ch = result[i]
+      if (ch !== " " && ch !== "\n" && ch !== "\t" && ch !== "\r") {
+        return ch
+      }
+    }
+    return ""
+  }
+
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i]!
+
+    if (inString) {
+      result += ch
+      if (escaped) {
+        escaped = false
+      } else if (ch === "\\") {
+        escaped = true
+      } else if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (ch === '"') {
+      inString = true
+      result += ch
+      continue
+    }
+
+    if (/\s/.test(ch)) {
+      continue
+    }
+
+    if (ch === "{" || ch === "[") {
+      result += ch
+      depth += 1
+      // peek next non-ws
+      let j = i + 1
+      while (j < source.length && /\s/.test(source[j]!)) j += 1
+      const next = source[j]
+      if (next !== "}" && next !== "]") {
+        result += `\n${indent()}`
+      }
+      continue
+    }
+
+    if (ch === "}" || ch === "]") {
+      depth = Math.max(0, depth - 1)
+      const prev = lastNonWs()
+      if (prev !== "{" && prev !== "[") {
+        result += `\n${indent()}`
+      }
+      result += ch
+      continue
+    }
+
+    if (ch === ",") {
+      result += ch
+      result += `\n${indent()}`
+      continue
+    }
+
+    if (ch === ":") {
+      result += ": "
+      continue
+    }
+
+    result += ch
+  }
+
+  return `${result.trim()}\n`
 }
 
-/** Best-effort XML pretty-print (keeps text nodes; not a full XML parser). */
+/** Best-effort XML pretty-print with real indentation (not a compress pass). */
 export const formatXmlContent = (value: string) => {
-  const trimmed = value.trim()
+  const trimmed = value.replace(/^\uFEFF/, "").trim()
   if (!trimmed) {
     return '<?xml version="1.0" encoding="UTF-8"?>\n<root>\n  \n</root>\n'
   }
 
-  const collapsed = trimmed.replace(/>\s+</g, "><").replace(/\r\n?/g, "\n")
-  const tokens = collapsed.replace(/(>)(<)(?!\/?)/g, "$1\n$2").split("\n")
+  const normalized = trimmed
+    .replace(/\r\n?/g, "\n")
+    .replace(/>\s+</g, ">\n<")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+
   let depth = 0
   const lines: string[] = []
 
-  for (const raw of tokens) {
-    const line = raw.trim()
-    if (!line) {
-      continue
-    }
-    if (/^<\//.test(line)) {
+  for (const line of normalized) {
+    const isClosing = /^<\//.test(line)
+    const isDeclaration = /^<\?/.test(line) || /^<!/.test(line)
+    const isSelfClosing = /\/>$/.test(line)
+    const isInlinePair = /^<[^>]+>.*<\/[^>]+>$/.test(line) && !isSelfClosing
+    const isOpening =
+      /^</.test(line) && !isClosing && !isDeclaration && !isSelfClosing && !isInlinePair
+
+    if (isClosing) {
       depth = Math.max(0, depth - 1)
     }
+
     lines.push(`${"  ".repeat(depth)}${line}`)
-    if (/^<[^!?/][^>]*[^/]>$/.test(line) && !/^<.+\/>$/.test(line) && !/^<.*<\/.*>$/.test(line)) {
+
+    if (isOpening) {
       depth += 1
     }
   }

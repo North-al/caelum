@@ -2,12 +2,15 @@ import { useMemo, useState, type RefObject } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeHighlight from "rehype-highlight"
+import { Link2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { ImageLightbox } from "~/components/App/ImageLightbox"
 import { PreviewEmptyHint } from "~/components/App/EditorEmptyGuide"
 import { PreviewCodeBlock } from "~/components/App/PreviewCodeBlock"
 import { resolveMarkdownAssetUrl } from "~/lib/markdown"
 import { normalizeTaskListSyntax } from "~/lib/task-list"
+import { expandWikiLinks, isWikiHref, parseWikiHref, resolveWikiStem } from "~/lib/wiki"
 import { getParentPath } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 import { cn } from "~/lib/utils"
@@ -30,13 +33,16 @@ const slugify = (value: string) =>
     .replace(/\s+/g, "-")
 
 export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
-  const { config, selectedFilePath } = useWorkspaceStore()
+  const { config, selectedFilePath, tree, selectFile } = useWorkspaceStore()
   const workspaceRoot = config ? getParentPath(config.notesPath) : ""
   const enableHighlight = config?.settings.codeHighlight ?? true
   const showCodeLineNumbers = config?.settings.codeBlockLineNumbers ?? true
   const [lightbox, setLightbox] = useState<PreviewImage | null>(null)
 
-  const normalizedContent = useMemo(() => normalizeTaskListSyntax(content), [content])
+  const normalizedContent = useMemo(
+    () => expandWikiLinks(normalizeTaskListSyntax(content)),
+    [content]
+  )
 
   const rehypePlugins = useMemo(
     () => (enableHighlight ? [rehypeHighlight] : []),
@@ -106,6 +112,38 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
       },
       a: ({ href, children, ...props }) => {
         const safeHref = typeof href === "string" ? href : ""
+        if (isWikiHref(safeHref)) {
+          const parsed = parseWikiHref(safeHref)
+          const stem = parsed?.stem ?? ""
+          const target = stem ? resolveWikiStem(tree, stem) : null
+          return (
+            <button
+              type="button"
+              title={target ? `打开笔记：${stem}` : `未找到笔记：${stem}`}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.95em] font-medium underline-offset-2 transition-colors",
+                target
+                  ? "bg-primary/10 text-primary hover:bg-primary/15 hover:underline"
+                  : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
+              )}
+              onClick={() => {
+                if (!stem) {
+                  return
+                }
+                if (!target) {
+                  toast.error("未找到对应笔记", {
+                    description: `没有名为「${stem}」的文件。双链名称需与笔记文件名（不含后缀）一致。`,
+                  })
+                  return
+                }
+                void selectFile(target)
+              }}
+            >
+              <Link2 className="size-3.5 shrink-0 opacity-80" strokeWidth={2} />
+              {children}
+            </button>
+          )
+        }
         return (
           <a
             href={safeHref}
@@ -127,7 +165,7 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
         </div>
       ),
     }),
-    [selectedFilePath, workspaceRoot, showCodeLineNumbers]
+    [selectedFilePath, workspaceRoot, showCodeLineNumbers, tree, selectFile]
   )
 
   return (

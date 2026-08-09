@@ -165,7 +165,7 @@ export const RenameDialog = ({
                   ref={extRef}
                   value={extension}
                   aria-label="后缀"
-                  className="w-[4.5rem] bg-muted/25 px-2 py-2.5 text-[13px] text-muted-foreground outline-none"
+                  className="w-[3.75rem] bg-muted/25 px-1.5 py-2.5 text-[13px] text-muted-foreground outline-none"
                   onChange={(event) => setExtension(event.target.value.replace(/^\./, ""))}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
@@ -177,6 +177,26 @@ export const RenameDialog = ({
                     }
                   }}
                 />
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-0.5 border-l border-border/50 bg-muted/30 px-2 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                        aria-label="选择后缀"
+                      />
+                    }
+                  >
+                    <ChevronDown className="size-3.5" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="bottom" className="min-w-[7rem]">
+                    {SUPPORTED_RENAME_EXTENSIONS.map((item) => (
+                      <DropdownMenuItem key={item} onClick={() => setExtension(item)}>
+                        .{item}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : null}
           </div>
@@ -196,44 +216,17 @@ export const RenameDialog = ({
           ) : null}
         </div>
 
-        <DialogFooter className="mt-4 items-center justify-between gap-2 sm:justify-between">
-          {!isFolder ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1 rounded-lg px-2 text-[12px] text-muted-foreground"
-                  />
-                }
-              >
-                .{extension || "ext"}
-                <ChevronDown className="size-3.5" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top" className="min-w-[7rem]">
-                {SUPPORTED_RENAME_EXTENSIONS.map((item) => (
-                  <DropdownMenuItem key={item} onClick={() => setExtension(item)}>
-                    .{item}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <span />
-          )}
-
-          <div className="relative flex items-center gap-1.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 rounded-lg bg-muted/60 px-3 text-[12px] text-muted-foreground hover:bg-muted"
-              onClick={() => onOpenChange(false)}
-            >
-              取消
-            </Button>
+        <DialogFooter className="mt-4 items-center justify-end gap-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 rounded-lg bg-muted/60 px-3 text-[12px] text-muted-foreground hover:bg-muted"
+            onClick={() => onOpenChange(false)}
+          >
+            取消
+          </Button>
+          <div className="relative">
             <Button
               type="button"
               size="sm"

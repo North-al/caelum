@@ -6,7 +6,8 @@ import { xml } from "@codemirror/lang-xml"
 import { indentUnit, StreamLanguage } from "@codemirror/language"
 import { EditorState } from "@codemirror/state"
 import { oneDark } from "@codemirror/theme-one-dark"
-import { EditorView } from "@codemirror/view"
+import { EditorView, keymap } from "@codemirror/view"
+import { search, searchKeymap } from "@codemirror/search"
 import { AlignLeft, ImagePlus, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
@@ -129,6 +130,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
   const { config, selectedFilePath, updateSettings } = useWorkspaceStore()
   const settings = config?.settings
   const themeMode = settings?.themeMode ?? "system"
+  const themeColor = settings?.themeColor ?? "blue"
   const systemDark = useSyncExternalStore(subscribeSystemDark, getSystemDark, () => false)
   const isDark = themeMode === "dark" || (themeMode === "system" && systemDark)
   const settingsFontSize =
@@ -413,7 +415,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             fontSize: `${fontSize}px`,
             fontFamily,
             fontVariationSettings: "normal",
-            backgroundColor: isDark ? "#16171d" : "#ffffff",
+            backgroundColor: isDark ? "#16171d" : "var(--background)",
             color: isDark ? "#e6e8ef" : "#1e1e2e",
           },
           ".cm-scroller": {
@@ -428,7 +430,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             fontFamily,
             fontSize: `${fontSize}px`,
             lineHeight: `${lineHeightPx}px`,
-            caretColor: isDark ? "#c4b5fd" : "#7c3aed",
+            caretColor: "var(--primary)",
             color: isDark ? "#e6e8ef" : "#1e1e2e",
             padding: "0 16px",
             minHeight: "100%",
@@ -444,13 +446,13 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             color: isDark ? "#e6e8ef" : "#1e1e2e",
           },
           ".cm-cursor, .cm-dropCursor": {
-            borderLeftColor: isDark ? "#c4b5fd" : "#7c3aed",
+            borderLeftColor: "var(--primary)",
           },
           "&.cm-focused": {
             outline: "none",
           },
           ".cm-gutters": {
-            backgroundColor: isDark ? "#16171d" : "#ffffff",
+            backgroundColor: isDark ? "#16171d" : "var(--background)",
             color: isDark ? "#5c6370" : "#c4c4cc",
             border: "none",
             fontSize: `${Math.max(11, fontSize - 2)}px`,
@@ -461,17 +463,18 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
             fontSize: `${Math.max(11, fontSize - 2)}px`,
             minWidth: "2.2em",
           },
+          ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, .cm-content ::selection": {
+            backgroundColor: "color-mix(in srgb, var(--primary) 22%, transparent) !important",
+          },
+          "&.cm-focused .cm-selectionLayer .cm-selectionBackground, .cm-selectionLayer .cm-selectionBackground": {
+            backgroundColor: "color-mix(in srgb, var(--primary) 22%, transparent) !important",
+          },
           ".cm-activeLine": {
-            backgroundColor: isDark ? "rgba(167, 139, 250, 0.12)" : "rgba(139, 92, 246, 0.08)",
+            backgroundColor: "color-mix(in srgb, var(--primary) 10%, transparent) !important",
           },
           ".cm-activeLineGutter": {
-            backgroundColor: isDark ? "rgba(167, 139, 250, 0.14)" : "rgba(139, 92, 246, 0.1)",
-            color: isDark ? "#c4b5fd" : "#7c3aed",
-          },
-          ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
-            backgroundColor: isDark
-              ? "rgba(167, 139, 250, 0.28) !important"
-              : "rgba(139, 92, 246, 0.2) !important",
+            backgroundColor: "color-mix(in srgb, var(--primary) 12%, transparent) !important",
+            color: "var(--primary)",
           },
         },
         { dark: isDark }
@@ -558,11 +561,11 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
         >
           {height > 0 ? (
             <CodeMirror
-              key={selectedFilePath ?? "empty"}
+              key={`${selectedFilePath ?? "empty"}-${isDark ? "dark" : "light"}-${themeColor}`}
               value={value}
               height={`${height}px`}
               maxHeight={`${height}px`}
-              theme={isDark ? oneDark : "light"}
+              theme={isDark ? oneDark : undefined}
               style={{ height: "100%", fontSize: `${fontSize}px`, fontFamily }}
               extensions={[
                 languageExtension,
@@ -570,6 +573,8 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
                 EditorState.tabSize.of(tabSize),
                 indentUnit.of(" ".repeat(tabSize)),
                 themeExtension,
+                search({ top: true }),
+                keymap.of(searchKeymap),
                 imageHandlers,
               ].flat()}
               basicSetup={{
@@ -579,6 +584,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
                 indentOnInput: true,
                 highlightActiveLine: true,
                 highlightSelectionMatches: false,
+                searchKeymap: false,
               }}
               readOnly={readOnly}
               onChange={onChange}

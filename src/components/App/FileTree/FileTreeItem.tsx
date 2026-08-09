@@ -161,8 +161,14 @@ export const FileTreeItem = ({
 
   const fileMenu = (
     <>
-      <ContextMenuItem onClick={() => onItemDoubleClick?.(node.path, false)}>打开</ContextMenuItem>
-      <ContextMenuItem onClick={() => onCopySelection?.()}>复制</ContextMenuItem>
+      <ContextMenuItem onClick={() => onItemDoubleClick?.(node.path, false)}>
+        <FileText className="mr-2 size-4" />
+        打开
+      </ContextMenuItem>
+      <ContextMenuItem onClick={() => onCopySelection?.()}>
+        <Copy className="mr-2 size-4" />
+        复制
+      </ContextMenuItem>
       <ContextMenuItem onClick={() => onPasteFiles?.(getParentPath(node.path))}>
         <ClipboardPaste className="mr-2 size-4" />
         粘贴到此处
@@ -178,7 +184,7 @@ export const FileTreeItem = ({
       </ContextMenuItem>
       <ContextMenuItem onClick={() => onCopyWikiLink?.(node.path)}>
         <FileText className="mr-2 size-4 text-primary" />
-        复制双链引用
+        复制笔记链接
       </ContextMenuItem>
       <ContextMenuItem onClick={() => onReveal?.(node.path)}>
         <ExternalLink className="mr-2 size-4" />
