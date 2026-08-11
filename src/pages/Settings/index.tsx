@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react"
 import {
   ArrowLeft,
+  ExternalLink,
   FolderOpen,
   Info,
   Keyboard,
+  Palette,
   RotateCcw,
   Settings2,
   Sparkles,
-  Palette,
 } from "lucide-react"
 import { useNavigate } from "react-router"
-import { revealItemInDir } from "@tauri-apps/plugin-opener"
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener"
+import { toast } from "sonner"
 
 import { CaelumLogo } from "~/components/App/CaelumLogo"
 import { InputDialog } from "~/components/App/InputDialog"
@@ -20,7 +22,7 @@ import { Select } from "~/components/ui/select"
 import { Separator } from "~/components/ui/separator"
 import { Switch } from "~/components/ui/switch"
 import { WindowControls } from "~/layouts/components/WindowControls"
-import { APP_CHANGELOG, APP_FEATURES, APP_VERSION } from "~/lib/app-meta"
+import { APP_CHANGELOG, APP_FEATURES, APP_REPO_URL, APP_VERSION } from "~/lib/app-meta"
 import { HIGHLIGHT_THEME_OPTIONS } from "~/lib/highlight-themes"
 import { MERMAID_THEME_OPTIONS } from "~/lib/mermaid-theme"
 import { APP_SHORTCUTS } from "~/lib/shortcuts"
@@ -543,6 +545,23 @@ const SettingsPage = () => {
                   <div className="flex justify-between gap-4">
                     <dt className="text-muted-foreground">作者</dt>
                     <dd className="font-medium">North</dd>
+                  </div>
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="shrink-0 text-muted-foreground">源码</dt>
+                    <dd className="min-w-0 text-right">
+                      <button
+                        type="button"
+                        className="inline-flex max-w-full items-center gap-1.5 font-medium text-primary hover:underline"
+                        onClick={() => {
+                          void openUrl(APP_REPO_URL).catch(() => {
+                            toast.error("无法打开链接", { description: APP_REPO_URL })
+                          })
+                        }}
+                      >
+                        <span className="truncate">{APP_REPO_URL.replace(/^https?:\/\//, "")}</span>
+                        <ExternalLink className="size-3.5 shrink-0 opacity-70" />
+                      </button>
+                    </dd>
                   </div>
                 </dl>
               </div>

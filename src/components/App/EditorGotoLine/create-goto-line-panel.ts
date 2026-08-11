@@ -1,11 +1,19 @@
-import type { Command, EditorView } from "@codemirror/view"
+import type { Command } from "@codemirror/view"
 import { EditorView as CMView } from "@codemirror/view"
 import { EditorSelection } from "@codemirror/state"
 
+import {
+  attachPanelDrag,
+  defaultCenteredPosition,
+  resolvePanelPosition,
+  type PanelPosition,
+} from "~/lib/floating-panel"
+import { useWorkspaceStore } from "~/store/workspace"
+
 const PANEL_CLASS = "caelum-goto-panel"
 
-const removeExisting = (view: EditorView) => {
-  view.dom.querySelectorAll(`.${PANEL_CLASS}`).forEach((node) => node.remove())
+const removeExisting = () => {
+  document.querySelectorAll(`.${PANEL_CLASS}`).forEach((node) => node.remove())
 }
 
 const parseGotoInput = (raw: string, currentLine: number, totalLines: number) => {
@@ -48,9 +56,15 @@ const updateHint = (
   hint.textContent = `当前行：${line}，字符：${col}。${rangeText}。`
 }
 
+const applyPosition = (panel: HTMLElement, pos: PanelPosition) => {
+  panel.style.left = `${pos.left}px`
+  panel.style.top = `${pos.top}px`
+  panel.style.transform = "none"
+}
+
 /** Open a VS Code–style go-to-line panel (Chinese copy). Bound to Ctrl+G. */
 export const openGotoLinePanel: Command = (view) => {
-  removeExisting(view)
+  removeExisting()
 
   const state = view.state
   const head = state.selection.main.head
@@ -58,19 +72,15 @@ export const openGotoLinePanel: Command = (view) => {
   const totalLines = state.doc.lines
   const currentCol = head - current.from + 1
 
-  const host =
-    (view.dom.closest(".codemirror-host") as HTMLElement | null) ??
-    (view.dom.parentElement as HTMLElement | null) ??
-    view.dom
-  const previousPosition = host.style.position
-  if (!host.style.position || host.style.position === "static") {
-    host.style.position = "relative"
-  }
-
   const panel = document.createElement("div")
   panel.className = PANEL_CLASS
   panel.setAttribute("role", "dialog")
   panel.setAttribute("aria-label", "跳转到行")
+
+  const handle = document.createElement("div")
+  handle.className = "caelum-goto-drag"
+  handle.title = "拖动移动"
+  handle.innerHTML = `<span class="caelum-goto-drag-grip" aria-hidden="true"></span><span>跳转到行</span>`
 
   const field = document.createElement("div")
   field.className = "caelum-goto-field"
@@ -80,6 +90,7 @@ export const openGotoLinePanel: Command = (view) => {
   input.className = "caelum-goto-input"
   input.value = ":"
   input.setAttribute("aria-label", "行号")
+  input.setAttribute("data-no-drag", "true")
   input.spellcheck = false
   input.autocomplete = "off"
 
@@ -88,17 +99,44 @@ export const openGotoLinePanel: Command = (view) => {
   updateHint(hint, current.number, currentCol, totalLines, ":")
 
   field.appendChild(input)
+  panel.appendChild(handle)
   panel.appendChild(field)
   panel.appendChild(hint)
-  host.appendChild(panel)
+  document.body.appendChild(panel)
+
+  const size = { width: panel.offsetWidth || 420, height: panel.offsetHeight || 96 }
+  const stored = useWorkspaceStore.getState().config?.uiState.gotoPanelPosition
+  const pos = resolvePanelPosition(stored, size, () =>
+    defaultCenteredPosition(size.width, size.height, 0.38)
+  )
+  applyPosition(panel, pos)
+
+  let detachDrag = () => undefined as void
+  detachDrag = attachPanelDrag(
+    panel,
+    handle,
+    () => undefined,
+    (next) => {
+      void useWorkspaceStore.getState().updateUiState({ gotoPanelPosition: next })
+    }
+  )
+
+  const onReposition = () => {
+    const rect = panel.getBoundingClientRect()
+    const next = resolvePanelPosition(
+      { left: rect.left, top: rect.top },
+      { width: rect.width, height: rect.height },
+      () => defaultCenteredPosition(rect.width, rect.height, 0.38)
+    )
+    applyPosition(panel, next)
+  }
+  window.addEventListener("resize", onReposition)
 
   const close = () => {
+    detachDrag()
+    window.removeEventListener("resize", onReposition)
+    window.removeEventListener("mousedown", onPointerDown, true)
     panel.remove()
-    if (previousPosition) {
-      host.style.position = previousPosition
-    } else {
-      host.style.removeProperty("position")
-    }
     view.focus()
   }
 
@@ -138,7 +176,6 @@ export const openGotoLinePanel: Command = (view) => {
   const onPointerDown = (event: MouseEvent) => {
     if (!panel.contains(event.target as Node)) {
       close()
-      window.removeEventListener("mousedown", onPointerDown, true)
     }
   }
   window.setTimeout(() => {

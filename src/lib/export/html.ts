@@ -6,6 +6,7 @@ import { createElement, type ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import ReactMarkdown, { type Components } from "react-markdown"
 import katexCss from "katex/dist/katex.min.css?raw"
+import hljsGithubCss from "highlight.js/styles/github.css?raw"
 
 import { getFencedCodeMeta } from "~/lib/code-fence"
 import { resolveMarkdownAssetUrl } from "~/lib/markdown"
@@ -178,10 +179,12 @@ export const buildExportDocumentCss = () => `
     line-height: 1.85;
     color: #1f2937;
     background: #ffffff;
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 24px 20px;
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding: 14px 10px 22px;
     position: relative;
+    overflow: visible;
     text-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
   }
@@ -210,21 +213,27 @@ export const buildExportDocumentCss = () => `
   .export-root h6 { font-size: 15px; color: #374151; }
   .export-root p {
     margin: 0.85em 0;
-    page-break-inside: avoid;
-    break-inside: avoid;
   }
   .export-root ul, .export-root ol { margin: 0.85em 0; padding-left: 1.5em; }
   .export-root li {
     margin: 0.25em 0;
-    page-break-inside: avoid;
-    break-inside: avoid;
   }
   .export-root .katex {
-    font-size: 1.05em;
-    line-height: 1;
+    font-size: 1.08em;
+    line-height: 1.35;
+    overflow: visible !important;
   }
   .export-root .katex-html {
-    vertical-align: -0.1em;
+    vertical-align: baseline;
+    overflow: visible !important;
+  }
+  .export-root .katex .base,
+  .export-root .katex .strut,
+  .export-root .katex .vlist-t {
+    overflow: visible !important;
+  }
+  .export-root span.katex {
+    padding: 0.12em 0.05em;
   }
   .export-root blockquote {
     margin: 1em 0;
@@ -233,7 +242,7 @@ export const buildExportDocumentCss = () => `
     color: #6b7280;
   }
   .export-root pre {
-    background: #f8fafc;
+    background: #f6f8fa;
     border: 1px solid #e5e7eb;
     border-radius: 10px;
     padding: 14px 16px;
@@ -242,6 +251,13 @@ export const buildExportDocumentCss = () => `
     font-size: 13px;
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+  .export-root pre code.hljs,
+  .export-root pre .hljs {
+    background: transparent;
+    padding: 0;
+    display: block;
+    overflow-x: auto;
   }
   .export-root code { font-family: ui-monospace, Consolas, monospace; font-size: 0.9em; }
   .export-root :not(pre) > code {
@@ -289,11 +305,25 @@ export const buildExportDocumentCss = () => `
     white-space: pre-wrap;
   }
   .export-root .katex-display {
-    margin: 1em 0;
-    overflow-x: auto;
-    overflow-y: hidden;
+    display: block;
+    margin: 1.15em 0;
+    padding: 0.45em 0.25em;
+    overflow: visible !important;
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+  .export-root .katex-display > .katex {
+    display: inline-block;
+    text-align: center;
+    max-width: 100%;
+    overflow: visible !important;
+    padding-top: 0.2em;
+    padding-bottom: 0.15em;
+  }
+  .export-root .pdf-atom {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    display: block;
   }
   .export-root .export-toc {
     margin: 0 0 2em;
@@ -329,6 +359,7 @@ export const buildExportCaptureHtml = (
   bodyHtml: string,
   options?: {
     includeKatexCss?: boolean
+    includeHighlightCss?: boolean
     watermarkText?: string
   }
 ) => {
@@ -337,10 +368,15 @@ export const buildExportCaptureHtml = (
     : ""
   const katex =
     options?.includeKatexCss !== false ? `<style data-export-katex>${katexCss}</style>` : ""
+  const highlight =
+    options?.includeHighlightCss !== false
+      ? `<style data-export-hljs>${hljsGithubCss}</style>`
+      : ""
 
   return `<div class="export-root">
   <style data-export-doc>${buildExportDocumentCss()}</style>
   ${katex}
+  ${highlight}
   ${watermark}
   <div class="export-body">${bodyHtml}</div>
 </div>`
@@ -351,6 +387,7 @@ export const buildDocumentHtml = (
   bodyHtml: string,
   options?: {
     includeKatexCss?: boolean
+    includeHighlightCss?: boolean
     watermarkText?: string
   }
 ) => {

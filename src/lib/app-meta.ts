@@ -1,11 +1,14 @@
 /** App version — keep in sync with package.json / tauri.conf.json / Cargo.toml */
 export const APP_VERSION = '1.5.0'
 
+/** Public source repository */
+export const APP_REPO_URL = 'https://github.com/North-al/caelum'
+
 export const APP_FEATURES = [
     '本地优先：笔记与资源保存在本机目录，无需账号',
     'Markdown / TXT / JSON / XML / INI 编辑，实时预览与 GFM 语法支持',
     '数学公式（KaTeX）与 Mermaid 图表（可配置主题），预览与导出一致',
-    'Markdown 导出：规范化 MD、纯文本、离线 HTML、可配置 PDF / Word、Mermaid 批量图',
+    'Markdown 导出：规范化 MD、纯文本、离线 HTML、可配置 PDF、Mermaid 单图 / 批量导出',
     '分屏、仅编辑、仅预览三种视图，可选滚动联动',
     '多标签页：拖拽排序、中键关闭、右键批量关闭',
     '资源管理器：单击选中 / 双击打开，Shift·Ctrl 多选，Del / F2，Ctrl+C/V 复制粘贴',
@@ -14,7 +17,8 @@ export const APP_FEATURES = [
     '多标签页脏标记：未保存文件在标签上显示圆点',
     '大纲面板、窗口尺寸与阅读位置记忆',
     '笔记双链 [[名称]]：预览点击跳转；重命名自动同步引用',
-    'Ctrl + 滚轮缩放编辑区字号，主题与强调色可切换'
+    'Ctrl + 滚轮缩放编辑区字号，主题与强调色可切换',
+    '开源仓库：设置 → 关于可查看 GitHub 地址'
 ] as const
 
 export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string[] }> = [
@@ -23,10 +27,16 @@ export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string
         date: '2026-08-11',
         notes: [
             '设置增加 Mermaid 主题（跟随外观 / default / dark / forest / neutral / base）',
-            '导出菜单仅对 Markdown 显示，按「渲染解析导出 / Mermaid 快捷导出」分组',
-            '新增：规范化 MD、纯文本剥离、离线单文件 HTML、可配置 PDF（html2pdf）、Word（docx）',
-            'PDF / Word 支持进度提示；图表或公式失败时降级为源码，不阻断整篇导出',
-            '文档含 Mermaid 时可批量导出全部图表为 SVG / PNG'
+            '导出：规范化 MD、纯文本、离线单文件 HTML、可配置 PDF；导出菜单仅对 Markdown 显示',
+            'Mermaid 单图导出支持底色 / 边距 / 清晰度；批量导出可勾选图表并配置 PNG 参数',
+            '修复 Flowchart / Class Diagram 等含 HTML 标签的图表 PNG 导出黑屏',
+            '离线 HTML 内嵌 highlight.js 样式，代码块高亮可离线查看',
+            'PDF 导出增强：进度提示、水印、目录页内跳转；公式 / 图表失败时降级为源码',
+            '首次安装且笔记目录为空时，生成「数学公式入门」「Mermaid图表入门」两份教程',
+            'Ctrl+G 跳转到行：居中悬浮面板，滚动编辑区不被遮挡',
+            'Markdown 轻量格式化；查找 / 跳转 / 快捷键说明完善',
+            '预览 Mermaid 导出按钮悬停显示；保存成功不再弹窗提示',
+            '关于页增加 GitHub 源码地址；完善 README 与 MIT 开源说明'
         ]
     },
     {

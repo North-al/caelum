@@ -114,8 +114,8 @@
 
 .page-loading-bars span {
     display: block;
-    width: 3px;
-    height: 12px;
+    width: 4px;
+    height: 16px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--primary) 75%, var(--foreground));
     animation: page-loading-bar 1.05s ease-in-out infinite;

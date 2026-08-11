@@ -5,26 +5,35 @@ import type { MermaidThemeSetting } from "~/lib/workspace"
 
 let initialized = false
 let theme: MermaidThemeId = "default"
+/** Preview uses HTML labels; export rasterization needs SVG text (no foreignObject). */
+let htmlLabels = true
 /** Bump when initialize() options change so HMR / long sessions pick them up. */
-const MERMAID_INIT_VERSION = 3
+const MERMAID_INIT_VERSION = 4
 let initVersion = 0
 
 const EXPORT_FONT =
   '"Microsoft YaHei UI","Microsoft YaHei","微软雅黑","PingFang SC",sans-serif'
 
-const ensureMermaid = (nextTheme: MermaidThemeId) => {
-  if (!initialized || theme !== nextTheme || initVersion !== MERMAID_INIT_VERSION) {
+const ensureMermaid = (nextTheme: MermaidThemeId, nextHtmlLabels: boolean) => {
+  if (
+    !initialized ||
+    theme !== nextTheme ||
+    htmlLabels !== nextHtmlLabels ||
+    initVersion !== MERMAID_INIT_VERSION
+  ) {
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "loose",
       theme: nextTheme,
       fontFamily: EXPORT_FONT,
-      // Keep HTML labels — PNG export captures them via html2canvas-pro.
-      flowchart: { htmlLabels: true },
+      // Mermaid 11: root htmlLabels wins. Export PNG needs false (no foreignObject).
+      htmlLabels: nextHtmlLabels,
+      flowchart: { htmlLabels: nextHtmlLabels },
       sequence: { useMaxWidth: true },
     })
     initialized = true
     theme = nextTheme
+    htmlLabels = nextHtmlLabels
     initVersion = MERMAID_INIT_VERSION
   }
 }
@@ -39,6 +48,11 @@ export const renderMermaidSvg = async (
     themeSetting?: MermaidThemeSetting
     isDark?: boolean
     idPrefix?: string
+    /**
+     * When true, force SVG text labels (no foreignObject) for reliable PNG rasterization.
+     * Preview should keep the default (HTML labels).
+     */
+    forExport?: boolean
   }
 ): Promise<string> => {
   const trimmed = code.trim()
@@ -48,7 +62,7 @@ export const renderMermaidSvg = async (
   const nextTheme =
     options?.theme ??
     resolveMermaidTheme(options?.themeSetting, options?.isDark)
-  ensureMermaid(nextTheme)
+  ensureMermaid(nextTheme, options?.forExport ? false : true)
   const id = `${options?.idPrefix ?? "caelum-mermaid"}-${++renderSeq}`
   const { svg } = await mermaid.render(id, trimmed)
   return svg
@@ -103,6 +117,7 @@ export const buildMermaidSvgMap = async (
         themeSetting: options?.themeSetting,
         isDark: options?.isDark,
         idPrefix: "caelum-export-mermaid",
+        forExport: true,
       })
       map.set(code, svg)
       if (normalized !== code) {

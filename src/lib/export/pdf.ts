@@ -16,18 +16,30 @@ const paperToJsPdfFormat = (paper: PdfExportOptions["paperSize"]) => {
   return "a4"
 }
 
+const paperSizeMm = (options: PdfExportOptions) => {
+  const sizes: Record<PdfExportOptions["paperSize"], { w: number; h: number }> = {
+    a4: { w: 210, h: 297 },
+    a3: { w: 297, h: 420 },
+    letter: { w: 215.9, h: 279.4 },
+  }
+  const size = sizes[options.paperSize]
+  return options.orientation === "landscape"
+    ? { w: size.h, h: size.w }
+    : size
+}
+
+/** CSS px width of the printable area (paper − margins). Must match html2pdf layout. */
+const contentWidthPx = (options: PdfExportOptions) => {
+  const { w } = paperSizeMm(options)
+  const printableMm = Math.max(72, w - options.marginMm * 2)
+  return Math.max(360, Math.round((printableMm / 25.4) * 96))
+}
+
 /** Approx printable height in CSS px for pagebreak avoid / diagram scaling. */
 const printableHeightPx = (options: PdfExportOptions) => {
-  const heightsMm: Record<PdfExportOptions["paperSize"], number> = {
-    a4: 297,
-    a3: 420,
-    letter: 279.4,
-  }
-  const pageMm =
-    options.orientation === "landscape"
-      ? ({ a4: 210, a3: 297, letter: 215.9 } as const)[options.paperSize]
-      : heightsMm[options.paperSize]
-  return Math.floor(((pageMm - options.marginMm * 2) / 25.4) * 96)
+  const { h } = paperSizeMm(options)
+  const printableMm = Math.max(72, h - options.marginMm * 2)
+  return Math.max(320, Math.round((printableMm / 25.4) * 96))
 }
 
 const loadHtml2Pdf = async () => {
@@ -84,7 +96,7 @@ const rasterizeMermaidDiagrams = async (root: HTMLElement, maxHeightPx: number) 
       const png = await svgToPngBytes(markup, {
         background: "#ffffff",
         padding: 8,
-        scale: 2,
+        scale: 3,
       })
       const img = document.createElement("img")
       img.src = bytesToDataUrl(png, "image/png")
@@ -93,11 +105,14 @@ const rasterizeMermaidDiagrams = async (root: HTMLElement, maxHeightPx: number) 
       img.style.display = "block"
       img.style.margin = "0 auto"
       img.style.maxWidth = "100%"
+      img.style.width = "auto"
       img.style.height = "auto"
-      img.style.maxHeight = `${Math.max(240, maxHeightPx - 48)}px`
+      img.style.maxHeight = `${Math.max(280, maxHeightPx - 64)}px`
       img.style.pageBreakInside = "avoid"
       img.style.breakInside = "avoid"
+      img.style.imageRendering = "auto"
       diagram.replaceChildren(img)
+      ;(diagram as HTMLElement).classList.add("pdf-atom")
       ;(diagram as HTMLElement).style.pageBreakInside = "avoid"
       ;(diagram as HTMLElement).style.breakInside = "avoid"
     } catch {
@@ -119,6 +134,101 @@ const rasterizeMermaidDiagrams = async (root: HTMLElement, maxHeightPx: number) 
         })
     )
   )
+}
+
+/**
+ * Capture display math as PNG — KaTeX DOM + html2canvas often clips superscripts
+ * (overflow/line-box). Images also page-break cleanly.
+ */
+const rasterizeKatexDisplays = async (root: HTMLElement) => {
+  const html2canvas = (await import("html2canvas-pro")).default
+  const nodes = Array.from(root.querySelectorAll(".katex-display")) as HTMLElement[]
+
+  for (const node of nodes) {
+    const wrap = document.createElement("div")
+    wrap.style.cssText =
+      "display:block;padding:14px 10px;margin:0;background:#ffffff;overflow:visible;text-align:center;"
+    node.parentNode?.insertBefore(wrap, node)
+    wrap.appendChild(node)
+
+    try {
+      node.style.overflow = "visible"
+      node.style.margin = "0"
+      node.style.padding = "0"
+      node.querySelectorAll(".katex, .katex-html, .base, .vlist-t, .vlist-r, .vlist").forEach((child) => {
+        const el = child as HTMLElement
+        if (el.style) el.style.overflow = "visible"
+      })
+
+      await waitFrame()
+      await waitFrame()
+      const canvas = await html2canvas(wrap, {
+        backgroundColor: "#ffffff",
+        scale: 3,
+        logging: false,
+        useCORS: true,
+        allowTaint: false,
+        foreignObjectRendering: false,
+        scrollX: 0,
+        scrollY: 0,
+        // Include padded bounds so superscripts aren't cropped.
+        windowWidth: Math.max(wrap.scrollWidth, wrap.offsetWidth) + 8,
+      })
+      const img = document.createElement("img")
+      img.src = canvas.toDataURL("image/png")
+      img.alt = "formula"
+      img.decoding = "sync"
+      img.className = "pdf-atom"
+      img.style.display = "block"
+      img.style.margin = "1.1em auto"
+      img.style.maxWidth = "100%"
+      img.style.height = "auto"
+      img.style.pageBreakInside = "avoid"
+      img.style.breakInside = "avoid"
+      wrap.replaceWith(img)
+    } catch {
+      // Restore original node if capture fails.
+      wrap.replaceWith(node)
+      node.classList.add("pdf-atom")
+    }
+  }
+
+  const images = Array.from(root.querySelectorAll("img"))
+  await Promise.all(
+    images.map(
+      (img) =>
+        img.decode?.().catch(() => undefined) ??
+        new Promise<void>((resolve) => {
+          if (img.complete) resolve()
+          else {
+            img.onload = () => resolve()
+            img.onerror = () => resolve()
+          }
+        })
+    )
+  )
+}
+
+/** Loosen CSS that causes mid-line canvas slices under large margins. */
+const prepareRootForPagebreaks = (root: HTMLElement) => {
+  root.style.maxWidth = "none"
+  root.style.width = "100%"
+  root.style.margin = "0"
+  root.style.overflow = "visible"
+
+  root.querySelectorAll("p, li, span, a").forEach((node) => {
+    const el = node as HTMLElement
+    el.style.pageBreakInside = "auto"
+    el.style.breakInside = "auto"
+    el.style.orphans = "3"
+    el.style.widows = "3"
+  })
+
+  root.querySelectorAll("h1, h2, h3, h4, h5, h6, pre, table, blockquote, .pdf-atom, img").forEach((node) => {
+    const el = node as HTMLElement
+    el.style.pageBreakInside = "avoid"
+    el.style.breakInside = "avoid"
+  })
 }
 
 const stampWatermark = (pdf: any, text: string) => {
@@ -292,29 +402,38 @@ export const exportPdfDocument = async (
 
   ctx.onProgress?.("正在生成 PDF…")
 
-  const widthPx = options.orientation === "landscape" ? 1100 : 800
+  const widthPx = contentWidthPx(options)
   const maxDiagramHeight = printableHeightPx(options)
   const marginIn = options.marginMm / 25.4
   const { host, root } = await mountCaptureRoot(captureHtml, widthPx)
 
   try {
     await rasterizeMermaidDiagrams(root, maxDiagramHeight)
+    if (options.render.math) {
+      ctx.onProgress?.("正在处理公式…")
+      await rasterizeKatexDisplays(root)
+    }
+    prepareRootForPagebreaks(root)
 
     const html2pdf = await loadHtml2Pdf()
     const worker = html2pdf()
       .set({
-        margin: marginIn,
+        // Explicit 4-side margins avoid asymmetric page-slice bugs with scalar margins.
+        margin: [marginIn, marginIn, marginIn, marginIn],
         filename: `${title}.pdf`,
-        image: { type: "jpeg", quality: 0.95 },
+        // PNG keeps diagram / code sharpness better than JPEG recompression.
+        image: { type: "png", quality: 1 },
         enableLinks: false,
         html2canvas: {
-          scale: 2,
+          scale: 2.5,
           useCORS: true,
           logging: false,
           backgroundColor: "#ffffff",
           windowWidth: widthPx,
           scrollX: 0,
           scrollY: 0,
+          // Helps Chinese line boxes align with page slices.
+          letterRendering: true,
           onclone: (clonedDoc: Document) => {
             const font =
               '"Microsoft YaHei", "微软雅黑", "Microsoft YaHei UI", sans-serif'
@@ -322,9 +441,14 @@ export const exportPdfDocument = async (
               const el = node as HTMLElement
               if (!el.style) return
               el.style.fontFamily = font
+              el.style.overflow = el.style.overflow === "hidden" ? "visible" : el.style.overflow
               if (/^H[1-6]$/.test(el.tagName)) {
                 el.style.fontWeight = "400"
               }
+            })
+            clonedDoc.querySelectorAll(".katex, .katex-display, .katex-html").forEach((node) => {
+              const el = node as HTMLElement
+              el.style.overflow = "visible"
             })
           },
         },
@@ -334,11 +458,10 @@ export const exportPdfDocument = async (
           orientation: options.orientation,
         },
         pagebreak: {
-          mode: ["css", "legacy"],
+          // avoid-all + css: push whole blocks instead of slicing glyphs mid-line.
+          mode: ["avoid-all", "css"],
           avoid: [
             "img",
-            "p",
-            "li",
             "h1",
             "h2",
             "h3",
@@ -347,7 +470,7 @@ export const exportPdfDocument = async (
             "h6",
             ".mermaid-diagram",
             ".katex-display",
-            ".katex",
+            ".pdf-atom",
             "table",
             "pre",
             "blockquote",

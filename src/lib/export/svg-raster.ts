@@ -65,6 +65,56 @@ export const sanitizeSvgForCanvas = (svg: string): string => {
   return out
 }
 
+/**
+ * Replace foreignObject HTML labels with SVG <text> so Image+canvas works
+ * (FO + drawImage taints / blanks; FO + foreignObjectRendering often paints black).
+ */
+export const flattenForeignObjectLabels = (svg: string): string => {
+  if (typeof DOMParser === "undefined" || !hasForeignObject(svg)) {
+    return svg
+  }
+
+  try {
+    const prepared = sanitizeSvgForCanvas(svg)
+    const doc = new DOMParser().parseFromString(prepared, "image/svg+xml")
+    if (doc.querySelector("parsererror")) {
+      return svg
+    }
+
+    const root = doc.documentElement
+    root.querySelectorAll("foreignObject").forEach((fo) => {
+      const text = (fo.textContent ?? "").replace(/\s+/g, " ").trim()
+      if (!text) {
+        fo.remove()
+        return
+      }
+
+      const x = Number.parseFloat(fo.getAttribute("x") ?? "0") || 0
+      const y = Number.parseFloat(fo.getAttribute("y") ?? "0") || 0
+      const width = Number.parseFloat(fo.getAttribute("width") ?? "0") || 0
+      const height = Number.parseFloat(fo.getAttribute("height") ?? "0") || 0
+
+      const textEl = doc.createElementNS("http://www.w3.org/2000/svg", "text")
+      textEl.setAttribute("x", String(x + width / 2))
+      textEl.setAttribute("y", String(y + height / 2))
+      textEl.setAttribute("text-anchor", "middle")
+      textEl.setAttribute("dominant-baseline", "middle")
+      textEl.setAttribute("fill", "#1f2937")
+      textEl.setAttribute(
+        "font-family",
+        '"Microsoft YaHei","微软雅黑","Segoe UI",sans-serif'
+      )
+      textEl.setAttribute("font-size", "14")
+      textEl.textContent = text
+      fo.replaceWith(textEl)
+    })
+
+    return new XMLSerializer().serializeToString(root)
+  } catch {
+    return svg
+  }
+}
+
 const ensureSvgSize = (svg: string): string => {
   if (/<svg[^>]*(width|viewBox)=/i.test(svg)) {
     return svg
@@ -94,9 +144,41 @@ const canvasToPngBytes = async (canvas: HTMLCanvasElement): Promise<Uint8Array> 
   return new Uint8Array(buffer)
 }
 
+const isMostlyBlankOrBlack = (canvas: HTMLCanvasElement): boolean => {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })
+  if (!ctx || canvas.width < 2 || canvas.height < 2) {
+    return true
+  }
+
+  const { width, height } = canvas
+  const sample = ctx.getImageData(0, 0, width, height).data
+  let opaque = 0
+  let dark = 0
+  let lightish = 0
+  const step = Math.max(4, Math.floor((width * height) / 4000) * 4)
+
+  for (let i = 0; i < sample.length; i += step) {
+    const a = sample[i + 3]
+    if (a < 8) continue
+    opaque++
+    const r = sample[i]
+    const g = sample[i + 1]
+    const b = sample[i + 2]
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    if (lum < 28) dark++
+    if (lum > 40) lightish++
+  }
+
+  if (opaque < 12) return true
+  // Solid black / near-black failed FO captures
+  if (dark / opaque > 0.92 && lightish / opaque < 0.05) return true
+  return false
+}
+
 /**
  * Mount SVG in the DOM and capture with html2canvas-pro.
- * Preserves foreignObject labels (Image+drawImage would taint or drop them).
+ * foreignObjectRendering MUST stay false — true often yields solid black PNGs
+ * for Mermaid flowchart / classDiagram labels.
  */
 const rasterizeViaHtml2Canvas = async (
   svg: string,
@@ -120,19 +202,17 @@ const rasterizeViaHtml2Canvas = async (
   ].join(";")
   host.innerHTML = prepared
 
-  // Ensure FO / SVG text inherit readable fill.
-  host.querySelectorAll("text, tspan, .nodeLabel, .edgeLabel, foreignObject, foreignObject *").forEach((node) => {
+  host.querySelectorAll("foreignObject, foreignObject *").forEach((node) => {
     const el = node as HTMLElement
     if (el.style) {
-      if (!el.getAttribute("fill") && el.tagName.toLowerCase() !== "div") {
-        // leave SVG fill attrs alone
-      }
       el.style.color = el.style.color || "#1f2937"
+      el.style.background = el.style.background || "transparent"
     }
   })
 
   document.body.appendChild(host)
   try {
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()))
     const canvas = await html2canvas(host, {
       backgroundColor: isTransparent(opts.background) ? null : opts.background,
@@ -140,8 +220,12 @@ const rasterizeViaHtml2Canvas = async (
       logging: false,
       useCORS: true,
       allowTaint: false,
-      foreignObjectRendering: true,
+      // true → black rectangles for Mermaid FO labels in WebView2
+      foreignObjectRendering: false,
     })
+    if (isMostlyBlankOrBlack(canvas)) {
+      throw new Error("html2canvas produced blank/black output")
+    }
     return canvasToPngBytes(canvas)
   } finally {
     host.remove()
@@ -167,6 +251,9 @@ const rasterizeViaImage = async (svg: string, opts: SvgRasterOptions): Promise<U
     ctx.fillRect(0, 0, canvas.width, canvas.height)
   }
   ctx.drawImage(image, pad, pad, width * opts.scale, height * opts.scale)
+  if (isMostlyBlankOrBlack(canvas)) {
+    throw new Error("SVG 栅格化结果为空")
+  }
   return canvasToPngBytes(canvas)
 }
 
@@ -176,24 +263,37 @@ export const svgToPngBytes = async (
   options?: Partial<SvgRasterOptions>
 ): Promise<Uint8Array> => {
   const opts = { ...DEFAULT_OPTIONS, ...options }
+  const errors: string[] = []
 
-  // foreignObject labels must go through DOM capture — Image drawImage drops/taints them.
-  if (hasForeignObject(svg)) {
-    return rasterizeViaHtml2Canvas(svg, opts)
+  // Prefer FO-free SVG → Image path (stable for flowchart / classDiagram).
+  const flattened = flattenForeignObjectLabels(svg)
+  if (!hasForeignObject(flattened)) {
+    try {
+      return await rasterizeViaImage(flattened, opts)
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  if (!hasForeignObject(svg)) {
+    try {
+      return await rasterizeViaImage(svg, opts)
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error))
+    }
   }
 
   try {
-    return await rasterizeViaImage(svg, opts)
+    return await rasterizeViaHtml2Canvas(flattened, opts)
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    if (/taint|toDataURL|SecurityError|外部资源|无法将 SVG/i.test(message)) {
-      return rasterizeViaHtml2Canvas(svg, opts)
-    }
-    try {
-      return await rasterizeViaHtml2Canvas(svg, opts)
-    } catch {
-      throw error instanceof Error ? error : new Error(String(error))
-    }
+    errors.push(error instanceof Error ? error.message : String(error))
+  }
+
+  try {
+    return await rasterizeViaHtml2Canvas(svg, opts)
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error))
+    throw new Error(errors.filter(Boolean).join("；") || "无法导出 PNG")
   }
 }
 

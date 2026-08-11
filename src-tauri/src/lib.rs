@@ -264,11 +264,12 @@ fn seed_example_note_if_empty(config: &WorkspaceConfig) -> Result<(), String> {
         .unwrap_or(true);
 
     if notes_empty {
-        fs::write(
-            notes_dir.join("example.md"),
-            "# Welcome to Caelum\n\nStart writing in your local workspace.\n",
-        )
-        .map_err(|error| error.to_string())?;
+        let math_guide = include_str!("../seed/math-guide.md");
+        let mermaid_guide = include_str!("../seed/mermaid-guide.md");
+        fs::write(notes_dir.join("数学公式入门.md"), math_guide)
+            .map_err(|error| error.to_string())?;
+        fs::write(notes_dir.join("Mermaid图表入门.md"), mermaid_guide)
+            .map_err(|error| error.to_string())?;
     }
 
     Ok(())

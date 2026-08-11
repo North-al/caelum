@@ -102,10 +102,11 @@ export const MermaidBlock = ({ code, className }: Props) => {
     const toastId = toast.loading("正在导出图表…")
     try {
       const theme = resolveMermaidTheme(mermaidTheme, isDark)
-      // Always re-render for export so we get htmlLabels:false SVG (no foreignObject).
+      // Re-render with SVG text labels — FO + canvas often exports solid black.
       const rendered = await renderMermaidSvg(normalizeMermaidSource(code), {
         theme,
         idPrefix: `export-${reactId}`,
+        forExport: true,
       })
       if (!rendered) {
         throw new Error("图表内容为空")
@@ -118,7 +119,8 @@ export const MermaidBlock = ({ code, className }: Props) => {
           filters: [{ name: "SVG", extensions: ["svg"] }],
         })
         if (!picked) {
-          toast.message("已取消导出", { id: toastId })
+          toast.dismiss(toastId)
+          toast.message("已取消导出")
           return
         }
         const target = ensureExtension(picked, "svg")
@@ -140,7 +142,8 @@ export const MermaidBlock = ({ code, className }: Props) => {
         filters: [{ name: "PNG", extensions: ["png"] }],
       })
       if (!picked) {
-        toast.message("已取消导出", { id: toastId })
+        toast.dismiss(toastId)
+        toast.message("已取消导出")
         return
       }
       const target = ensureExtension(picked, "png")
@@ -183,7 +186,7 @@ export const MermaidBlock = ({ code, className }: Props) => {
           className
         )}
       >
-        <div className="absolute right-2 top-2 z-10">
+        <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
           <Tooltip>
             <TooltipTrigger
               render={

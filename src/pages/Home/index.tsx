@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Group, Panel, Separator } from "react-resizable-panels"
 import type { GroupImperativeHandle } from "react-resizable-panels"
 import type { EditorView } from "@codemirror/view"
@@ -10,6 +10,7 @@ import { ImagePreview } from "~/components/App/ImagePreview"
 import { insertMarkdownAtCursor, MarkdownEditor } from "~/components/App/MarkdownEditor"
 import { MarkdownPreview } from "~/components/App/MarkdownPreview"
 import { OutlinePanel } from "~/components/App/OutlinePanel"
+import { QuickOpen } from "~/components/App/QuickOpen"
 import { TitleBar } from "~/components/App/TitleBar"
 import { WelcomeEmptyState } from "~/components/App/WelcomeEmptyState"
 import { WorkspaceSidebar } from "~/components/App/WorkspaceSidebar"
@@ -63,6 +64,8 @@ const Home = () => {
   const outlineSaveTimerRef = useRef<number | null>(null)
   const splitSaveTimerRef = useRef<number | null>(null)
   const layoutSaveReadyRef = useRef(false)
+  const [quickOpen, setQuickOpen] = useState(false)
+  const lastShiftAtRef = useRef(0)
 
   const scrollSyncEnabled = config?.settings.scrollSync ?? true
   const splitOrientation = config?.uiState.splitOrientation ?? "horizontal"
@@ -261,7 +264,6 @@ const Home = () => {
       return
     }
     await saveActiveFile()
-    toast.success("已保存", { description: selectedFilePath?.split(/[\\/]/).pop() })
   }, [saveActiveFile, selectedFilePath])
 
   useEffect(() => {
@@ -279,6 +281,48 @@ const Home = () => {
         } else {
           setViewMode("editor")
         }
+        return
+      }
+
+      // Alt + ← / → 切换标签
+      if (
+        event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        (event.key === "ArrowLeft" || event.key === "ArrowRight")
+      ) {
+        const { openFiles, selectedFilePath, selectFile } = useWorkspaceStore.getState()
+        if (openFiles.length < 2) {
+          return
+        }
+        event.preventDefault()
+        const current = selectedFilePath?.replace(/\\/g, "/") ?? ""
+        const index = Math.max(
+          0,
+          openFiles.findIndex((path) => path.replace(/\\/g, "/") === current)
+        )
+        const nextIndex =
+          event.key === "ArrowRight"
+            ? (index + 1) % openFiles.length
+            : (index - 1 + openFiles.length) % openFiles.length
+        void selectFile(openFiles[nextIndex])
+        return
+      }
+
+      // Double-tap Shift → Quick Open (IDEA-style), ignore held Shift repeat.
+      if (event.key === "Shift" && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const now = Date.now()
+        if (now - lastShiftAtRef.current < 400) {
+          event.preventDefault()
+          lastShiftAtRef.current = 0
+          setQuickOpen(true)
+          return
+        }
+        lastShiftAtRef.current = now
+        return
+      }
+      if (event.key !== "Shift") {
+        lastShiftAtRef.current = 0
       }
     }
     window.addEventListener("keydown", handler)
@@ -515,6 +559,8 @@ const Home = () => {
             </div>
           </div>
         ) : null}
+
+        <QuickOpen open={quickOpen} onOpenChange={setQuickOpen} />
       </SidebarInset>
     </SidebarProvider>
   )

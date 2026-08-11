@@ -5,6 +5,10 @@ import { toast } from "sonner"
 
 import { ImageLightbox } from "~/components/App/ImageLightbox"
 import { PreviewEmptyHint } from "~/components/App/EditorEmptyGuide"
+import {
+  ExportMermaidBatchDialog,
+  type MermaidBatchExportSettings,
+} from "~/components/App/ExportMermaidBatchDialog"
 import { MermaidBlock } from "~/components/App/MermaidBlock"
 import { PreviewCodeBlock } from "~/components/App/PreviewCodeBlock"
 import { Button } from "~/components/ui/button"
@@ -49,6 +53,8 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
   const mermaidTheme = config?.settings.mermaidTheme ?? "auto"
   const [lightbox, setLightbox] = useState<PreviewImage | null>(null)
   const [exportingMermaid, setExportingMermaid] = useState(false)
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+  const [batchDefaultFormat, setBatchDefaultFormat] = useState<"svg" | "png">("png")
 
   const normalizedContent = useMemo(
     () => expandWikiLinks(normalizeTaskListSyntax(content)),
@@ -62,21 +68,40 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
     [enableHighlight]
   )
 
-  const handleMermaidBatch = async (format: "svg" | "png") => {
+  const openBatchExport = (format: "svg" | "png") => {
+    setBatchDefaultFormat(format)
+    setBatchDialogOpen(true)
+  }
+
+  const handleMermaidBatch = async (settings: MermaidBatchExportSettings) => {
     if (exportingMermaid) {
       return
     }
+    const blocks = settings.items
+      .filter((item) => settings.selectedIds.includes(item.id))
+      .map((item) => item.code)
+    if (blocks.length === 0) {
+      toast.message("请至少选择一个图表")
+      return
+    }
+
     setExportingMermaid(true)
-    const toastId = toast.loading(format === "svg" ? "正在导出 SVG…" : "正在导出 PNG…")
+    const toastId = toast.loading(
+      settings.format === "svg" ? "正在导出 SVG…" : "正在导出 PNG…"
+    )
     try {
       const count = await exportMermaidBatch({
-        content,
-        format,
+        blocks,
+        format: settings.format,
         mermaidTheme,
+        background: settings.background,
+        padding: settings.padding,
+        scale: settings.scale,
         onProgress: (message) => toast.loading(message, { id: toastId }),
       })
       if (count === 0) {
-        toast.message("已取消导出", { id: toastId })
+        toast.dismiss(toastId)
+        toast.message("已取消导出")
         return
       }
       toast.success(`已导出 ${count} 个图表`, { id: toastId })
@@ -237,13 +262,13 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
               <DropdownMenuContent align="end" side="bottom">
                 <DropdownMenuItem
                   disabled={exportingMermaid}
-                  onClick={() => void handleMermaidBatch("svg")}
+                  onClick={() => openBatchExport("svg")}
                 >
                   批量导出 SVG
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={exportingMermaid}
-                  onClick={() => void handleMermaidBatch("png")}
+                  onClick={() => openBatchExport("png")}
                 >
                   批量导出 PNG
                 </DropdownMenuItem>
@@ -278,6 +303,16 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
         src={lightbox?.src ?? ""}
         alt={lightbox?.alt}
         onClose={() => setLightbox(null)}
+      />
+
+      <ExportMermaidBatchDialog
+        open={batchDialogOpen}
+        onOpenChange={setBatchDialogOpen}
+        content={content}
+        defaultFormat={batchDefaultFormat}
+        onConfirm={(settings) => {
+          void handleMermaidBatch(settings)
+        }}
       />
     </>
   )

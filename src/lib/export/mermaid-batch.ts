@@ -1,22 +1,26 @@
 import { open } from "@tauri-apps/plugin-dialog"
 
 import { svgToPngBytes } from "~/lib/export/svg-raster"
-import { extractMermaidBlocks, renderMermaidSvg } from "~/lib/mermaid"
+import { renderMermaidSvg } from "~/lib/mermaid"
 import { combinePaths, writeBinaryFile, writeTextFile, type MermaidThemeSetting } from "~/lib/workspace"
 
 const padIndex = (index: number, total: number) =>
   String(index).padStart(Math.max(2, String(total).length), "0")
 
-export const exportMermaidBatch = async (options: {
-  content: string
+export interface MermaidBatchExportOptions {
+  blocks: string[]
   format: "svg" | "png"
   mermaidTheme?: MermaidThemeSetting
   background?: string
   padding?: number
   scale?: number
   onProgress?: (message: string) => void
-}): Promise<number> => {
-  const blocks = extractMermaidBlocks(options.content)
+}
+
+export const exportMermaidBatch = async (
+  options: MermaidBatchExportOptions
+): Promise<number> => {
+  const blocks = options.blocks.filter((code) => code.trim().length > 0)
   if (blocks.length === 0) {
     return 0
   }
@@ -39,6 +43,7 @@ export const exportMermaidBatch = async (options: {
       const svg = await renderMermaidSvg(code, {
         themeSetting: options.mermaidTheme ?? "auto",
         idPrefix: `batch-${i}`,
+        forExport: options.format === "png",
       })
       if (!svg) {
         continue

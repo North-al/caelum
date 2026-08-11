@@ -46,6 +46,10 @@ export interface WorkspaceUiState {
   outlineWidth: number
   windowWidth: number
   windowHeight: number
+  /** Remembered position for Ctrl+G go-to-line panel */
+  gotoPanelPosition: { left: number; top: number } | null
+  /** Remembered position for double-Shift quick open */
+  quickOpenPosition: { left: number; top: number } | null
 }
 
 export interface AppSettings {
@@ -136,6 +140,8 @@ export const defaultUiState: WorkspaceUiState = {
   outlineWidth: DEFAULT_OUTLINE_WIDTH,
   windowWidth: DEFAULT_WINDOW_WIDTH,
   windowHeight: DEFAULT_WINDOW_HEIGHT,
+  gotoPanelPosition: null,
+  quickOpenPosition: null,
 }
 
 export const normalizePath = (value: string) => value.replace(/\\/g, "/")

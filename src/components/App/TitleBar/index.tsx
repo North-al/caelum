@@ -18,7 +18,6 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener"
 import { toast } from "sonner"
 
 import { FileTypeIcon } from "~/components/App/FileTypeIcon"
-import { ExportDocxDialog } from "~/components/App/ExportDocxDialog"
 import { ExportPdfDialog } from "~/components/App/ExportPdfDialog"
 import { RenameDialog } from "~/components/App/RenameDialog"
 import { Button } from "~/components/ui/button"
@@ -49,7 +48,6 @@ import {
 } from "~/lib/dnd"
 import {
   exportNote,
-  type DocxExportOptions,
   type ExportFormat,
   type PdfExportOptions,
 } from "~/lib/export"
@@ -129,7 +127,6 @@ export const TitleBar = () => {
   const [ghost, setGhost] = useState<{ x: number; y: number; label: string } | null>(null)
   const [renamePath, setRenamePath] = useState<string | null>(null)
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false)
-  const [docxDialogOpen, setDocxDialogOpen] = useState(false)
   const [exportTargetPath, setExportTargetPath] = useState<string | null>(null)
   const sessionRef = useRef<DragSession | null>(null)
   const suppressClickRef = useRef(false)
@@ -166,7 +163,7 @@ export const TitleBar = () => {
   const handleExport = async (
     format: ExportFormat,
     filePath?: string,
-    extras?: { pdfOptions?: PdfExportOptions; docxOptions?: DocxExportOptions }
+    extras?: { pdfOptions?: PdfExportOptions }
   ) => {
     const toastId = toast.loading("准备导出…")
     try {
@@ -182,11 +179,11 @@ export const TitleBar = () => {
         workspaceRoot: ctx.workspaceRoot,
         mermaidTheme: ctx.mermaidTheme,
         pdfOptions: extras?.pdfOptions,
-        docxOptions: extras?.docxOptions,
         onProgress: (message) => toast.loading(message, { id: toastId }),
       })
       if (result.status === "cancelled") {
-        toast.message("已取消导出", { id: toastId })
+        toast.dismiss(toastId)
+        toast.message("已取消导出")
         return
       }
       toast.success("导出成功", {
@@ -196,10 +193,8 @@ export const TitleBar = () => {
     } catch (error) {
       const message = error instanceof Error ? error.message : "无法导出文件"
       if (/打印对话框|Print to PDF/i.test(message)) {
-        toast.message("请用系统打印保存 PDF", {
-          id: toastId,
-          description: message,
-        })
+        toast.dismiss(toastId)
+        toast.message("请用系统打印保存 PDF", { description: message })
         return
       }
       toast.error("导出失败", {
@@ -212,11 +207,6 @@ export const TitleBar = () => {
   const openPdfExport = (filePath?: string) => {
     setExportTargetPath(filePath ?? selectedFilePath)
     setPdfDialogOpen(true)
-  }
-
-  const openDocxExport = (filePath?: string) => {
-    setExportTargetPath(filePath ?? selectedFilePath)
-    setDocxDialogOpen(true)
   }
 
   const exportMenuItems = (filePath?: string) => (
@@ -232,15 +222,6 @@ export const TitleBar = () => {
       <DropdownMenuItem onClick={() => openPdfExport(filePath)}>
         <Download className="size-4" />
         导出 PDF
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => openDocxExport(filePath)}>
-        <FileText className="size-4" />
-        <span className="flex flex-1 items-center gap-2">
-          导出 Word
-          <span className="rounded-md border border-border/60 bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground">
-            灰度
-          </span>
-        </span>
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => void handleExport("html", filePath)}>
         <FileText className="size-4" />
@@ -621,14 +602,6 @@ export const TitleBar = () => {
                             导出文本
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => openPdfExport(filePath)}>导出 PDF</ContextMenuItem>
-                          <ContextMenuItem onClick={() => openDocxExport(filePath)}>
-                            <span className="flex flex-1 items-center gap-2">
-                              导出 Word
-                              <span className="rounded-md border border-border/60 bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground">
-                                灰度
-                              </span>
-                            </span>
-                          </ContextMenuItem>
                           <ContextMenuItem onClick={() => void handleExport("html", filePath)}>
                             导出 HTML
                           </ContextMenuItem>
@@ -734,14 +707,6 @@ export const TitleBar = () => {
         onOpenChange={setPdfDialogOpen}
         onConfirm={(pdfOptions) => {
           void handleExport("pdf", exportTargetPath ?? undefined, { pdfOptions })
-        }}
-      />
-
-      <ExportDocxDialog
-        open={docxDialogOpen}
-        onOpenChange={setDocxDialogOpen}
-        onConfirm={(docxOptions) => {
-          void handleExport("docx", exportTargetPath ?? undefined, { docxOptions })
         }}
       />
     </>

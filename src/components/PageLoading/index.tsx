@@ -34,20 +34,20 @@ export const PageLoading = ({ className, label, scene = "route" }: Props) => {
     >
       <div className="page-loading-aura pointer-events-none absolute inset-0" aria-hidden />
 
-      <div className="relative flex flex-col items-center gap-5">
-        <div className="relative flex size-[4.25rem] items-center justify-center">
+      <div className="relative flex flex-col items-center gap-6">
+        <div className="relative flex size-[5.75rem] items-center justify-center">
           <span className="page-loading-orbit absolute inset-0 rounded-full" aria-hidden />
           <span className="page-loading-orbit-arm absolute inset-0" aria-hidden>
-            <span className="absolute left-1/2 top-0 size-1.5 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_10px_color-mix(in_srgb,var(--primary)_45%,transparent)]" />
+            <span className="absolute left-1/2 top-0 size-2 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_12px_color-mix(in_srgb,var(--primary)_45%,transparent)]" />
           </span>
-          <div className="relative flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent)]">
-            <CaelumLogo className="size-7" />
+          <div className="relative flex size-16 items-center justify-center rounded-[1.15rem] bg-primary/10 text-primary shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent)]">
+            <CaelumLogo className="size-9" />
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-2.5">
-          <p className="text-[13px] font-medium tracking-wide text-foreground/80">{text}</p>
-          <div className="page-loading-bars flex items-center gap-1" aria-hidden>
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-[15px] font-medium tracking-wide text-foreground/85">{text}</p>
+          <div className="page-loading-bars flex items-center gap-1.5" aria-hidden>
             <span />
             <span />
             <span />
