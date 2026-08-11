@@ -15,7 +15,7 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener"
 import { CaelumLogo } from "~/components/App/CaelumLogo"
 import { InputDialog } from "~/components/App/InputDialog"
 import { Button } from "~/components/ui/button"
-import { Input } from "~/components/ui/input"
+import { NumberField } from "~/components/ui/number-field"
 import { Select } from "~/components/ui/select"
 import { Separator } from "~/components/ui/separator"
 import { Switch } from "~/components/ui/switch"
@@ -255,15 +255,13 @@ const SettingsPage = () => {
                 <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
                   <div className="mb-2 text-sm font-medium">自动保存间隔</div>
                   <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={200}
-                      step={100}
+                    <NumberField
                       className="max-w-[160px]"
+                      min={200}
+                      max={60000}
+                      fallback={600}
                       value={settings.autoSaveInterval}
-                      onChange={(event) =>
-                        updateSetting({ autoSaveInterval: Math.max(200, Number(event.target.value) || 600) })
-                      }
+                      onChange={(autoSaveInterval) => updateSetting({ autoSaveInterval })}
                     />
                     <span className="text-xs text-muted-foreground">毫秒（建议 600）</span>
                   </div>

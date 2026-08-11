@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "react"
 import {
+  AlignLeft,
   ChevronRight,
   ClipboardPaste,
   Copy,
@@ -12,6 +13,7 @@ import {
   PencilLine,
   Trash2,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { FileTypeIcon } from "~/components/App/FileTypeIcon"
 import {
@@ -26,6 +28,7 @@ import {
   ContextMenuTrigger,
 } from "~/components/ui/context-menu"
 import { DROP_DIR_ATTR, getActiveDropDir, subscribeTabDrag } from "~/lib/dnd"
+import { canFormatPath, formatDocumentAtPath } from "~/lib/format-document"
 import { getParentPath, normalizePath } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 
@@ -178,6 +181,24 @@ export const FileTreeItem = ({
         <PencilLine className="mr-2 size-4" />
         重命名
       </ContextMenuItem>
+      {canFormatPath(node.path) ? (
+        <ContextMenuItem
+          onClick={() => {
+            void formatDocumentAtPath(node.path)
+              .then((result) => {
+                toast.success(result.changed ? "已格式化" : "已是规范格式")
+              })
+              .catch((error) => {
+                toast.error("格式化失败", {
+                  description: error instanceof Error ? error.message : "无法格式化文件",
+                })
+              })
+          }}
+        >
+          <AlignLeft className="mr-2 size-4" />
+          格式化
+        </ContextMenuItem>
+      ) : null}
       <ContextMenuItem onClick={() => onCopyPath?.(node.path)}>
         <Copy className="mr-2 size-4" />
         复制路径

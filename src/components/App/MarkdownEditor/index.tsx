@@ -22,6 +22,7 @@ import {
   createEditorSearchPanel,
   openEditorReplacePanel,
 } from "~/components/App/EditorSearchPanel/create-search-panel"
+import { openGotoLinePanel } from "~/components/App/EditorGotoLine/create-goto-line-panel"
 import { Button } from "~/components/ui/button"
 import {
   buildImageMarkdown,
@@ -149,7 +150,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
   const allowImageInsert = Boolean(selectedFilePath && isMarkdownPath(selectedFilePath))
   const languageExtension = useMemo(() => languageExtensionForPath(selectedFilePath), [selectedFilePath])
   const extension = selectedFilePath ? getFileExtension(selectedFilePath) : ""
-  const canFormat = ["json", "xml", "svg", "ini"].includes(extension)
+  const canFormat = ["md", "markdown", "json", "xml", "svg", "ini"].includes(extension)
   const isMarkdown = Boolean(selectedFilePath && isMarkdownPath(selectedFilePath))
   const rawFamily = settings?.editorFontFamily?.trim() || MONO_STACK
   const fontFamily = isMarkdown ? SANS_STACK : rawFamily || MONO_STACK
@@ -589,8 +590,14 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
                   { key: "Mod-r", run: openEditorReplacePanel, preventDefault: true },
                   { key: "Mod-d", run: copyLineDown, preventDefault: true },
                   { key: "Mod-j", run: selectNextOccurrence, preventDefault: true },
+                  { key: "Mod-g", run: openGotoLinePanel, preventDefault: true },
                   ...searchKeymap.filter(
-                    (binding) => binding.key !== "Mod-f" && binding.key !== "Mod-d"
+                    (binding) =>
+                      binding.key !== "Mod-f" &&
+                      binding.key !== "Mod-d" &&
+                      binding.key !== "Mod-g" &&
+                      binding.key !== "Shift-Mod-g" &&
+                      binding.key !== "Mod-Alt-g"
                   ),
                 ]),
                 imageHandlers,
@@ -627,6 +634,16 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
           >
             {(
               [
+                ...(canFormat && !readOnly
+                  ? [
+                      {
+                        label: "格式化文档",
+                        action: () => {
+                          handleFormat()
+                        },
+                      },
+                    ]
+                  : []),
                 {
                   label: "复制行",
                   action: () => {

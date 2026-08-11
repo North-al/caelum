@@ -102,12 +102,11 @@ export const MermaidBlock = ({ code, className }: Props) => {
     const toastId = toast.loading("正在导出图表…")
     try {
       const theme = resolveMermaidTheme(mermaidTheme, isDark)
-      const rendered =
-        svg ||
-        (await renderMermaidSvg(normalizeMermaidSource(code), {
-          theme,
-          idPrefix: `export-${reactId}`,
-        }))
+      // Always re-render for export so we get htmlLabels:false SVG (no foreignObject).
+      const rendered = await renderMermaidSvg(normalizeMermaidSource(code), {
+        theme,
+        idPrefix: `export-${reactId}`,
+      })
       if (!rendered) {
         throw new Error("图表内容为空")
       }
@@ -146,7 +145,7 @@ export const MermaidBlock = ({ code, className }: Props) => {
       }
       const target = ensureExtension(picked, "png")
       const bytes = await svgToPngBytes(rendered, {
-        background: settings.background === "transparent" ? "#ffffff" : settings.background,
+        background: settings.background,
         padding: settings.padding,
         scale: settings.scale,
       })

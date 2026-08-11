@@ -172,9 +172,60 @@ export const formatIniContent = (value: string) => {
   return output.length ? `${output.join("\n")}\n` : "[section]\nkey=value\n"
 }
 
+/** Soft Markdown tidy: trailing spaces, list spacing, heading gaps, blank-line collapse. */
+export const formatMarkdownContent = (value: string) => {
+  let text = value.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n")
+
+  const fences: string[] = []
+  text = text.replace(/```[\s\S]*?```/g, (block) => {
+    const index = fences.length
+    fences.push(block)
+    return `\0FENCE${index}\0`
+  })
+
+  const maths: string[] = []
+  text = text.replace(/\$\$[\s\S]*?\$\$/g, (block) => {
+    const index = maths.length
+    maths.push(block)
+    return `\0MATH${index}\0`
+  })
+
+  let lines = text.split("\n").map((line) => line.replace(/[ \t]+$/g, ""))
+
+  lines = lines.map((line) => {
+    const bullet = /^([ \t]*)([-*+])(\S.*)$/.exec(line)
+    if (bullet) {
+      return `${bullet[1]}${bullet[2]} ${bullet[3]}`
+    }
+    const ordered = /^([ \t]*)(\d+\.)(\S.*)$/.exec(line)
+    if (ordered) {
+      return `${ordered[1]}${ordered[2]} ${ordered[3]}`
+    }
+    return line
+  })
+
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]
+    const isHeading = /^#{1,6}(\s|$)/.test(line)
+    if (isHeading && out.length > 0 && out[out.length - 1] !== "") {
+      out.push("")
+    }
+    out.push(line)
+  }
+
+  text = out.join("\n").replace(/\n{3,}/g, "\n\n")
+  text = text.replace(/\0FENCE(\d+)\0/g, (_m, index: string) => fences[Number(index)] ?? "")
+  text = text.replace(/\0MATH(\d+)\0/g, (_m, index: string) => maths[Number(index)] ?? "")
+  return `${text.replace(/\s+$/g, "")}\n`
+}
+
 export const tryFormatByExtension = (extension: string, value: string): string | null => {
   const ext = extension.toLowerCase()
   try {
+    if (ext === "md" || ext === "markdown") {
+      return formatMarkdownContent(value)
+    }
     if (ext === "json") {
       return formatJsonContent(value)
     }

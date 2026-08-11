@@ -189,3 +189,67 @@
 .cm-searchMatch.cm-searchMatch-selected {
     background-color: color-mix(in srgb, var(--primary) 42%, transparent) !important;
 }
+
+/* Go to line (VS Code–like, Chinese) */
+.caelum-goto-panel {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    z-index: 45;
+    display: flex;
+    width: min(420px, calc(100% - 24px));
+    transform: translateX(-50%);
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--background) 94%, var(--muted));
+    box-shadow:
+        0 10px 28px color-mix(in srgb, var(--foreground) 14%, transparent),
+        0 1px 0 color-mix(in srgb, var(--border) 55%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.caelum-goto-field {
+    display: flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+    border-radius: 7px;
+    background: var(--background);
+}
+
+.caelum-goto-field:focus-within {
+    border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.caelum-goto-input {
+    width: 100%;
+    height: 28px;
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--foreground);
+    font-size: 13px;
+    font-family: ui-monospace, Consolas, monospace;
+}
+
+.caelum-goto-hint {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--muted) 80%, transparent);
+    color: var(--muted-foreground);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.caelum-goto-hint[data-invalid="true"] {
+    color: color-mix(in srgb, var(--destructive) 85%, var(--foreground));
+    background: color-mix(in srgb, var(--destructive) 10%, var(--muted));
+}
+

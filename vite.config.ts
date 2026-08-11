@@ -12,6 +12,8 @@ export default defineConfig(async () => ({
     resolve: {
         alias: {
             '~': fileURLToPath(new URL('./src', import.meta.url)),
+            // html2pdf → html2canvas cannot parse oklch (Tailwind/shadcn); use the pro fork.
+            html2canvas: fileURLToPath(new URL('./node_modules/html2canvas-pro', import.meta.url)),
         },
     },
     plugins: createPlugins(),

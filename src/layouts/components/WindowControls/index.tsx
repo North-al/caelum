@@ -4,7 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window"
 
 import { cn } from "~/lib/utils"
 
-/** Linear window chrome buttons — shared stroke weight with TitleBar tools. */
+/** Linear window chrome buttons — flush to the window edge with Win11 corner radius. */
 export const WindowControls = () => {
   const [isMaximized, setIsMaximized] = useState(false)
 
@@ -44,7 +44,7 @@ export const WindowControls = () => {
   )
 
   return (
-    <div className="flex h-full shrink-0 items-stretch">
+    <div className="flex h-full shrink-0 items-stretch self-stretch">
       <button
         type="button"
         className={buttonClass}
@@ -69,7 +69,12 @@ export const WindowControls = () => {
       </button>
       <button
         type="button"
-        className={cn(buttonClass, "hover:bg-destructive hover:text-white")}
+        className={cn(
+          buttonClass,
+          "hover:bg-destructive hover:text-white",
+          // Match Windows 11 DWM corner so hover fill doesn't leave a light gap.
+          !isMaximized && "rounded-tr-[10px]"
+        )}
         title="关闭"
         aria-label="关闭"
         onClick={() => void handleClose()}

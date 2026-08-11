@@ -40,8 +40,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip"
-import { EDITABLE_EXTENSIONS_LIST, getFileExtension } from "~/lib/file-types"
+import { getFileExtension } from "~/lib/file-types"
 import { EXPLORER_ZONE_ATTR } from "~/lib/dnd"
+import { SUPPORTED_RENAME_EXTENSIONS } from "~/lib/rename"
 import { writeTextToClipboard } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 import { cn } from "~/lib/utils"
@@ -56,9 +57,10 @@ interface CreateTarget {
   parentPath?: string
 }
 
-const CREATE_EXTENSIONS = EDITABLE_EXTENSIONS_LIST.filter((item) =>
-  ["md", "txt", "ini", "json", "xml"].includes(item)
-).map((item) => ({ label: `.${item}`, value: item }))
+const CREATE_EXTENSIONS = SUPPORTED_RENAME_EXTENSIONS.map((item) => ({
+  label: `.${item}`,
+  value: item,
+}))
 
 const filterTree = (nodes: FileNode[], query: string): FileNode[] => {
   const normalized = query.trim().toLowerCase()
@@ -221,8 +223,16 @@ export const WorkspaceSidebar = () => {
 
   return (
     <>
-      <SidebarHeader className="gap-2 px-2.5 pt-3">
-        <div className="flex items-center gap-2.5 px-0.5" data-tauri-drag-region>
+      <SidebarHeader
+        className={cn("gap-2 px-2.5 pt-3", collapsed && "items-center px-1.5")}
+      >
+        <div
+          className={cn(
+            "flex items-center gap-2.5 px-0.5",
+            collapsed && "w-full justify-center px-0"
+          )}
+          data-tauri-drag-region
+        >
           <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
             <CaelumLogo className="size-5" />
           </div>
@@ -321,8 +331,10 @@ export const WorkspaceSidebar = () => {
 
       <SidebarSeparator className="mx-2 w-auto bg-border/40 group-data-[collapsible=icon]:hidden" />
 
+      {collapsed ? <div className="min-h-0 flex-1" aria-hidden /> : null}
+
       <SidebarContent
-        className="px-0 group-data-[collapsible=icon]:hidden"
+        className={cn("px-0", collapsed && "hidden")}
         {...{ [EXPLORER_ZONE_ATTR]: "explorer" }}
       >
         <SidebarGroup className="min-h-0 flex-1 px-1.5 py-1">
@@ -407,7 +419,7 @@ export const WorkspaceSidebar = () => {
       <SidebarFooter
         className={cn(
           "gap-1 px-2 pb-3",
-          collapsed && "items-center gap-1.5 px-1.5"
+          collapsed && "mt-auto items-center gap-1.5 px-1.5"
         )}
       >
         {collapsed ? (

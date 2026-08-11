@@ -54,6 +54,7 @@ import {
   type PdfExportOptions,
 } from "~/lib/export"
 import { isMarkdownPath } from "~/lib/file-types"
+import { canFormatPath, formatDocumentAtPath } from "~/lib/format-document"
 import { getParentPath, writeTextToClipboard } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 import { useWorkspaceStore } from "~/store/workspace"
@@ -193,9 +194,17 @@ export const TitleBar = () => {
         description: result.path.split(/[\\/]/).pop(),
       })
     } catch (error) {
+      const message = error instanceof Error ? error.message : "无法导出文件"
+      if (/打印对话框|Print to PDF/i.test(message)) {
+        toast.message("请用系统打印保存 PDF", {
+          id: toastId,
+          description: message,
+        })
+        return
+      }
       toast.error("导出失败", {
         id: toastId,
-        description: error instanceof Error ? error.message : "无法导出文件",
+        description: message,
       })
     }
   }
@@ -214,23 +223,28 @@ export const TitleBar = () => {
     <>
       <DropdownMenuItem onClick={() => void handleExport("normalized-md", filePath)}>
         <FileText className="size-4" />
-        导出解析后 Markdown (.md)
+        导出 Markdown
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => void handleExport("txt", filePath)}>
         <FileText className="size-4" />
-        导出纯文本 (.txt)
+        导出文本
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => openPdfExport(filePath)}>
         <Download className="size-4" />
-        导出 PDF…
+        导出 PDF
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => openDocxExport(filePath)}>
         <FileText className="size-4" />
-        导出 Word (.docx)
+        <span className="flex flex-1 items-center gap-2">
+          导出 Word
+          <span className="rounded-md border border-border/60 bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground">
+            灰度
+          </span>
+        </span>
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => void handleExport("html", filePath)}>
         <FileText className="size-4" />
-        导出离线单文件 HTML
+        导出 HTML
       </DropdownMenuItem>
     </>
   )
@@ -354,7 +368,7 @@ export const TitleBar = () => {
     <>
       <div className="flex shrink-0 flex-col border-b border-border/40 bg-background/80 backdrop-blur-xl">
         {/* Functional bar — Cursor-style top chrome */}
-        <div className="flex h-10 items-center gap-1 px-2" data-tauri-drag-region>
+        <div className="flex h-10 items-center gap-1 pl-2 pr-0" data-tauri-drag-region>
           <Tooltip>
             <TooltipTrigger
               render={
@@ -374,7 +388,7 @@ export const TitleBar = () => {
 
           <div className="min-h-full min-w-4 flex-1 self-stretch" data-tauri-drag-region />
 
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-0.5 pr-1">
             <div className="mr-0.5 flex items-center gap-0.5 rounded-xl border border-border/40 bg-muted/40 p-0.5">
               <ViewModeButton
                 mode="editor"
@@ -545,6 +559,25 @@ export const TitleBar = () => {
                         <Pencil className="mr-2 size-4" />
                         重命名
                       </ContextMenuItem>
+                      {canFormatPath(filePath) ? (
+                        <ContextMenuItem
+                          onClick={() => {
+                            void formatDocumentAtPath(filePath)
+                              .then((result) => {
+                                toast.success(result.changed ? "已格式化" : "已是规范格式")
+                              })
+                              .catch((error) => {
+                                toast.error("格式化失败", {
+                                  description:
+                                    error instanceof Error ? error.message : "无法格式化文件",
+                                })
+                              })
+                          }}
+                        >
+                          <FileText className="mr-2 size-4" />
+                          格式化
+                        </ContextMenuItem>
+                      ) : null}
                       <ContextMenuItem
                         onClick={() => {
                           void revealItemInDir(filePath).catch(() => {
@@ -582,17 +615,22 @@ export const TitleBar = () => {
                         <>
                           <ContextMenuSeparator />
                           <ContextMenuItem onClick={() => void handleExport("normalized-md", filePath)}>
-                            导出解析后 Markdown (.md)…
+                            导出 Markdown
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => void handleExport("txt", filePath)}>
-                            导出纯文本 (.txt)…
+                            导出文本
                           </ContextMenuItem>
-                          <ContextMenuItem onClick={() => openPdfExport(filePath)}>导出 PDF…</ContextMenuItem>
+                          <ContextMenuItem onClick={() => openPdfExport(filePath)}>导出 PDF</ContextMenuItem>
                           <ContextMenuItem onClick={() => openDocxExport(filePath)}>
-                            导出 Word (.docx)…
+                            <span className="flex flex-1 items-center gap-2">
+                              导出 Word
+                              <span className="rounded-md border border-border/60 bg-muted/70 px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground">
+                                灰度
+                              </span>
+                            </span>
                           </ContextMenuItem>
                           <ContextMenuItem onClick={() => void handleExport("html", filePath)}>
-                            导出离线 HTML…
+                            导出 HTML
                           </ContextMenuItem>
                         </>
                       ) : null}

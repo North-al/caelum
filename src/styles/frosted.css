@@ -57,14 +57,76 @@
 }
 
 /* —— Lightweight page loading —— */
-@keyframes page-loading-spin {
+@keyframes page-loading-orbit {
     to {
         transform: rotate(360deg);
     }
 }
 
-.page-loading-ring {
-    animation: page-loading-spin 0.9s linear infinite;
+@keyframes page-loading-bar {
+    0%,
+    80%,
+    100% {
+        opacity: 0.28;
+        transform: scaleY(0.55);
+    }
+    40% {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+}
+
+@keyframes page-loading-aura-breathe {
+    0%,
+    100% {
+        opacity: 0.55;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.9;
+        transform: scale(1.04);
+    }
+}
+
+.page-loading-aura {
+    background:
+        radial-gradient(ellipse 55% 40% at 50% 42%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 70%),
+        radial-gradient(ellipse 40% 30% at 50% 58%, color-mix(in srgb, var(--muted) 40%, transparent), transparent 75%);
+    animation: page-loading-aura-breathe 3.2s ease-in-out infinite;
+}
+
+.dark .page-loading-aura {
+    background:
+        radial-gradient(ellipse 55% 40% at 50% 42%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 70%),
+        radial-gradient(ellipse 40% 30% at 50% 58%, rgba(0, 0, 0, 0.35), transparent 75%);
+}
+
+.page-loading-orbit {
+    border: 1.5px solid color-mix(in srgb, var(--border) 70%, transparent);
+    border-top-color: color-mix(in srgb, var(--primary) 55%, transparent);
+    border-right-color: color-mix(in srgb, var(--primary) 20%, transparent);
+    animation: page-loading-orbit 1.35s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.page-loading-orbit-arm {
+    animation: page-loading-orbit 1.35s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.page-loading-bars span {
+    display: block;
+    width: 3px;
+    height: 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 75%, var(--foreground));
+    animation: page-loading-bar 1.05s ease-in-out infinite;
+}
+
+.page-loading-bars span:nth-child(2) {
+    animation-delay: 0.14s;
+}
+
+.page-loading-bars span:nth-child(3) {
+    animation-delay: 0.28s;
 }
 
 /* —— Empty document / preview placeholders —— */

@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog"
 import { Input } from "~/components/ui/input"
+import { NumberField } from "~/components/ui/number-field"
 import { Select } from "~/components/ui/select"
 import { Switch } from "~/components/ui/switch"
 import {
@@ -82,15 +83,14 @@ export const ExportPdfDialog = ({ open, onOpenChange, onConfirm }: Props) => {
 
           <div>
             <div className="mb-1.5 text-[13px] font-medium">页边距（毫米）</div>
-            <Input
-              type="number"
+            <NumberField
+              value={options.marginMm}
               min={8}
               max={40}
-              value={options.marginMm}
-              onChange={(event) =>
-                patch({ marginMm: Math.min(40, Math.max(8, Number(event.target.value) || 16)) })
-              }
+              fallback={defaultPdfExportOptions.marginMm}
+              onChange={(marginMm) => patch({ marginMm })}
             />
+            <p className="mt-1 text-[11px] text-muted-foreground">范围 8–40</p>
           </div>
 
           <div className="space-y-2 rounded-xl border border-border/50 bg-muted/20 p-3">

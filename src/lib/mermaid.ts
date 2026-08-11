@@ -5,17 +5,27 @@ import type { MermaidThemeSetting } from "~/lib/workspace"
 
 let initialized = false
 let theme: MermaidThemeId = "default"
+/** Bump when initialize() options change so HMR / long sessions pick them up. */
+const MERMAID_INIT_VERSION = 3
+let initVersion = 0
+
+const EXPORT_FONT =
+  '"Microsoft YaHei UI","Microsoft YaHei","微软雅黑","PingFang SC",sans-serif'
 
 const ensureMermaid = (nextTheme: MermaidThemeId) => {
-  if (!initialized || theme !== nextTheme) {
+  if (!initialized || theme !== nextTheme || initVersion !== MERMAID_INIT_VERSION) {
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "loose",
       theme: nextTheme,
-      fontFamily: "inherit",
+      fontFamily: EXPORT_FONT,
+      // Keep HTML labels — PNG export captures them via html2canvas-pro.
+      flowchart: { htmlLabels: true },
+      sequence: { useMaxWidth: true },
     })
     initialized = true
     theme = nextTheme
+    initVersion = MERMAID_INIT_VERSION
   }
 }
 
@@ -79,21 +89,25 @@ export const buildMermaidSvgMap = async (
   const shouldRender = options?.render !== false
 
   for (const code of blocks) {
+    const normalized = normalizeMermaidSource(code)
     if (!shouldRender) {
       map.set(
         code,
-        `<pre class="mermaid-source"><code>${escapeHtml(code)}</code></pre>`
+        `<pre class="mermaid-source"><code>${escapeHtml(normalized)}</code></pre>`
       )
       continue
     }
     try {
-      const svg = await renderMermaidSvg(code, {
+      const svg = await renderMermaidSvg(normalized, {
         theme: options?.theme,
         themeSetting: options?.themeSetting,
         isDark: options?.isDark,
         idPrefix: "caelum-export-mermaid",
       })
       map.set(code, svg)
+      if (normalized !== code) {
+        map.set(normalized, svg)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Mermaid 渲染失败"
       map.set(
@@ -106,7 +120,58 @@ export const buildMermaidSvgMap = async (
 }
 
 export const normalizeMermaidSource = (value: string) =>
-  value.replace(/\r\n/g, "\n").replace(/\n$/, "").trim()
+  repairMermaidSource(value.replace(/\r\n/g, "\n").replace(/\n$/, "").trim())
+
+/**
+ * Soft-repair common Mermaid authoring pitfalls so preview is more forgiving.
+ * - Blank lines right after the diagram keyword (mindmap quirk → "mindmaproot")
+ * - Flowchart edges split across lines (--> / |label| / target on their own lines)
+ */
+export const repairMermaidSource = (source: string) => {
+  if (!source) {
+    return source
+  }
+
+  let text = source
+
+  // Drop blank lines immediately after the diagram type line.
+  text = text.replace(
+    /^((?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|sankey-beta|xychart-beta|block-beta|kanban)\b[^\n]*)(?:\n[ \t]*)+\n/i,
+    "$1\n"
+  )
+
+  if (/^(flowchart|graph)\b/im.test(text)) {
+    text = repairFlowchartBrokenEdges(text)
+  }
+
+  return text
+}
+
+const EDGE_OP = "(?:<{0,2}(?:--|==|~~|\\.\\.)>{0,2}|-->|---|==>|-.->|~~~|==)"
+
+/** Collapse "node \\n --> \\n |label| \\n target" into a single statement. */
+const repairFlowchartBrokenEdges = (source: string) => {
+  let text = source
+  let previous = ""
+  // Repeat until stable — chains like A\\n-->\\nB\\n-->\\nC need multiple passes.
+  while (text !== previous) {
+    previous = text
+    // node \n --> \n |label| \n target
+    text = text.replace(
+      new RegExp(
+        `([^\\n]+?)\\n[ \\t]*(${EDGE_OP})[ \\t]*\\n[ \\t]*(\\|[^\\n|]*\\|)[ \\t]*\\n[ \\t]*([^\\n]+)`,
+        "g"
+      ),
+      "$1 $2$3 $4"
+    )
+    // node \n --> \n target
+    text = text.replace(
+      new RegExp(`([^\\n]+?)\\n[ \\t]*(${EDGE_OP})[ \\t]*\\n[ \\t]*([^|\\n][^\\n]*)`, "g"),
+      "$1 $2 $3"
+    )
+  }
+  return text
+}
 
 const escapeHtml = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
