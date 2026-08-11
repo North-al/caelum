@@ -1,17 +1,14 @@
 import { useEffect } from "react"
 import { Outlet } from "react-router"
 import { listen } from "@tauri-apps/api/event"
-import { Toaster } from "sonner"
 import { TooltipProvider } from "~/components/ui/tooltip"
+import { Toaster } from "~/components/ui/sonner"
 import { ThemeSync } from "~/components/App/ThemeSync"
 import { useWindowSizeMemory } from "~/hooks/use-window-size-memory"
 import { getLaunchFilePaths } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 
 export const Layouts = () => {
-  const settings = useWorkspaceStore((state) => state.config?.settings)
-  const themeMode = settings?.themeMode ?? "system"
-  const resolvedTheme = themeMode === "system" ? "system" : themeMode
   const initialize = useWorkspaceStore((state) => state.initialize)
 
   useWindowSizeMemory()
@@ -64,7 +61,7 @@ export const Layouts = () => {
       <main className="app-mica relative h-full w-full overflow-hidden text-foreground">
         <ThemeSync />
         <Outlet />
-        <Toaster theme={resolvedTheme} richColors closeButton position="bottom-right" />
+        <Toaster />
       </main>
     </TooltipProvider>
   )

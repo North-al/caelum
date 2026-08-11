@@ -1,6 +1,6 @@
 [package]
 name = "caelum"
-version = "1.4.0"
+version = "1.5.0"
 description = "Caelum — local-first Markdown notes"
 authors = ["North"]
 edition = "2021"
@@ -27,4 +27,5 @@ directories = "6.0.0"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-single-instance = "2"
 arboard = { version = "3", features = ["wayland-data-control"] }
+base64 = "0.22"
 

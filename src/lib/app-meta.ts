@@ -1,10 +1,11 @@
 /** App version — keep in sync with package.json / tauri.conf.json / Cargo.toml */
-export const APP_VERSION = '1.4.0'
+export const APP_VERSION = '1.5.0'
 
 export const APP_FEATURES = [
     '本地优先：笔记与资源保存在本机目录，无需账号',
     'Markdown / TXT / JSON / XML / INI 编辑，实时预览与 GFM 语法支持',
-    '数学公式（KaTeX）与 Mermaid 图表，预览与 HTML/PDF 导出一致',
+    '数学公式（KaTeX）与 Mermaid 图表（可配置主题），预览与导出一致',
+    'Markdown 导出：规范化 MD、纯文本、离线 HTML、可配置 PDF / Word、Mermaid 批量图',
     '分屏、仅编辑、仅预览三种视图，可选滚动联动',
     '多标签页：拖拽排序、中键关闭、右键批量关闭',
     '资源管理器：单击选中 / 双击打开，Shift·Ctrl 多选，Del / F2，Ctrl+C/V 复制粘贴',
@@ -12,12 +13,22 @@ export const APP_FEATURES = [
     '预览代码块：一键复制、行号、折叠；可切换 highlight.js 高亮主题',
     '多标签页脏标记：未保存文件在标签上显示圆点',
     '大纲面板、窗口尺寸与阅读位置记忆',
-    '导出解析后 HTML、源码、纯文本与 PDF',
     '笔记双链 [[名称]]：预览点击跳转；重命名自动同步引用',
     'Ctrl + 滚轮缩放编辑区字号，主题与强调色可切换'
 ] as const
 
 export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string[] }> = [
+    {
+        version: '1.5.0',
+        date: '2026-08-11',
+        notes: [
+            '设置增加 Mermaid 主题（跟随外观 / default / dark / forest / neutral / base）',
+            '导出菜单仅对 Markdown 显示，按「渲染解析导出 / Mermaid 快捷导出」分组',
+            '新增：规范化 MD、纯文本剥离、离线单文件 HTML、可配置 PDF（html2pdf）、Word（docx）',
+            'PDF / Word 支持进度提示；图表或公式失败时降级为源码，不阻断整篇导出',
+            '文档含 Mermaid 时可批量导出全部图表为 SVG / PNG'
+        ]
+    },
     {
         version: '1.4.0',
         date: '2026-08-11',

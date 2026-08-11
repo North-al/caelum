@@ -22,6 +22,7 @@ import { Switch } from "~/components/ui/switch"
 import { WindowControls } from "~/layouts/components/WindowControls"
 import { APP_CHANGELOG, APP_FEATURES, APP_VERSION } from "~/lib/app-meta"
 import { HIGHLIGHT_THEME_OPTIONS } from "~/lib/highlight-themes"
+import { MERMAID_THEME_OPTIONS } from "~/lib/mermaid-theme"
 import { APP_SHORTCUTS } from "~/lib/shortcuts"
 import {
   defaultSettings,
@@ -30,6 +31,7 @@ import {
   type AppPaths,
   type AppSettings,
   type DefaultOpenMode,
+  type MermaidThemeSetting,
   type ThemeColor,
   type ThemeMode,
 } from "~/lib/workspace"
@@ -357,6 +359,22 @@ const SettingsPage = () => {
                   value={settings.codeHighlightTheme || "auto"}
                   onChange={(event) => updateSetting({ codeHighlightTheme: event.target.value })}
                   options={HIGHLIGHT_THEME_OPTIONS.map((option) => ({
+                    label: option.label,
+                    value: option.id,
+                  }))}
+                />
+              </div>
+              <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5 sm:col-span-2">
+                <div className="mb-2 text-sm font-medium">Mermaid 主题</div>
+                <div className="mb-2 text-[12px] text-muted-foreground">
+                  预览与导出中流程图 / 时序图等图表配色（「跟随外观」随浅色/深色切换）
+                </div>
+                <Select
+                  value={settings.mermaidTheme || "auto"}
+                  onChange={(event) =>
+                    updateSetting({ mermaidTheme: event.target.value as MermaidThemeSetting })
+                  }
+                  options={MERMAID_THEME_OPTIONS.map((option) => ({
                     label: option.label,
                     value: option.id,
                   }))}

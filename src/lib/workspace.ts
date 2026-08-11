@@ -61,6 +61,11 @@ export interface AppSettings {
   codeHighlightTheme: string
   /** Show line numbers in markdown preview code blocks */
   codeBlockLineNumbers: boolean
+  /**
+   * Mermaid diagram theme.
+   * `auto` follows app light/dark; otherwise a fixed Mermaid theme id.
+   */
+  mermaidTheme: MermaidThemeSetting
   autoSave: boolean
   autoSaveInterval: number
   startWithLastFile: boolean
@@ -69,6 +74,14 @@ export interface AppSettings {
   confirmInvalidExtension: boolean
   language: string
 }
+
+export type MermaidThemeSetting =
+  | "auto"
+  | "default"
+  | "dark"
+  | "forest"
+  | "neutral"
+  | "base"
 
 export interface WorkspaceConfig {
   notesPath: string
@@ -101,6 +114,7 @@ export const defaultSettings: AppSettings = {
   codeHighlight: true,
   codeHighlightTheme: "auto",
   codeBlockLineNumbers: true,
+  mermaidTheme: "auto",
   autoSave: true,
   autoSaveInterval: 600,
   startWithLastFile: true,
@@ -270,8 +284,19 @@ export const copyFileEntry = async (source: string, destinationDir: string): Pro
 export const copyFileToPath = async (source: string, destination: string): Promise<void> =>
   invoke<void>("copy_file_to_path", { source, destination })
 
-export const writeBinaryFile = async (path: string, contents: number[]): Promise<void> =>
-  invoke<void>("write_binary_file", { path, contents })
+export const writeBinaryFile = async (path: string, contents: Uint8Array | number[]): Promise<void> => {
+  const bytes = contents instanceof Uint8Array ? contents : new Uint8Array(contents)
+  let binary = ""
+  const chunkSize = 0x8000
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const slice = bytes.subarray(offset, offset + chunkSize)
+    binary += String.fromCharCode(...slice)
+  }
+  await invoke<void>("write_binary_file", {
+    path,
+    contentsBase64: btoa(binary),
+  })
+}
 
 export const pathExists = async (path: string): Promise<boolean> => invoke<boolean>("path_exists", { path })
 

@@ -1,13 +1,21 @@
 import { useMemo, useState, type RefObject } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
-import { Link2 } from "lucide-react"
+import { Download, Link2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { ImageLightbox } from "~/components/App/ImageLightbox"
 import { PreviewEmptyHint } from "~/components/App/EditorEmptyGuide"
 import { MermaidBlock } from "~/components/App/MermaidBlock"
 import { PreviewCodeBlock } from "~/components/App/PreviewCodeBlock"
+import { Button } from "~/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu"
 import { getFencedCodeMeta } from "~/lib/code-fence"
+import { exportMermaidBatch, hasMermaidBlocks } from "~/lib/export"
 import { getMarkdownRehypePlugins, markdownRemarkPlugins } from "~/lib/markdown-plugins"
 import { resolveMarkdownAssetUrl } from "~/lib/markdown"
 import { normalizeTaskListSyntax } from "~/lib/task-list"
@@ -38,17 +46,49 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
   const workspaceRoot = config ? getParentPath(config.notesPath) : ""
   const enableHighlight = config?.settings.codeHighlight ?? true
   const showCodeLineNumbers = config?.settings.codeBlockLineNumbers ?? true
+  const mermaidTheme = config?.settings.mermaidTheme ?? "auto"
   const [lightbox, setLightbox] = useState<PreviewImage | null>(null)
+  const [exportingMermaid, setExportingMermaid] = useState(false)
 
   const normalizedContent = useMemo(
     () => expandWikiLinks(normalizeTaskListSyntax(content)),
     [content]
   )
 
+  const showMermaidToolbar = useMemo(() => hasMermaidBlocks(content), [content])
+
   const rehypePlugins = useMemo(
     () => getMarkdownRehypePlugins(enableHighlight),
     [enableHighlight]
   )
+
+  const handleMermaidBatch = async (format: "svg" | "png") => {
+    if (exportingMermaid) {
+      return
+    }
+    setExportingMermaid(true)
+    const toastId = toast.loading(format === "svg" ? "正在导出 SVG…" : "正在导出 PNG…")
+    try {
+      const count = await exportMermaidBatch({
+        content,
+        format,
+        mermaidTheme,
+        onProgress: (message) => toast.loading(message, { id: toastId }),
+      })
+      if (count === 0) {
+        toast.message("已取消导出", { id: toastId })
+        return
+      }
+      toast.success(`已导出 ${count} 个图表`, { id: toastId })
+    } catch (error) {
+      toast.error("导出失败", {
+        id: toastId,
+        description: error instanceof Error ? error.message : "无法导出 Mermaid 图表",
+      })
+    } finally {
+      setExportingMermaid(false)
+    }
+  }
 
   const components: Components = useMemo(
     () => ({
@@ -175,24 +215,62 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
 
   return (
     <>
-      <div
-        ref={containerRef}
-        className="markdown-preview markdown-preview-loose relative h-full min-h-0 overflow-auto bg-background px-10 py-9"
-        onScroll={(event) => onScroll?.(event.currentTarget.scrollTop)}
-      >
-        {!normalizedContent.trim() ? (
-          <PreviewEmptyHint />
-        ) : (
-          <div className="mx-auto max-w-3xl space-y-1">
-            <ReactMarkdown
-              remarkPlugins={markdownRemarkPlugins}
-              rehypePlugins={rehypePlugins}
-              components={components}
-            >
-              {normalizedContent}
-            </ReactMarkdown>
+      <div className="flex h-full min-h-0 flex-col">
+        {showMermaidToolbar ? (
+          <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border/40 bg-muted/20 px-3">
+            <span className="truncate text-[12px] text-muted-foreground">本文含 Mermaid 图表</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 rounded-md px-2 text-[12px] text-muted-foreground"
+                    disabled={exportingMermaid}
+                  />
+                }
+              >
+                <Download className="size-3.5" />
+                导出图表
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="bottom">
+                <DropdownMenuItem
+                  disabled={exportingMermaid}
+                  onClick={() => void handleMermaidBatch("svg")}
+                >
+                  批量导出 SVG
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={exportingMermaid}
+                  onClick={() => void handleMermaidBatch("png")}
+                >
+                  批量导出 PNG
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        )}
+        ) : null}
+
+        <div
+          ref={containerRef}
+          className="markdown-preview markdown-preview-loose relative min-h-0 flex-1 overflow-auto bg-background px-10 py-9"
+          onScroll={(event) => onScroll?.(event.currentTarget.scrollTop)}
+        >
+          {!normalizedContent.trim() ? (
+            <PreviewEmptyHint />
+          ) : (
+            <div className="mx-auto max-w-3xl space-y-1">
+              <ReactMarkdown
+                remarkPlugins={markdownRemarkPlugins}
+                rehypePlugins={rehypePlugins}
+                components={components}
+              >
+                {normalizedContent}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
       </div>
 
       <ImageLightbox

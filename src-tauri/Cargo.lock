@@ -372,9 +372,10 @@ dependencies = [
 
 [[package]]
 name = "caelum"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "arboard",
+ "base64 0.22.1",
  "directories",
  "serde",
  "serde_json",

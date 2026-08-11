@@ -515,10 +515,15 @@ fn copy_file_to_path(source: String, destination: String) -> Result<(), String> 
 }
 
 #[tauri::command]
-fn write_binary_file(path: String, contents: Vec<u8>) -> Result<(), String> {
+fn write_binary_file(path: String, contents_base64: String) -> Result<(), String> {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+
+    let bytes = STANDARD
+        .decode(contents_base64.trim())
+        .map_err(|error| format!("二进制内容解码失败: {error}"))?;
     let file_path = PathBuf::from(path);
     ensure_parent_directory(&file_path)?;
-    fs::write(file_path, contents).map_err(|error| error.to_string())
+    fs::write(file_path, bytes).map_err(|error| error.to_string())
 }
 
 fn is_tree_visible_file(extension: &str) -> bool {

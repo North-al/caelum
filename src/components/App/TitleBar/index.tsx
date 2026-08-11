@@ -18,6 +18,8 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener"
 import { toast } from "sonner"
 
 import { FileTypeIcon } from "~/components/App/FileTypeIcon"
+import { ExportDocxDialog } from "~/components/App/ExportDocxDialog"
+import { ExportPdfDialog } from "~/components/App/ExportPdfDialog"
 import { RenameDialog } from "~/components/App/RenameDialog"
 import { Button } from "~/components/ui/button"
 import {
@@ -31,7 +33,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"
 import {
@@ -46,7 +47,13 @@ import {
   findDropDirFromPoint,
   setActiveDropDir,
 } from "~/lib/dnd"
-import { exportNote, type ExportFormat } from "~/lib/export"
+import {
+  exportNote,
+  type DocxExportOptions,
+  type ExportFormat,
+  type PdfExportOptions,
+} from "~/lib/export"
+import { isMarkdownPath } from "~/lib/file-types"
 import { getParentPath, writeTextToClipboard } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 import { useWorkspaceStore } from "~/store/workspace"
@@ -120,11 +127,14 @@ export const TitleBar = () => {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [ghost, setGhost] = useState<{ x: number; y: number; label: string } | null>(null)
   const [renamePath, setRenamePath] = useState<string | null>(null)
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false)
+  const [docxDialogOpen, setDocxDialogOpen] = useState(false)
+  const [exportTargetPath, setExportTargetPath] = useState<string | null>(null)
   const sessionRef = useRef<DragSession | null>(null)
   const suppressClickRef = useRef(false)
 
   const openTabs = openFiles
-  const canExport = Boolean(selectedFilePath)
+  const canExport = Boolean(selectedFilePath && isMarkdownPath(selectedFilePath))
 
   useEffect(() => {
     return () => {
@@ -132,31 +142,99 @@ export const TitleBar = () => {
     }
   }, [])
 
-  const handleExport = async (format: ExportFormat, filePath?: string) => {
+  const resolveExportContext = async (filePath?: string) => {
+    if (filePath) {
+      await selectFile(filePath)
+    }
+    const state = useWorkspaceStore.getState()
+    const path = state.selectedFilePath
+    const config = state.config
+    if (!path || !config || !isMarkdownPath(path)) {
+      toast.error("请先打开一篇 Markdown 笔记")
+      return null
+    }
+    return {
+      path,
+      content: state.currentContent,
+      workspaceRoot: getParentPath(config.notesPath),
+      mermaidTheme: config.settings.mermaidTheme,
+      codeHighlight: config.settings.codeHighlight,
+    }
+  }
+
+  const handleExport = async (
+    format: ExportFormat,
+    filePath?: string,
+    extras?: { pdfOptions?: PdfExportOptions; docxOptions?: DocxExportOptions }
+  ) => {
+    const toastId = toast.loading("准备导出…")
     try {
-      if (filePath) {
-        await selectFile(filePath)
-      }
-      const state = useWorkspaceStore.getState()
-      const path = state.selectedFilePath
-      const config = state.config
-      if (!path || !config) {
-        toast.error("请先打开一篇笔记")
+      const ctx = await resolveExportContext(filePath)
+      if (!ctx) {
+        toast.dismiss(toastId)
         return
       }
-      await exportNote({
+      const result = await exportNote({
         format,
-        sourcePath: path,
-        content: state.currentContent,
-        workspaceRoot: getParentPath(config.notesPath),
-        codeHighlight: config.settings.codeHighlight,
+        sourcePath: ctx.path,
+        content: ctx.content,
+        workspaceRoot: ctx.workspaceRoot,
+        mermaidTheme: ctx.mermaidTheme,
+        pdfOptions: extras?.pdfOptions,
+        docxOptions: extras?.docxOptions,
+        onProgress: (message) => toast.loading(message, { id: toastId }),
+      })
+      if (result.status === "cancelled") {
+        toast.message("已取消导出", { id: toastId })
+        return
+      }
+      toast.success("导出成功", {
+        id: toastId,
+        description: result.path.split(/[\\/]/).pop(),
       })
     } catch (error) {
       toast.error("导出失败", {
+        id: toastId,
         description: error instanceof Error ? error.message : "无法导出文件",
       })
     }
   }
+
+  const openPdfExport = (filePath?: string) => {
+    setExportTargetPath(filePath ?? selectedFilePath)
+    setPdfDialogOpen(true)
+  }
+
+  const openDocxExport = (filePath?: string) => {
+    setExportTargetPath(filePath ?? selectedFilePath)
+    setDocxDialogOpen(true)
+  }
+
+  const exportMenuItems = (filePath?: string) => (
+    <>
+      <DropdownMenuItem onClick={() => void handleExport("normalized-md", filePath)}>
+        <FileText className="size-4" />
+        导出解析后 Markdown (.md)
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => void handleExport("txt", filePath)}>
+        <FileText className="size-4" />
+        导出纯文本 (.txt)
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => openPdfExport(filePath)}>
+        <Download className="size-4" />
+        导出 PDF…
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => openDocxExport(filePath)}>
+        <FileText className="size-4" />
+        导出 Word (.docx)
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => void handleExport("html", filePath)}>
+        <FileText className="size-4" />
+        导出离线单文件 HTML
+      </DropdownMenuItem>
+    </>
+  )
+
 
   const finishPointerDrag = async (clientX: number, clientY: number) => {
     const session = sessionRef.current
@@ -346,43 +424,25 @@ export const TitleBar = () => {
               <TooltipContent side="bottom">大纲</TooltipContent>
             </Tooltip>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className={cn(
-                      "size-8 rounded-lg",
-                      canExport ? "text-muted-foreground" : "text-muted-foreground/40"
-                    )}
-                    disabled={!canExport}
-                    aria-label="导出"
-                  />
-                }
-              >
-                <Download className="size-3.5" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" side="bottom">
-                <DropdownMenuItem onClick={() => void handleExport("md")}>
-                  <FileText className="size-4" />
-                  导出 Markdown（解析后）
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => void handleExport("source")}>
-                  <FileText className="size-4" />
-                  导出源码 (.md)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => void handleExport("txt")}>
-                  <FileText className="size-4" />
-                  导出纯文本 (.txt)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => void handleExport("pdf")}>
-                  <Download className="size-4" />
-                  导出 PDF…
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {canExport ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="size-8 rounded-lg text-muted-foreground"
+                      aria-label="导出"
+                    />
+                  }
+                >
+                  <Download className="size-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="bottom" className="min-w-[15rem]">
+                  {exportMenuItems()}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
           </div>
 
           <WindowControls />
@@ -518,19 +578,24 @@ export const TitleBar = () => {
                         <Copy className="mr-2 size-4" />
                         复制路径
                       </ContextMenuItem>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem onClick={() => void handleExport("md", filePath)}>
-                        导出 Markdown（解析后）…
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => void handleExport("source", filePath)}>
-                        导出源码 (.md)…
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => void handleExport("txt", filePath)}>
-                        导出 TXT…
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => void handleExport("pdf", filePath)}>
-                        导出 PDF…
-                      </ContextMenuItem>
+                      {isMarkdownPath(filePath) ? (
+                        <>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem onClick={() => void handleExport("normalized-md", filePath)}>
+                            导出解析后 Markdown (.md)…
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => void handleExport("txt", filePath)}>
+                            导出纯文本 (.txt)…
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => openPdfExport(filePath)}>导出 PDF…</ContextMenuItem>
+                          <ContextMenuItem onClick={() => openDocxExport(filePath)}>
+                            导出 Word (.docx)…
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => void handleExport("html", filePath)}>
+                            导出离线 HTML…
+                          </ContextMenuItem>
+                        </>
+                      ) : null}
                     </ContextMenuContent>
                   </ContextMenu>
                 )
@@ -623,6 +688,22 @@ export const TitleBar = () => {
           if (renamePath) {
             await renameNode(renamePath, value)
           }
+        }}
+      />
+
+      <ExportPdfDialog
+        open={pdfDialogOpen}
+        onOpenChange={setPdfDialogOpen}
+        onConfirm={(pdfOptions) => {
+          void handleExport("pdf", exportTargetPath ?? undefined, { pdfOptions })
+        }}
+      />
+
+      <ExportDocxDialog
+        open={docxDialogOpen}
+        onOpenChange={setDocxDialogOpen}
+        onConfirm={(docxOptions) => {
+          void handleExport("docx", exportTargetPath ?? undefined, { docxOptions })
         }}
       />
     </>
