@@ -1,9 +1,10 @@
 /** App version — keep in sync with package.json / tauri.conf.json / Cargo.toml */
-export const APP_VERSION = '1.3.0'
+export const APP_VERSION = '1.4.0'
 
 export const APP_FEATURES = [
     '本地优先：笔记与资源保存在本机目录，无需账号',
     'Markdown / TXT / JSON / XML / INI 编辑，实时预览与 GFM 语法支持',
+    '数学公式（KaTeX）与 Mermaid 图表，预览与 HTML/PDF 导出一致',
     '分屏、仅编辑、仅预览三种视图，可选滚动联动',
     '多标签页：拖拽排序、中键关闭、右键批量关闭',
     '资源管理器：单击选中 / 双击打开，Shift·Ctrl 多选，Del / F2，Ctrl+C/V 复制粘贴',
@@ -17,6 +18,15 @@ export const APP_FEATURES = [
 ] as const
 
 export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string[] }> = [
+    {
+        version: '1.4.0',
+        date: '2026-08-11',
+        notes: [
+            'Markdown 支持数学公式（行内 $...$ / 块级 $$...$$，KaTeX 渲染）',
+            'Markdown 支持 Mermaid 代码块预览',
+            '导出 HTML / PDF 同步包含公式样式与 Mermaid 矢量图'
+        ]
+    },
     {
         version: '1.3.0',
         date: '2026-08-09',

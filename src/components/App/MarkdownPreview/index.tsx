@@ -1,13 +1,14 @@
 import { useMemo, useState, type RefObject } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
-import remarkGfm from "remark-gfm"
-import rehypeHighlight from "rehype-highlight"
 import { Link2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { ImageLightbox } from "~/components/App/ImageLightbox"
 import { PreviewEmptyHint } from "~/components/App/EditorEmptyGuide"
+import { MermaidBlock } from "~/components/App/MermaidBlock"
 import { PreviewCodeBlock } from "~/components/App/PreviewCodeBlock"
+import { getFencedCodeMeta } from "~/lib/code-fence"
+import { getMarkdownRehypePlugins, markdownRemarkPlugins } from "~/lib/markdown-plugins"
 import { resolveMarkdownAssetUrl } from "~/lib/markdown"
 import { normalizeTaskListSyntax } from "~/lib/task-list"
 import { expandWikiLinks, isWikiHref, parseWikiHref, resolveWikiStem } from "~/lib/wiki"
@@ -45,7 +46,7 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
   )
 
   const rehypePlugins = useMemo(
-    () => (enableHighlight ? [rehypeHighlight] : []),
+    () => getMarkdownRehypePlugins(enableHighlight),
     [enableHighlight]
   )
 
@@ -156,9 +157,13 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
           </a>
         )
       },
-      pre: ({ children }) => (
-        <PreviewCodeBlock showLineNumbers={showCodeLineNumbers}>{children}</PreviewCodeBlock>
-      ),
+      pre: ({ children }) => {
+        const meta = getFencedCodeMeta(children)
+        if (meta.language === "mermaid") {
+          return <MermaidBlock code={meta.text} />
+        }
+        return <PreviewCodeBlock showLineNumbers={showCodeLineNumbers}>{children}</PreviewCodeBlock>
+      },
       table: ({ children, ...props }) => (
         <div className="markdown-table-wrap">
           <table {...props}>{children}</table>
@@ -180,7 +185,7 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
         ) : (
           <div className="mx-auto max-w-3xl space-y-1">
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={markdownRemarkPlugins}
               rehypePlugins={rehypePlugins}
               components={components}
             >

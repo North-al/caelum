@@ -1,12 +1,14 @@
 import { createElement, type ReactNode } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import ReactMarkdown, { type Components } from "react-markdown"
-import remarkGfm from "remark-gfm"
-import rehypeHighlight from "rehype-highlight"
 import { save } from "@tauri-apps/plugin-dialog"
 import { toast } from "sonner"
+import katexCss from "katex/dist/katex.min.css?raw"
 
+import { getFencedCodeMeta } from "~/lib/code-fence"
+import { getMarkdownRehypePlugins, markdownRemarkPlugins } from "~/lib/markdown-plugins"
 import { resolveMarkdownAssetUrl } from "~/lib/markdown"
+import { buildMermaidSvgMap, normalizeMermaidSource } from "~/lib/mermaid"
 import { normalizeTaskListSyntax } from "~/lib/task-list"
 import { getParentPath, writeTextFile } from "~/lib/workspace"
 
@@ -40,8 +42,8 @@ const slugify = (value: string) =>
     .replace(/[^\p{L}\p{N}\s-]/gu, "")
     .replace(/\s+/g, "-")
 
-/** Full GFM markdown → HTML body (same pipeline as preview). */
-export const renderMarkdownToHtml = (
+/** Full GFM markdown → HTML body (math + mermaid SVG, same pipeline as preview). */
+export const renderMarkdownToHtml = async (
   markdown: string,
   options: {
     filePath: string
@@ -50,6 +52,8 @@ export const renderMarkdownToHtml = (
   }
 ) => {
   const normalized = normalizeTaskListSyntax(markdown)
+  const mermaidMap = await buildMermaidSvgMap(normalized, { theme: "default" })
+
   const components: Components = {
     h1: ({ children }) => createElement("h1", { id: slugify(extractText(children)) }, children),
     h2: ({ children }) => createElement("h2", { id: slugify(extractText(children)) }, children),
@@ -85,12 +89,26 @@ export const renderMarkdownToHtml = (
       }
       return createElement("input", { type, checked, disabled, ...props })
     },
+    pre: ({ children }) => {
+      const meta = getFencedCodeMeta(children)
+      if (meta.language === "mermaid") {
+        const key = normalizeMermaidSource(meta.text)
+        const svg = mermaidMap.get(key)
+        if (svg) {
+          return createElement("div", {
+            className: "mermaid-diagram",
+            dangerouslySetInnerHTML: { __html: svg },
+          })
+        }
+      }
+      return createElement("pre", null, children)
+    },
   }
 
   return renderToStaticMarkup(
     createElement(ReactMarkdown, {
-      remarkPlugins: [remarkGfm],
-      rehypePlugins: options.codeHighlight === false ? [] : [rehypeHighlight],
+      remarkPlugins: markdownRemarkPlugins,
+      rehypePlugins: getMarkdownRehypePlugins(options.codeHighlight !== false),
       components,
       children: normalized,
     })
@@ -146,10 +164,23 @@ const buildDocumentHtml = (title: string, bodyHtml: string) => `<!DOCTYPE html>
     hr { border: none; border-top: 1px solid #e5e7eb; margin: 2em 0; }
     a { color: #2563eb; }
     input[type="checkbox"] { margin-right: 0.4em; }
+    .mermaid-diagram {
+      margin: 1.1em 0;
+      overflow-x: auto;
+      text-align: center;
+    }
+    .mermaid-diagram svg { max-width: 100%; height: auto; }
+    .mermaid-error {
+      color: #b91c1c;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+    .katex-display { margin: 1em 0; overflow-x: auto; overflow-y: hidden; }
     @media print {
       body { padding: 0; max-width: none; }
     }
   </style>
+  <style>${katexCss}</style>
 </head>
 <body>
   ${bodyHtml}
@@ -164,7 +195,7 @@ const ensureExtension = (path: string, extension: string) => {
   return `${path}.${extension}`
 }
 
-const buildRenderedBody = (options: {
+const buildRenderedBody = async (options: {
   content: string
   sourcePath: string
   workspaceRoot?: string
@@ -194,7 +225,7 @@ export const exportNote = async (options: {
   const title = stem
 
   if (options.format === "pdf") {
-    const bodyHtml = buildRenderedBody(options)
+    const bodyHtml = await buildRenderedBody(options)
     await printHtmlDocument(buildDocumentHtml(title, bodyHtml))
     toast.message("已打开打印对话框", {
       description: "请选择「Microsoft Print to PDF」或其他 PDF 打印机完成导出",
@@ -213,7 +244,7 @@ export const exportNote = async (options: {
       return
     }
     const target = ensureExtension(picked, "html")
-    const bodyHtml = buildRenderedBody(options)
+    const bodyHtml = await buildRenderedBody(options)
     await writeTextFile(target, buildDocumentHtml(title, bodyHtml))
     toast.success("导出成功", {
       description: target.split(/[\\/]/).pop(),
