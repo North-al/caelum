@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
 import { toast } from "sonner"
 
 import { GlassStreamRow } from "~/components/App/GlassStream"
@@ -26,7 +26,7 @@ const TAG_TONES = [
   "bg-[#f8dce8] text-[#9a3d62]",
 ]
 
-const FLIP_TRANSITION = "transform 280ms cubic-bezier(0.22, 1, 0.36, 1)"
+const DEFAULT_ROW_HEIGHT = 36
 
 const toneFor = (tag: string) => {
   let hash = 0
@@ -40,14 +40,34 @@ const commitLine = (entry: ScratchEntry, text: string): ScratchEntry => {
   return parseEntry(serializeEntry({ ...entry, text }), entry.id)
 }
 
+const rowShift = (
+  index: number,
+  fromIndex: number,
+  dropIndex: number | null,
+  rowHeight: number
+) => {
+  if (dropIndex === null || fromIndex === dropIndex) {
+    return 0
+  }
+  if (fromIndex < dropIndex) {
+    if (index > fromIndex && index <= dropIndex) {
+      return -rowHeight
+    }
+  } else if (index >= dropIndex && index < fromIndex) {
+    return rowHeight
+  }
+  return 0
+}
+
 export const ScratchStream = ({ entries, onChange, preview, pendingFocus }: Props) => {
   const [focusId, setFocusId] = useState<string | null>(entries[0]?.id ?? null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOffsetY, setDragOffsetY] = useState(0)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const listRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ id: string; startY: number } | null>(null)
-  const reorderLockRef = useRef(false)
+  const rowHeightRef = useRef(DEFAULT_ROW_HEIGHT)
 
   useEffect(() => {
     if (pendingFocus) {
@@ -66,6 +86,17 @@ export const ScratchStream = ({ entries, onChange, preview, pendingFocus }: Prop
       node.setSelectionRange(end, end)
     }
   }, [focusId])
+
+  useEffect(() => {
+    const list = listRef.current
+    if (!list) {
+      return
+    }
+    const row = list.querySelector<HTMLElement>("[data-entry-id]")
+    if (row) {
+      rowHeightRef.current = row.getBoundingClientRect().height || DEFAULT_ROW_HEIGHT
+    }
+  }, [entries.length])
 
   const replace = (id: string, next: ScratchEntry) => {
     onChange(entries.map((entry) => (entry.id === id ? next : entry)))
@@ -87,6 +118,12 @@ export const ScratchStream = ({ entries, onChange, preview, pendingFocus }: Prop
     const index = entries.findIndex((entry) => entry.id === id)
     const next = [...entries.slice(0, index + 1), created, ...entries.slice(index + 1)]
     onChange(next)
+    setFocusId(created.id)
+  }
+
+  const addAtEnd = () => {
+    const created = emptyEntry()
+    onChange([...entries, created])
     setFocusId(created.id)
   }
 
@@ -134,86 +171,61 @@ export const ScratchStream = ({ entries, onChange, preview, pendingFocus }: Prop
     }
   }
 
-  const flipReorder = (fromId: string, overId: string, clientY: number) => {
-    if (fromId === overId || reorderLockRef.current) {
-      return
-    }
-
-    const from = entries.findIndex((entry) => entry.id === fromId)
-    const to = entries.findIndex((entry) => entry.id === overId)
-    if (from < 0 || to < 0) {
-      return
-    }
-
+  const resolveInsertIndex = (clientY: number, dragId: string, offsetY: number) => {
     const list = listRef.current
-    let targetIndex = to
-    if (list) {
-      const over = list.querySelector<HTMLElement>(`[data-entry-id="${overId}"]`)
-      if (over) {
-        const rect = over.getBoundingClientRect()
-        const insertBefore = clientY < rect.top + rect.height / 2
-        targetIndex = insertBefore ? to : to + 1
-        if (from < targetIndex) {
-          targetIndex -= 1
-        }
+    if (!list) {
+      return 0
+    }
+
+    const rows = [...list.querySelectorAll<HTMLElement>("[data-entry-id]")]
+    const rowHeight = rowHeightRef.current
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]
+      const rect = row.getBoundingClientRect()
+      const top = row.dataset.entryId === dragId ? rect.top - offsetY : rect.top
+      if (clientY < top + rowHeight / 2) {
+        return index
       }
     }
 
-    if (from === targetIndex) {
+    return rows.length
+  }
+
+  const commitReorder = (fromId: string, insertIndex: number) => {
+    const from = entries.findIndex((entry) => entry.id === fromId)
+    if (from < 0) {
       return
     }
 
-    reorderLockRef.current = true
-
-    const positions = new Map<string, number>()
-    if (list) {
-      list.querySelectorAll<HTMLElement>("[data-entry-id]").forEach((row) => {
-        const id = row.dataset.entryId
-        if (id) {
-          positions.set(id, row.getBoundingClientRect().top)
-        }
-      })
+    let targetIndex = Math.max(0, Math.min(insertIndex, entries.length))
+    if (from < targetIndex) {
+      targetIndex -= 1
+    }
+    if (from === targetIndex) {
+      return
     }
 
     const next = [...entries]
     const [moved] = next.splice(from, 1)
     next.splice(targetIndex, 0, moved)
     onChange(next)
-
-    requestAnimationFrame(() => {
-      if (list) {
-        list.querySelectorAll<HTMLElement>("[data-entry-id]").forEach((row) => {
-          const id = row.dataset.entryId
-          if (!id || id === fromId) {
-            return
-          }
-          const prev = positions.get(id)
-          if (prev === undefined) {
-            return
-          }
-          const now = row.getBoundingClientRect().top
-          const delta = prev - now
-          if (Math.abs(delta) < 0.5) {
-            return
-          }
-          row.style.transform = `translateY(${delta}px)`
-          row.style.transition = "none"
-          requestAnimationFrame(() => {
-            row.style.transition = FLIP_TRANSITION
-            row.style.transform = ""
-          })
-        })
-      }
-      reorderLockRef.current = false
-    })
   }
 
   const handleGripDown = (id: string) => (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
+    const list = listRef.current
+    if (list) {
+      const row = list.querySelector<HTMLElement>(`[data-entry-id="${id}"]`)
+      if (row) {
+        rowHeightRef.current = row.getBoundingClientRect().height || DEFAULT_ROW_HEIGHT
+      }
+    }
     dragRef.current = { id, startY: event.clientY }
     setDraggingId(id)
     setDragOffsetY(0)
+    setDropIndex(entries.findIndex((entry) => entry.id === id))
   }
 
   const handleGripMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -222,28 +234,20 @@ export const ScratchStream = ({ entries, onChange, preview, pendingFocus }: Prop
       return
     }
 
-    setDragOffsetY(event.clientY - session.startY)
-
-    const list = listRef.current
-    if (!list) {
-      return
-    }
-
-    const rows = [...list.querySelectorAll<HTMLElement>("[data-entry-id]")]
-    const over = rows.find((row) => {
-      const rect = row.getBoundingClientRect()
-      return event.clientY >= rect.top && event.clientY <= rect.bottom
-    })
-
-    if (over?.dataset.entryId) {
-      flipReorder(session.id, over.dataset.entryId, event.clientY)
-    }
+    const offsetY = event.clientY - session.startY
+    setDragOffsetY(offsetY)
+    setDropIndex(resolveInsertIndex(event.clientY, session.id, offsetY))
   }
 
   const handleGripUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const session = dragRef.current
+    if (session && dropIndex !== null) {
+      commitReorder(session.id, dropIndex)
+    }
     dragRef.current = null
     setDraggingId(null)
     setDragOffsetY(0)
+    setDropIndex(null)
     try {
       event.currentTarget.releasePointerCapture(event.pointerId)
     } catch {
@@ -253,12 +257,10 @@ export const ScratchStream = ({ entries, onChange, preview, pendingFocus }: Prop
 
   const copyLine = async (text: string) => {
     if (!text.trim()) {
-      toast.message("没有内容可复制")
       return
     }
     try {
       await writeTextToClipboard(text)
-      toast.success("已复制到剪贴板")
     } catch (error) {
       toast.error("复制失败", {
         description: error instanceof Error ? error.message : "无法写入剪贴板",
@@ -267,47 +269,73 @@ export const ScratchStream = ({ entries, onChange, preview, pendingFocus }: Prop
   }
 
   const showGrip = entries.length > 1
+  const fromIndex = draggingId ? entries.findIndex((entry) => entry.id === draggingId) : -1
+  const rowHeight = rowHeightRef.current
 
   return (
-    <div ref={listRef} className="scratch-note-list glass-stream-list">
-      {entries.map((entry, index) => (
-        <div
-          key={entry.id}
-          data-entry-id={entry.id}
-          className={cn("scratch-note-row-wrap glass-stream-row-wrap", draggingId === entry.id && "is-dragging")}
-          style={
-            draggingId === entry.id
-              ? { transform: `translateY(${dragOffsetY}px) scale(1.02)` }
-              : undefined
-          }
-        >
-          <GlassStreamRow
-            active={focusId === entry.id}
-            dragging={draggingId === entry.id}
-            done={entry.checked}
-            heading={entry.kind === "heading"}
-            showGrip={showGrip}
-            preview={preview}
-            placeholder={index === 0 && entries.length === 1 ? "写下一件要记住的事" : "继续记…"}
-            value={entry.text}
-            tags={entry.tags}
-            tagTone={toneFor}
-            checked={entry.kind === "task" && entry.checked}
-            inputRef={(node) => {
-              inputRefs.current[entry.id] = node
-            }}
-            onFocus={() => setFocusId(entry.id)}
-            onChange={(text) => replace(entry.id, commitLine(entry, text))}
-            onKeyDown={handleKey(entry, index)}
-            onToggleCheck={() => toggleTask(entry)}
-            onCopy={() => void copyLine(entry.text)}
-            onRemove={() => remove(entry.id)}
-            onGripDown={handleGripDown(entry.id)}
-            onGripMove={handleGripMove}
-            onGripUp={handleGripUp}
-          />
-        </div>
-      ))}
+    <div
+      ref={listRef}
+      className="scratch-note-list glass-stream-list"
+      onDoubleClick={(event) => {
+        if (event.target !== event.currentTarget) {
+          return
+        }
+        addAtEnd()
+      }}
+    >
+      {entries.map((entry, index) => {
+        const isDragging = draggingId === entry.id
+        const shiftY = isDragging
+          ? dragOffsetY
+          : rowShift(index, fromIndex, dropIndex, rowHeight)
+        const dragStyle: CSSProperties | undefined =
+          isDragging || shiftY !== 0
+            ? {
+                transform: isDragging
+                  ? `translateY(${dragOffsetY}px) scale(1.02)`
+                  : `translateY(${shiftY}px)`,
+              }
+            : undefined
+
+        return (
+          <div
+            key={entry.id}
+            data-entry-id={entry.id}
+            className={cn(
+              "scratch-note-row-wrap glass-stream-row-wrap",
+              isDragging && "is-dragging",
+              dropIndex === index && draggingId && draggingId !== entry.id && "is-drop-target"
+            )}
+            style={dragStyle}
+          >
+            <GlassStreamRow
+              active={focusId === entry.id}
+              dragging={isDragging}
+              done={entry.checked}
+              heading={entry.kind === "heading"}
+              showGrip={showGrip}
+              preview={preview}
+              placeholder={index === 0 && entries.length === 1 ? "写下一件要记住的事" : "继续记…"}
+              value={entry.text}
+              tags={entry.tags}
+              tagTone={toneFor}
+              checked={entry.kind === "task" && entry.checked}
+              inputRef={(node) => {
+                inputRefs.current[entry.id] = node
+              }}
+              onFocus={() => setFocusId(entry.id)}
+              onChange={(text) => replace(entry.id, commitLine(entry, text))}
+              onKeyDown={handleKey(entry, index)}
+              onToggleCheck={() => toggleTask(entry)}
+              onCopy={() => void copyLine(entry.text)}
+              onRemove={() => remove(entry.id)}
+              onGripDown={handleGripDown(entry.id)}
+              onGripMove={handleGripMove}
+              onGripUp={handleGripUp}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -1,8 +1,10 @@
-import { X } from "lucide-react"
+import { RotateCcw } from "lucide-react"
 
 import type { ScratchAppearance, ScratchPresetId } from "~/lib/scratch-appearance"
 import {
+  isAppearanceTweaked,
   presetPreviewStyle,
+  restoreAppearanceDefaults,
   SCRATCH_PRESET_DESC,
   SCRATCH_PRESET_LABELS,
   SCRATCH_PRESET_ORDER,
@@ -30,6 +32,8 @@ export const ScratchAppearancePanel = ({ appearance, onChange, onClose }: Props)
     })
   }
 
+  const tweaked = isAppearanceTweaked(appearance)
+
   return (
     <div className="scratch-style">
       <header className="scratch-style-header">
@@ -38,7 +42,7 @@ export const ScratchAppearancePanel = ({ appearance, onChange, onClose }: Props)
           <p className="scratch-style-subtitle">预设即完整主题，下方仅微调质感</p>
         </div>
         <button type="button" className="scratch-style-close" aria-label="返回" onClick={onClose}>
-          <X className="size-4" strokeWidth={2} />
+          ×
         </button>
       </header>
 
@@ -66,7 +70,19 @@ export const ScratchAppearancePanel = ({ appearance, onChange, onClose }: Props)
         </section>
 
         <section className="scratch-style-card">
-          <p className="scratch-style-card-title">质感调节</p>
+          <div className="scratch-style-card-head">
+            <p className="scratch-style-card-title">质感调节</p>
+            {tweaked ? (
+              <button
+                type="button"
+                className="scratch-style-restore"
+                onClick={() => onChange(restoreAppearanceDefaults(appearance))}
+              >
+                <RotateCcw className="size-3" />
+                恢复默认
+              </button>
+            ) : null}
+          </div>
           <div className="scratch-style-meter">
             <div className="scratch-style-meter-head">
               <span>透明度</span>

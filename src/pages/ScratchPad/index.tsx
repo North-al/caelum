@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
-import { toast } from "sonner"
 
 import { ScratchAppearancePanel } from "~/components/App/ScratchAppearancePanel"
 import { ScratchNoteChrome } from "~/components/App/ScratchNoteChrome"
@@ -9,9 +8,9 @@ import { ScratchStream } from "~/components/App/ScratchStream"
 import { ThemeSync } from "~/components/App/ThemeSync"
 import { TooltipProvider } from "~/components/ui/tooltip"
 import { Toaster } from "~/components/ui/sonner"
-import { dismissScratchWindow, destroyScratchWindow } from "~/lib/scratch"
-import { promoteScratchToNote } from "~/lib/scratch-promote"
-import type { ScratchNote } from "~/lib/scratch"
+import { dismissScratchWindow } from "~/lib/scratch"
+import type { ScratchEditorMode, ScratchNote } from "~/lib/scratch"
+import { resolveEditorMode } from "~/lib/scratch"
 import {
   appearanceStyle,
   colorForPreset,
@@ -24,9 +23,7 @@ import {
   parseEntries,
   serializeEntries,
 } from "~/lib/scratch-entries"
-import { clipboardReadText } from "~/lib/workspace"
 import { useScratchStore } from "~/store/scratch"
-import { useWorkspaceStore } from "~/store/workspace"
 
 interface Props {
   noteId: string
@@ -53,11 +50,11 @@ const ScratchPad = ({ noteId }: Props) => {
   const notes = useScratchStore((state) => state.notes)
   const load = useScratchStore((state) => state.load)
   const upsert = useScratchStore((state) => state.upsert)
-  const remove = useScratchStore((state) => state.remove)
-  const initialize = useWorkspaceStore((state) => state.initialize)
 
   const note = notes.find((item) => item.id === noteId) ?? null
+  const [editorMode, setEditorMode] = useState<ScratchEditorMode>("todo")
   const [entries, setEntries] = useState(() => parseEntries(""))
+  const [memoText, setMemoText] = useState("")
   const [preview, setPreview] = useState(false)
   const [lookOpen, setLookOpen] = useState(false)
   const [draftLook, setDraftLook] = useState<ScratchAppearance | null>(null)
@@ -86,9 +83,17 @@ const ScratchPad = ({ noteId }: Props) => {
       return
     }
     seededRef.current = true
-    const parsed = parseEntries(note.content)
-    setEntries(parsed)
-    contentRef.current = serializeEntries(parsed)
+    const mode = resolveEditorMode(note)
+    setEditorMode(mode)
+    if (mode === "memo") {
+      setMemoText(note.content)
+      contentRef.current = note.content
+      setEntries(parseEntries(""))
+    } else {
+      const parsed = parseEntries(note.content)
+      setEntries(parsed)
+      contentRef.current = serializeEntries(parsed)
+    }
   }, [note])
 
   const flushSave = useCallback(async () => {
@@ -106,9 +111,10 @@ const ScratchPad = ({ noteId }: Props) => {
     await upsert({
       ...current,
       content: contentRef.current,
+      editorMode,
       updatedAt: Date.now(),
     })
-  }, [upsert])
+  }, [editorMode, upsert])
 
   const requestClose = useCallback(() => {
     void flushSave()
@@ -134,6 +140,11 @@ const ScratchPad = ({ noteId }: Props) => {
   const applyEntries = (next: typeof entries) => {
     setEntries(next)
     queueSave(serializeEntries(next))
+  }
+
+  const applyMemo = (value: string) => {
+    setMemoText(value)
+    queueSave(value)
   }
 
   useEffect(() => {
@@ -164,6 +175,7 @@ const ScratchPad = ({ noteId }: Props) => {
               await upsert({
                 ...current,
                 content: contentRef.current,
+                editorMode,
                 windowX: position.x / scale,
                 windowY: position.y / scale,
                 windowWidth: size.width / scale,
@@ -212,7 +224,7 @@ const ScratchPad = ({ noteId }: Props) => {
         window.clearTimeout(geometryTimerRef.current)
       }
     }
-  }, [flushSave, upsert])
+  }, [editorMode, flushSave, upsert])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -225,14 +237,18 @@ const ScratchPad = ({ noteId }: Props) => {
         }
         requestClose()
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "enter") {
+      if (
+        editorMode === "memo" &&
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "enter"
+      ) {
         event.preventDefault()
         setPreview((value) => !value)
       }
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [lookOpen, requestClose])
+  }, [editorMode, lookOpen, requestClose])
 
   const commit = async (next: Partial<ScratchNote>) => {
     const current = noteRef.current
@@ -243,6 +259,7 @@ const ScratchPad = ({ noteId }: Props) => {
       ...current,
       ...next,
       content: contentRef.current,
+      editorMode,
       updatedAt: Date.now(),
     })
   }
@@ -260,45 +277,26 @@ const ScratchPad = ({ noteId }: Props) => {
     }
   }
 
-  const handlePromote = async () => {
-    if (!note) {
+  const switchEditorMode = async (mode: ScratchEditorMode) => {
+    if (mode === editorMode) {
       return
     }
     await flushSave()
-    try {
-      await initialize()
-    } catch {
-      // optional bootstrap
+    if (mode === "memo") {
+      const text =
+        editorMode === "todo" ? serializeEntries(entries) : memoText
+      setMemoText(text)
+      contentRef.current = text
+      setPreview(false)
+    } else {
+      const text = editorMode === "memo" ? memoText : serializeEntries(entries)
+      const parsed = parseEntries(text)
+      setEntries(parsed.length ? parsed : [emptyEntry()])
+      contentRef.current = serializeEntries(parsed.length ? parsed : [emptyEntry()])
+      setPreview(false)
     }
-    const latest = { ...note, content: contentRef.current }
-    try {
-      const result = await promoteScratchToNote(latest)
-      toast.success("已写入笔记", { description: result.fileName })
-    } catch (error) {
-      toast.error("无法转入笔记", {
-        description: error instanceof Error ? error.message : "写入失败",
-      })
-    }
-  }
-
-  const handlePaste = async () => {
-    try {
-      const text = await clipboardReadText()
-      if (!text) {
-        toast.message("剪贴板是空的")
-        return
-      }
-      const incoming = parseEntries(text)
-      const next =
-        entries.length === 1 && !entries[0].text.trim()
-          ? incoming
-          : [...entries, ...incoming]
-      applyEntries(next)
-    } catch (error) {
-      toast.error("无法粘贴", {
-        description: error instanceof Error ? error.message : "读取剪贴板失败",
-      })
-    }
+    setEditorMode(mode)
+    await commit({ editorMode: mode })
   }
 
   const addEntry = () => {
@@ -313,6 +311,7 @@ const ScratchPad = ({ noteId }: Props) => {
     status: "inbox" as const,
     color: "ivory" as const,
     appearance: undefined,
+    editorMode: "todo" as const,
     x: 0,
     y: 0,
     width: 236,
@@ -362,18 +361,6 @@ const ScratchPad = ({ noteId }: Props) => {
     setLookOpen(false)
   }
 
-  const handleDelete = () => {
-    void (async () => {
-      await flushSave()
-      await remove(viewNote.id)
-      try {
-        await destroyScratchWindow()
-      } catch {
-        window.__caelumCloseScratch?.()
-      }
-    })()
-  }
-
   return (
     <ScratchNoteShell
       appearance={appearance}
@@ -390,6 +377,7 @@ const ScratchPad = ({ noteId }: Props) => {
       }
     >
       <ScratchNoteChrome
+        editorMode={editorMode}
         pinned={pinned}
         lookOpen={lookOpen}
         preview={preview}
@@ -404,20 +392,27 @@ const ScratchPad = ({ noteId }: Props) => {
           }
           requestClose()
         }}
+        onEditorModeChange={(mode) => void switchEditorMode(mode)}
         onWindowDragStart={() => setWindowDragging(true)}
         onWindowDragEnd={() => setWindowDragging(false)}
-        onArchive={() => void commit({ status: "archived", alwaysOnTop: false })}
-        onPaste={() => void handlePaste()}
-        onPromote={() => void handlePromote()}
-        onDelete={handleDelete}
-      />
-
-      <ScratchStream
-        entries={entries}
-        onChange={applyEntries}
-        preview={preview}
-        pendingFocus={pendingFocus}
-      />
+      >
+        {editorMode === "todo" ? (
+          <ScratchStream
+            entries={entries}
+            onChange={applyEntries}
+            pendingFocus={pendingFocus}
+          />
+        ) : preview ? (
+          <pre className="scratch-memo-read">{memoText.trim() || "空白便签"}</pre>
+        ) : (
+          <textarea
+            className="scratch-memo-input"
+            value={memoText}
+            placeholder="写下一段备忘…"
+            onChange={(event) => applyMemo(event.target.value)}
+          />
+        )}
+      </ScratchNoteChrome>
     </ScratchNoteShell>
   )
 }

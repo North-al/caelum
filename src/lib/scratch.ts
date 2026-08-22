@@ -9,12 +9,15 @@ export type ScratchStatus = "inbox" | "pinned" | "archived"
 
 export type ScratchFilter = "active" | "inbox" | "pinned" | "archived"
 
+export type ScratchEditorMode = "todo" | "memo"
+
 export interface ScratchNote {
   id: string
   content: string
   status: ScratchStatus
   color: ScratchColor
   appearance?: ScratchAppearance
+  editorMode?: ScratchEditorMode
   x: number
   y: number
   width: number
@@ -93,6 +96,23 @@ export const filenameFromScratch = (content: string) => {
   const now = new Date()
   const pad = (value: number) => String(value).padStart(2, "0")
   return `便签 ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.md`
+}
+
+export const resolveEditorMode = (note: Pick<ScratchNote, "content" | "editorMode">): ScratchEditorMode => {
+  if (note.editorMode === "memo" || note.editorMode === "todo") {
+    return note.editorMode
+  }
+  const trimmed = note.content.trim()
+  if (!trimmed) {
+    return "todo"
+  }
+  if (/^-\s*\[[ xX]\]/m.test(trimmed)) {
+    return "todo"
+  }
+  if (trimmed.includes("\n")) {
+    return "memo"
+  }
+  return "todo"
 }
 
 export const matchesScratchFilter = (note: ScratchNote, filter: ScratchFilter) => {

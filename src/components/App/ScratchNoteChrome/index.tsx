@@ -1,30 +1,24 @@
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { useEffect, type PointerEvent, type ReactNode } from "react"
 import {
-  Archive,
-  ClipboardPaste,
   Eye,
   EyeOff,
-  FileInput,
-  MoreHorizontal,
+  FileText,
+  GripHorizontal,
+  ListTodo,
   Palette,
   Pin,
   PinOff,
   Plus,
-  Trash2,
 } from "lucide-react"
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip"
+import type { ScratchEditorMode } from "~/lib/scratch"
 import { cn } from "~/lib/utils"
 
 interface Props {
+  children: ReactNode
+  editorMode: ScratchEditorMode
   pinned: boolean
   lookOpen: boolean
   preview: boolean
@@ -33,15 +27,12 @@ interface Props {
   onPreview: () => void
   onAdd: () => void
   onClose: () => void
+  onEditorModeChange: (mode: ScratchEditorMode) => void
   onWindowDragStart?: () => void
   onWindowDragEnd?: () => void
-  onArchive: () => void
-  onPaste: () => void
-  onPromote: () => void
-  onDelete: () => void
 }
 
-const TipIcon = ({
+const RailIcon = ({
   tip,
   active,
   onClick,
@@ -57,7 +48,7 @@ const TipIcon = ({
       render={
         <button
           type="button"
-          className={cn("scratch-note-icon", active && "is-active")}
+          className={cn("scratch-note-rail-btn", active && "is-active")}
           aria-label={tip}
           onClick={onClick}
         />
@@ -70,6 +61,8 @@ const TipIcon = ({
 )
 
 export const ScratchNoteChrome = ({
+  children,
+  editorMode,
   pinned,
   lookOpen,
   preview,
@@ -78,12 +71,9 @@ export const ScratchNoteChrome = ({
   onPreview,
   onAdd,
   onClose,
+  onEditorModeChange,
   onWindowDragStart,
   onWindowDragEnd,
-  onArchive,
-  onPaste,
-  onPromote,
-  onDelete,
 }: Props) => {
   useEffect(() => {
     const endDrag = () => onWindowDragEnd?.()
@@ -106,73 +96,56 @@ export const ScratchNoteChrome = ({
   }
 
   return (
-    <header className="scratch-note-chrome">
-      <div
-        className="scratch-note-drag-strip"
-        data-tauri-drag-region
-        onPointerDown={startDrag}
-        title="拖动窗口"
-      >
-        <span className="scratch-note-drag-pill" />
-      </div>
-
-      <div className="scratch-note-chrome-row">
-        <button
-          type="button"
-          className={cn("scratch-note-pin", pinned && "is-active")}
-          aria-label={pinned ? "取消置顶" : "窗口置顶"}
-          onClick={onPin}
-        >
-          {pinned ? <Pin className="size-3.5" /> : <PinOff className="size-3.5" />}
-        </button>
-
-        <div className="scratch-note-chrome-spacer" data-tauri-drag-region onPointerDown={startDrag} />
-
-        <div className="scratch-note-actions">
-          <TipIcon tip="主题外观" active={lookOpen} onClick={onLook}>
-            <Palette className="size-3.5" />
-          </TipIcon>
-          <button type="button" className="scratch-note-close" aria-label="关闭" onClick={onClose}>
-            ×
-          </button>
+    <div className="scratch-note-layout">
+      <div className="scratch-note-stage">
+        <div className="scratch-note-topbar">
+          <div
+            className="scratch-note-drag-strip"
+            data-tauri-drag-region
+            onPointerDown={startDrag}
+            title="拖动窗口"
+          >
+            <GripHorizontal className="scratch-note-drag-grip" strokeWidth={2} />
+          </div>
+          <aside className="scratch-note-rail" aria-label="便签工具">
+            <RailIcon tip={pinned ? "取消置顶" : "窗口置顶"} active={pinned} onClick={onPin}>
+              {pinned ? <Pin className="size-3.5" /> : <PinOff className="size-3.5" />}
+            </RailIcon>
+            <RailIcon
+              tip={editorMode === "todo" ? "待办清单" : "切换到待办"}
+              active={editorMode === "todo"}
+              onClick={() => onEditorModeChange("todo")}
+            >
+              <ListTodo className="size-3.5" />
+            </RailIcon>
+            <RailIcon
+              tip={editorMode === "memo" ? "便签长文" : "切换到便签"}
+              active={editorMode === "memo"}
+              onClick={() => onEditorModeChange("memo")}
+            >
+              <FileText className="size-3.5" />
+            </RailIcon>
+            {editorMode === "todo" ? (
+              <RailIcon tip="新增一条" onClick={onAdd}>
+                <Plus className="size-3.5" />
+              </RailIcon>
+            ) : null}
+            {editorMode === "memo" ? (
+              <RailIcon tip={preview ? "编辑模式" : "阅读模式"} active={preview} onClick={onPreview}>
+                {preview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </RailIcon>
+            ) : null}
+            <span className="scratch-note-rail-divider" aria-hidden />
+            <RailIcon tip="主题外观" active={lookOpen} onClick={onLook}>
+              <Palette className="size-3.5" />
+            </RailIcon>
+            <button type="button" className="scratch-note-rail-close" aria-label="关闭" onClick={onClose}>
+              ×
+            </button>
+          </aside>
         </div>
+        {children}
       </div>
-
-      <div className="scratch-note-toolbar">
-        <TipIcon tip={preview ? "编辑模式" : "阅读模式"} active={preview} onClick={onPreview}>
-          {preview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-        </TipIcon>
-        <TipIcon tip="新增一条" onClick={onAdd}>
-          <Plus className="size-3.5" />
-        </TipIcon>
-        <TipIcon tip="归档" onClick={onArchive}>
-          <Archive className="size-3.5" />
-        </TipIcon>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button type="button" className="scratch-note-icon" aria-label="更多">
-                <MoreHorizontal className="size-3.5" />
-              </button>
-            }
-          />
-          <DropdownMenuContent align="end" className="min-w-[11.5rem]">
-            <DropdownMenuItem onClick={onPaste}>
-              <ClipboardPaste className="size-4" />
-              粘贴剪贴板
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onPromote}>
-              <FileInput className="size-4" />
-              写入正式笔记
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete}>
-              <Trash2 className="size-4" />
-              删除这张便签
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </header>
+    </div>
   )
 }

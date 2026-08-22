@@ -80,6 +80,98 @@
     flex-direction: column;
 }
 
+.scratch-note-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+}
+
+.scratch-note-stage {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+}
+
+.scratch-note-topbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 6px 8px 4px;
+}
+
+.scratch-note-rail {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    flex-shrink: 0;
+    -webkit-app-region: no-drag;
+}
+
+.scratch-note-rail-divider {
+    width: 1px;
+    height: 18px;
+    margin: 0 2px;
+    background: color-mix(in srgb, var(--scratch-ink) 12%, transparent);
+}
+
+.scratch-note-rail-btn {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: color-mix(in srgb, var(--scratch-ink) 62%, transparent);
+    cursor: pointer;
+    transition:
+        background-color 140ms ease,
+        color 140ms ease,
+        transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scratch-note-rail-btn:hover {
+    background: color-mix(in srgb, var(--scratch-ink) 8%, transparent);
+    color: var(--scratch-ink);
+}
+
+.scratch-note-rail-btn.is-active {
+    background: color-mix(in srgb, var(--scratch-accent) 18%, transparent);
+    color: var(--scratch-ink);
+}
+
+.scratch-note-rail-close {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: color-mix(in srgb, var(--scratch-ink) 58%, transparent);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        background-color 140ms ease,
+        color 140ms ease,
+        transform 140ms ease;
+}
+
+.scratch-note-rail-close:hover {
+    background: color-mix(in srgb, #e85d5d 16%, transparent);
+    color: #e85d5d;
+    transform: scale(1.06);
+}
+
 /* —— Chrome —— */
 
 .scratch-note-chrome {
@@ -91,17 +183,35 @@
 
 .scratch-note-drag-strip {
     display: flex;
+    flex: 1;
+    min-width: 0;
     align-items: center;
-    justify-content: center;
-    height: 22px;
-    margin: 0 4px 2px;
+    justify-content: flex-start;
+    padding-left: 2px;
+    height: 28px;
+    border-radius: 8px;
     cursor: grab;
     -webkit-app-region: drag;
     touch-action: none;
+    color: color-mix(in srgb, var(--scratch-ink) 42%, transparent);
+    transition: color 140ms ease, background-color 140ms ease;
+}
+
+.scratch-note-drag-strip:hover {
+    cursor: grab;
+    color: color-mix(in srgb, var(--scratch-ink) 68%, transparent);
+    background: color-mix(in srgb, var(--scratch-ink) 6%, transparent);
 }
 
 .scratch-note-drag-strip:active {
     cursor: grabbing;
+    color: var(--scratch-ink);
+}
+
+.scratch-note-drag-grip {
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
 }
 
 .scratch-note-drag-pill {
@@ -265,21 +375,56 @@
     scrollbar-color: color-mix(in srgb, var(--scratch-ink) 16%, transparent) transparent;
 }
 
+.scratch-memo-input {
+    min-height: 0;
+    flex: 1;
+    width: 100%;
+    resize: none;
+    border: 0;
+    background: transparent;
+    padding: 4px 12px 12px;
+    font-family: inherit;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--scratch-ink, var(--foreground));
+    outline: none;
+}
+
+.scratch-memo-input::placeholder {
+    color: color-mix(in srgb, var(--scratch-ink, var(--foreground)) 38%, transparent);
+}
+
+.scratch-memo-read {
+    min-height: 0;
+    flex: 1;
+    margin: 0;
+    overflow: auto;
+    padding: 4px 12px 12px;
+    white-space: pre-wrap;
+    font-family: inherit;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--scratch-ink, var(--foreground));
+}
+
 .scratch-note-row-wrap {
-    transition:
-        transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
-        opacity 220ms ease;
-    will-change: transform;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease;
 }
 
 .scratch-note-row-wrap.is-dragging {
     z-index: 3;
     opacity: 0.94;
     box-shadow: 0 10px 28px -12px rgba(30, 45, 70, 0.28);
-    transition:
-        transform 80ms linear,
-        box-shadow 180ms ease,
-        opacity 180ms ease;
+    transition: transform 60ms linear, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.scratch-note-row-wrap.is-drop-target::before {
+    content: "";
+    display: block;
+    height: 2px;
+    margin: 1px 8px 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--scratch-accent) 55%, transparent);
 }
 
 /* —— Look sheet —— */
@@ -340,6 +485,36 @@
     margin-top: 2px;
     font-size: 11px;
     color: color-mix(in srgb, var(--scratch-ink) 50%, transparent);
+}
+
+.scratch-style-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.scratch-style-card-head .scratch-style-card-title {
+    margin-bottom: 0;
+}
+
+.scratch-style-restore {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--scratch-ink) 6%, transparent);
+    color: color-mix(in srgb, var(--scratch-ink) 72%, transparent);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.scratch-style-restore:hover {
+    background: color-mix(in srgb, var(--scratch-accent) 14%, transparent);
+    color: var(--scratch-ink);
 }
 
 .scratch-style-close {

@@ -79,6 +79,8 @@ pub struct ScratchNotePatch {
     pub window_width: Option<f64>,
     #[serde(default)]
     pub window_height: Option<f64>,
+    #[serde(default)]
+    pub editor_mode: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,6 +119,8 @@ pub struct ScratchNote {
     pub window_width: Option<f64>,
     #[serde(default)]
     pub window_height: Option<f64>,
+    #[serde(default)]
+    pub editor_mode: Option<String>,
 }
 
 fn default_status() -> String {
@@ -176,10 +180,10 @@ fn appearance_for_preset(preset: &str) -> ScratchAppearance {
         "caelum" | "glass" | "fog-lined" | "fog" | "glass-cyan" | "ivory" => ScratchAppearance {
             preset: "caelum".to_string(),
             background: "#f4f7fc".to_string(),
-            opacity: 0.94,
+            opacity: 0.95,
             blur: 12.0,
             border_color: "#8ba8d8".to_string(),
-            border_width: 1.0,
+            border_width: 0.0,
             radius: 10.0,
             pin_color: default_pin_color(),
             pattern: "plain".to_string(),
@@ -189,10 +193,10 @@ fn appearance_for_preset(preset: &str) -> ScratchAppearance {
         "frost-glass" => ScratchAppearance {
             preset: "frost-glass".to_string(),
             background: "#f0f6fc".to_string(),
-            opacity: 0.48,
+            opacity: 0.95,
             blur: 32.0,
             border_color: "#b8d4ec".to_string(),
-            border_width: 1.0,
+            border_width: 0.0,
             radius: 10.0,
             pin_color: default_pin_color(),
             pattern: "plain".to_string(),
@@ -201,11 +205,11 @@ fn appearance_for_preset(preset: &str) -> ScratchAppearance {
         },
         "neon-tech" | "ink-glass" | "ink" => ScratchAppearance {
             preset: "neon-tech".to_string(),
-            background: "#161c28".to_string(),
-            opacity: 0.88,
-            blur: 8.0,
+            background: "#1a2230".to_string(),
+            opacity: 0.95,
+            blur: 16.0,
             border_color: "#4a9cf0".to_string(),
-            border_width: 1.0,
+            border_width: 0.0,
             radius: 8.0,
             pin_color: "#6eb8ff".to_string(),
             pattern: "graph".to_string(),
@@ -216,10 +220,10 @@ fn appearance_for_preset(preset: &str) -> ScratchAppearance {
         | "bear-journal" => ScratchAppearance {
             preset: "parchment".to_string(),
             background: "#f6f0e6".to_string(),
-            opacity: 0.96,
+            opacity: 0.95,
             blur: 0.0,
             border_color: "#c8b8a0".to_string(),
-            border_width: 1.0,
+            border_width: 0.0,
             radius: 10.0,
             pin_color: "#a88860".to_string(),
             pattern: "lined".to_string(),
@@ -229,10 +233,10 @@ fn appearance_for_preset(preset: &str) -> ScratchAppearance {
         "aurora" | "cream-gingham" | "dot-play" | "blush" => ScratchAppearance {
             preset: "aurora".to_string(),
             background: "#f5f8ff".to_string(),
-            opacity: 0.92,
+            opacity: 0.95,
             blur: 6.0,
             border_color: "#b8c8e8".to_string(),
-            border_width: 1.0,
+            border_width: 0.0,
             radius: 12.0,
             pin_color: "#7c8ce8".to_string(),
             pattern: "plain".to_string(),
@@ -388,6 +392,7 @@ fn create_note_in_store(store: &mut ScratchStore, x: Option<f64>, y: Option<f64>
         window_y: None,
         window_width: None,
         window_height: None,
+        editor_mode: Some("todo".to_string()),
     };
     store.last_active_id = Some(note.id.clone());
     store.notes.push(note.clone());
@@ -597,6 +602,9 @@ pub fn patch_scratch_note(
     }
     if patch.window_height.is_some() {
         existing.window_height = patch.window_height;
+    }
+    if let Some(editor_mode) = patch.editor_mode {
+        existing.editor_mode = Some(editor_mode);
     }
     existing.updated_at = now_ms();
     store.last_active_id = Some(patch.id);

@@ -59,7 +59,7 @@ export const SCRATCH_PRESETS: Record<ScratchPresetId, ScratchAppearance> = {
   caelum: {
     preset: "caelum",
     background: "#f4f7fc",
-    opacity: 0.94,
+    opacity: 0.95,
     blur: 12,
     borderColor: "#8ba8d8",
     borderWidth: 0,
@@ -71,7 +71,7 @@ export const SCRATCH_PRESETS: Record<ScratchPresetId, ScratchAppearance> = {
   "frost-glass": {
     preset: "frost-glass",
     background: "#f0f6fc",
-    opacity: 0.48,
+    opacity: 0.95,
     blur: 32,
     borderColor: "#b8d4ec",
     borderWidth: 0,
@@ -83,7 +83,7 @@ export const SCRATCH_PRESETS: Record<ScratchPresetId, ScratchAppearance> = {
   "neon-tech": {
     preset: "neon-tech",
     background: "#1a2230",
-    opacity: 0.72,
+    opacity: 0.95,
     blur: 16,
     borderColor: "#4a9cf0",
     borderWidth: 0,
@@ -95,7 +95,7 @@ export const SCRATCH_PRESETS: Record<ScratchPresetId, ScratchAppearance> = {
   parchment: {
     preset: "parchment",
     background: "#f6f0e6",
-    opacity: 0.96,
+    opacity: 0.95,
     blur: 0,
     borderColor: "#c8b8a0",
     borderWidth: 0,
@@ -107,7 +107,7 @@ export const SCRATCH_PRESETS: Record<ScratchPresetId, ScratchAppearance> = {
   aurora: {
     preset: "aurora",
     background: "#f5f8ff",
-    opacity: 0.92,
+    opacity: 0.95,
     blur: 6,
     borderColor: "#b8c8e8",
     borderWidth: 0,
@@ -410,4 +410,22 @@ export const patternPreviewStyle = (
     backgroundSize: patternSize(id),
     backgroundPosition: "center",
   }
+}
+
+export const isAppearanceTweaked = (appearance: ScratchAppearance): boolean => {
+  if (appearance.preset === "custom") {
+    return true
+  }
+  const base = SCRATCH_PRESETS[appearance.preset as ScratchPresetId]
+  return (
+    appearance.opacity !== base.opacity ||
+    appearance.blur !== base.blur ||
+    appearance.radius !== base.radius
+  )
+}
+
+export const restoreAppearanceDefaults = (appearance: ScratchAppearance): ScratchAppearance => {
+  const presetId =
+    appearance.preset !== "custom" ? (appearance.preset as ScratchPresetId) : "caelum"
+  return { ...SCRATCH_PRESETS[presetId] }
 }
