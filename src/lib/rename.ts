@@ -1,10 +1,88 @@
 /** Filename validation and wiki-link helpers for rename flows. */
 
+import { EDITABLE_EXTENSIONS_LIST } from "~/lib/file-types"
+
 const ILLEGAL_CHARS = /[\\/:*?"<>|]/
 
-export const SUPPORTED_RENAME_EXTENSIONS = ["md", "txt", "ini", "json", "xml", "svg"] as const
+export const SUPPORTED_RENAME_EXTENSIONS = EDITABLE_EXTENSIONS_LIST
 
 export type SupportedRenameExtension = (typeof SUPPORTED_RENAME_EXTENSIONS)[number]
+
+/** Grouped extension picker for create / rename dialogs. */
+export const EXTENSION_GROUPS: Array<{ id: string; label: string; extensions: string[] }> = [
+  {
+    id: "docs",
+    label: "文档",
+    extensions: ["md", "markdown", "mdx", "txt", "log", "csv"],
+  },
+  {
+    id: "config",
+    label: "配置",
+    extensions: [
+      "json",
+      "jsonc",
+      "json5",
+      "yaml",
+      "yml",
+      "toml",
+      "ini",
+      "env",
+      "properties",
+      "conf",
+      "cfg",
+      "config",
+      "xml",
+    ],
+  },
+  {
+    id: "web",
+    label: "Web",
+    extensions: [
+      "html",
+      "htm",
+      "css",
+      "scss",
+      "less",
+      "js",
+      "mjs",
+      "cjs",
+      "ts",
+      "jsx",
+      "tsx",
+      "vue",
+      "svelte",
+      "svg",
+    ],
+  },
+  {
+    id: "source",
+    label: "源码",
+    extensions: [
+      "py",
+      "go",
+      "rs",
+      "java",
+      "kt",
+      "kts",
+      "c",
+      "h",
+      "cpp",
+      "cc",
+      "cxx",
+      "hpp",
+      "cs",
+      "sql",
+      "graphql",
+      "gql",
+      "proto",
+    ],
+  },
+  {
+    id: "shell",
+    label: "脚本",
+    extensions: ["sh", "bash", "zsh", "ps1", "bat", "cmd"],
+  },
+]
 
 export const hasIllegalFilenameChars = (value: string) => ILLEGAL_CHARS.test(value)
 

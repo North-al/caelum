@@ -2,6 +2,9 @@
 @import './theme/shadcn.css';
 @import './frosted.css';
 @import './search-panel.css';
+@import './glass-stream.css';
+@import './scratch.css';
+@import './scratch-note.css';
 
 /* highlight.js themes: swapped in ThemeSync (github.css / github-dark.css) */
 

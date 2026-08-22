@@ -18,6 +18,15 @@ export default defineConfig(async () => ({
     },
     plugins: createPlugins(),
 
+    build: {
+        rollupOptions: {
+            input: {
+                main: fileURLToPath(new URL("./index.html", import.meta.url)),
+                scratch: fileURLToPath(new URL("./scratch.html", import.meta.url)),
+            },
+        },
+    },
+
     // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
     //
     // 1. prevent Vite from obscuring rust errors

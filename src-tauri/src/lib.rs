@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
 mod clipboard;
+mod scratch;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -297,7 +298,9 @@ fn build_tree(path: &Path) -> Result<Vec<FileEntry>, String> {
         let name = entry.file_name().to_string_lossy().to_string();
 
         if name.starts_with('.') {
-            continue;
+            if !is_visible_dotfile(&name) {
+                continue;
+            }
         }
 
         if file_type.is_dir() {
@@ -315,7 +318,7 @@ fn build_tree(path: &Path) -> Result<Vec<FileEntry>, String> {
                 .unwrap_or_default()
                 .to_lowercase();
 
-            if is_tree_visible_file(&extension) {
+            if is_tree_visible_entry(&name, &extension) {
                 entries.push(FileEntry {
                     id: entry_path.to_string_lossy().into_owned(),
                     name,
@@ -527,33 +530,125 @@ fn write_binary_file(path: String, contents_base64: String) -> Result<(), String
     fs::write(file_path, bytes).map_err(|error| error.to_string())
 }
 
-fn is_tree_visible_file(extension: &str) -> bool {
+fn is_special_text_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "dockerfile"
+            | "makefile"
+            | "gemfile"
+            | "procfile"
+            | ".env"
+            | ".gitignore"
+            | ".dockerignore"
+            | ".npmrc"
+            | ".nvmrc"
+            | ".editorconfig"
+            | ".eslintrc"
+            | ".prettierrc"
+            | ".babelrc"
+    ) || lower.starts_with(".env.")
+}
+
+fn is_editable_text_extension(extension: &str) -> bool {
     matches!(
         extension,
         "md" | "markdown"
+            | "mdx"
             | "txt"
+            | "log"
+            | "csv"
             | "ini"
             | "json"
+            | "jsonc"
+            | "json5"
             | "xml"
+            | "yaml"
+            | "yml"
+            | "toml"
+            | "env"
+            | "properties"
+            | "conf"
+            | "cfg"
+            | "config"
+            | "html"
+            | "htm"
+            | "css"
+            | "scss"
+            | "less"
             | "svg"
-            | "png"
-            | "jpg"
-            | "jpeg"
-            | "gif"
-            | "webp"
-            | "bmp"
-            | "ico"
-            | "avif"
+            | "js"
+            | "mjs"
+            | "cjs"
+            | "ts"
+            | "jsx"
+            | "tsx"
+            | "vue"
+            | "svelte"
+            | "sh"
+            | "bash"
+            | "zsh"
+            | "ps1"
+            | "bat"
+            | "cmd"
+            | "py"
+            | "go"
+            | "rs"
+            | "java"
+            | "kt"
+            | "kts"
+            | "c"
+            | "h"
+            | "cpp"
+            | "cc"
+            | "cxx"
+            | "hpp"
+            | "cs"
+            | "sql"
+            | "graphql"
+            | "gql"
+            | "proto"
     )
 }
 
-fn is_openable_note_path(path: &str) -> bool {
-    let lower = path.to_ascii_lowercase();
+fn is_image_extension(extension: &str) -> bool {
+    matches!(
+        extension,
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "avif" | "svg"
+    )
+}
+
+fn is_visible_dotfile(name: &str) -> bool {
+    if is_special_text_name(name) {
+        return true;
+    }
+    let lower = name.to_ascii_lowercase();
     let extension = Path::new(&lower)
         .extension()
         .and_then(|value| value.to_str())
         .unwrap_or_default();
-    is_tree_visible_file(extension)
+    is_editable_text_extension(extension)
+}
+
+fn is_tree_visible_entry(name: &str, extension: &str) -> bool {
+    if is_special_text_name(name) {
+        return true;
+    }
+    is_editable_text_extension(extension) || is_image_extension(extension)
+}
+
+fn is_openable_note_path(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    let path_obj = Path::new(&lower);
+    let name = path_obj
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    let extension = path_obj
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    is_tree_visible_entry(name, extension)
 }
 
 fn collect_openable_paths(args: &[String]) -> Vec<String> {
@@ -604,8 +699,42 @@ pub fn run() {
     use tauri::{Emitter, Manager};
 
     tauri::Builder::default()
-        .setup(|_| {
+        .setup(|app| {
             ensure_launch_paths_cached();
+            app.manage(scratch::ScratchManager::load());
+
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_global_shortcut::ShortcutState;
+
+                let shortcut_plugin = match tauri_plugin_global_shortcut::Builder::new()
+                    .with_shortcuts(["ctrl+alt+n"])
+                {
+                    Ok(builder) => builder
+                        .with_handler(|app, _shortcut, event| {
+                            if event.state == ShortcutState::Pressed {
+                                let app = app.clone();
+                                let _ = std::thread::Builder::new()
+                                    .name("caelum-scratch-hotkey".into())
+                                    .spawn(move || {
+                                        if let Err(error) = scratch::toggle_scratch_capture(&app) {
+                                            eprintln!("scratch capture: {error}");
+                                        }
+                                    });
+                            }
+                        })
+                        .build(),
+                    Err(error) => {
+                        eprintln!("global shortcut unavailable: {error}");
+                        tauri_plugin_global_shortcut::Builder::new().build()
+                    }
+                };
+
+                if let Err(error) = app.handle().plugin(shortcut_plugin) {
+                    eprintln!("failed to init global shortcut plugin: {error}");
+                }
+            }
+
             Ok(())
         })
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
@@ -643,7 +772,17 @@ pub fn run() {
             clipboard_write_text,
             clipboard_read_image,
             clipboard_write_image,
-            get_launch_file_paths
+            get_launch_file_paths,
+            scratch::load_scratch_store,
+            scratch::upsert_scratch_note,
+            scratch::patch_scratch_note,
+            scratch::create_scratch_note,
+            scratch::delete_scratch_note,
+            scratch::close_scratch_window,
+            scratch::dismiss_scratch_window,
+            scratch::destroy_scratch_window,
+            scratch::open_scratch_window,
+            scratch::toggle_scratch_capture_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -6,7 +6,7 @@ export const APP_REPO_URL = 'https://github.com/North-al/caelum'
 
 export const APP_FEATURES = [
     '本地优先：笔记与资源保存在本机目录，无需账号',
-    'Markdown / TXT / JSON / XML / INI 编辑，实时预览与 GFM 语法支持',
+    'Markdown 与常见开发配置 / 源码文本编辑预览（yaml、toml、ts、py、Dockerfile 等）',
     '数学公式（KaTeX）与 Mermaid 图表（可配置主题），预览与导出一致',
     'Markdown 导出：规范化 MD、纯文本、离线 HTML、可配置 PDF、Mermaid 单图 / 批量导出',
     '分屏、仅编辑、仅预览三种视图，可选滚动联动',
@@ -18,7 +18,7 @@ export const APP_FEATURES = [
     '大纲面板、窗口尺寸与阅读位置记忆',
     '笔记双链 [[名称]]：预览点击跳转；重命名自动同步引用',
     'Ctrl + 滚轮缩放编辑区字号，主题与强调色可切换',
-    '开源仓库：设置 → 关于可查看 GitHub 地址'
+    '快捷便签：全局 Ctrl+Alt+N 唤起轻量纸条，便签板整理后再写入正式笔记',
 ] as const
 
 export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string[] }> = [

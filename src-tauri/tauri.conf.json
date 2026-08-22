@@ -10,8 +10,10 @@
         "frontendDist": "../dist"
     },
     "app": {
+        "withGlobalTauri": true,
         "windows": [
             {
+                "label": "main",
                 "title": "Caelum",
                 "width": 1200,
                 "height": 760,
@@ -38,23 +40,30 @@
         "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
         "fileAssociations": [
             {
-                "ext": ["md", "markdown"],
+                "ext": ["md", "markdown", "mdx"],
                 "name": "Markdown",
                 "description": "Markdown 文档",
                 "mimeType": "text/markdown",
                 "role": "Editor"
             },
             {
-                "ext": ["txt", "ini"],
-                "name": "Plain Text",
-                "description": "文本文档",
+                "ext": ["txt", "log", "csv", "ini", "env", "conf", "cfg", "config", "properties", "toml", "yaml", "yml"],
+                "name": "ConfigText",
+                "description": "配置与文本文件",
                 "mimeType": "text/plain",
                 "role": "Editor"
             },
             {
-                "ext": ["json", "xml", "svg"],
-                "name": "Structured Text",
-                "description": "结构化文本",
+                "ext": ["json", "jsonc", "xml", "html", "htm", "css", "scss", "less", "svg", "js", "mjs", "cjs", "ts", "jsx", "tsx", "vue", "svelte"],
+                "name": "WebSource",
+                "description": "Web 与结构化源码",
+                "mimeType": "text/plain",
+                "role": "Editor"
+            },
+            {
+                "ext": ["py", "go", "rs", "java", "kt", "c", "h", "cpp", "hpp", "cs", "sql", "sh", "bash", "ps1", "bat", "cmd", "graphql", "proto"],
+                "name": "SourceCode",
+                "description": "源代码文件",
                 "mimeType": "text/plain",
                 "role": "Editor"
             }

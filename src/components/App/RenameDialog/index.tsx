@@ -12,16 +12,15 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"
+import { ExtensionGroupMenu } from "~/components/App/ExtensionGroupMenu"
 import {
   hasIllegalFilenameChars,
   illegalFilenameMessage,
   isSupportedExtension,
   joinFileName,
   splitFileName,
-  SUPPORTED_RENAME_EXTENSIONS,
 } from "~/lib/rename"
 import { cn } from "~/lib/utils"
 
@@ -189,12 +188,8 @@ export const RenameDialog = ({
                   >
                     <ChevronDown className="size-3.5" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" side="bottom" className="min-w-[7rem]">
-                    {SUPPORTED_RENAME_EXTENSIONS.map((item) => (
-                      <DropdownMenuItem key={item} onClick={() => setExtension(item)}>
-                        .{item}
-                      </DropdownMenuItem>
-                    ))}
+                  <DropdownMenuContent align="end" side="bottom" className="min-w-[8.5rem]">
+                    <ExtensionGroupMenu current={extension} onSelect={setExtension} />
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>

@@ -6,8 +6,9 @@ import {
   RefreshCw,
   Search,
   SlidersHorizontal,
+  StickyNote,
 } from "lucide-react"
-import { useNavigate } from "react-router"
+import { useLocation, useNavigate } from "react-router"
 import { revealItemInDir } from "@tauri-apps/plugin-opener"
 import { toast } from "sonner"
 
@@ -115,8 +116,10 @@ const parentLabel = (parentPath?: string, notesPath?: string) => {
 
 export const WorkspaceSidebar = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { state } = useSidebar()
   const collapsed = state === "collapsed"
+  const onBoard = location.pathname === "/board"
 
   const {
     config,
@@ -233,9 +236,14 @@ export const WorkspaceSidebar = () => {
           )}
           data-tauri-drag-region
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
+          <button
+            type="button"
+            className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15"
+            onClick={() => navigate("/")}
+            aria-label="回到笔记"
+          >
             <CaelumLogo className="size-5" />
-          </div>
+          </button>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <div className="truncate text-[15px] font-semibold tracking-tight">
               {config?.workspaceName ?? "Caelum"}
@@ -260,6 +268,25 @@ export const WorkspaceSidebar = () => {
                 <Search className="size-4" strokeWidth={1.75} />
               </TooltipTrigger>
               <TooltipContent side="right">搜索笔记</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className={cn(
+                      "size-8 rounded-lg",
+                      onBoard ? "bg-primary/12 text-primary" : "text-muted-foreground"
+                    )}
+                    aria-label="便签板"
+                    onClick={() => navigate("/board")}
+                  />
+                }
+              >
+                <StickyNote className="size-4" strokeWidth={1.75} />
+              </TooltipTrigger>
+              <TooltipContent side="right">便签板</TooltipContent>
             </Tooltip>
           </div>
         ) : (
@@ -331,6 +358,27 @@ export const WorkspaceSidebar = () => {
 
       <SidebarSeparator className="mx-2 w-auto bg-border/40 group-data-[collapsible=icon]:hidden" />
 
+      {collapsed ? null : (
+        <div className="px-2.5 pb-1 group-data-[collapsible=icon]:hidden">
+          <button
+            type="button"
+            className={cn(
+              "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-[12.5px] transition-colors",
+              onBoard
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+            )}
+            onClick={() => navigate("/board")}
+          >
+            <StickyNote className="size-3.5 shrink-0" strokeWidth={1.75} />
+            便签板
+            <span className="ml-auto text-[10px] tracking-wide text-muted-foreground/70">
+              整理
+            </span>
+          </button>
+        </div>
+      )}
+
       {collapsed ? <div className="min-h-0 flex-1" aria-hidden /> : null}
 
       <SidebarContent
@@ -348,7 +396,12 @@ export const WorkspaceSidebar = () => {
                 data={filteredTree}
                 notesPath={notesPath}
                 activeFilePath={selectedFilePath}
-                onOpen={(path) => void selectFile(path)}
+                onOpen={(path) => {
+                  if (location.pathname !== "/") {
+                    navigate("/")
+                  }
+                  void selectFile(path)
+                }}
                 onRename={(path) => resolveRenameTarget(path)}
                 onDelete={(paths) => setDeleteTarget(paths)}
                 onCreateFile={(parentPath) => setCreateTarget({ kind: "file", parentPath })}

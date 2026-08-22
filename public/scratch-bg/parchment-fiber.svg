@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="pg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#faf4ea"/>
+      <stop offset="100%" stop-color="#ebe0d0"/>
+    </linearGradient>
+    <pattern id="fiber" width="6" height="6" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="0.7" fill="#b8a890" opacity="0.12"/>
+    </pattern>
+  </defs>
+  <rect width="800" height="800" fill="url(#pg)"/>
+  <rect width="800" height="800" fill="url(#fiber)"/>
+</svg>

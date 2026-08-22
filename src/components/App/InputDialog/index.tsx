@@ -13,14 +13,13 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"
+import { ExtensionGroupMenu } from "~/components/App/ExtensionGroupMenu"
 import {
   hasIllegalFilenameChars,
   illegalFilenameMessage,
   joinFileName,
-  SUPPORTED_RENAME_EXTENSIONS,
 } from "~/lib/rename"
 import { cn } from "~/lib/utils"
 
@@ -107,11 +106,6 @@ export const InputDialog = ({
     }
   }
 
-  const extensionChoices =
-    extensionOptions && extensionOptions.length > 0
-      ? extensionOptions
-      : SUPPORTED_RENAME_EXTENSIONS.map((item) => ({ label: `.${item}`, value: item }))
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-0 p-4 sm:max-w-[380px]">
@@ -176,15 +170,11 @@ export const InputDialog = ({
                   >
                     <ChevronDown className="size-3.5" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" side="bottom" className="min-w-[7rem]">
-                    {extensionChoices.map((option) => (
-                      <DropdownMenuItem
-                        key={option.value}
-                        onClick={() => setExtension(option.value.replace(/^\./, ""))}
-                      >
-                        {option.label.startsWith(".") ? option.label : `.${option.value}`}
-                      </DropdownMenuItem>
-                    ))}
+                  <DropdownMenuContent align="end" side="bottom" className="min-w-[8.5rem]">
+                    <ExtensionGroupMenu
+                      current={extension}
+                      onSelect={(next) => setExtension(next)}
+                    />
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>

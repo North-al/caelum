@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>快捷便签</title>
+    <style>
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+        color: #243044;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      #scratch-fallback {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      #scratch-fallback header {
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 8px;
+        -webkit-app-region: drag;
+      }
+      #scratch-close {
+        -webkit-app-region: no-drag;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #7a7468;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      #scratch-close:hover {
+        background: rgba(0, 0, 0, 0.06);
+        color: #2d2a24;
+      }
+      #scratch-fallback textarea {
+        flex: 1;
+        border: 0;
+        resize: none;
+        outline: none;
+        padding: 4px 16px 16px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 14px;
+        line-height: 1.65;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div id="scratch-fallback">
+        <header>
+          <button id="scratch-close" type="button" aria-label="关闭">×</button>
+        </header>
+        <textarea placeholder="此刻想到的…" autofocus></textarea>
+      </div>
+    </div>
+    <script>
+      window.__caelumCloseScratch = function () {
+        try {
+          var internals = window.__TAURI_INTERNALS__
+          if (internals && internals.invoke && internals.metadata) {
+            var label = internals.metadata.currentWindow.label
+            internals.invoke("dismiss_scratch_window").catch(function () {
+              internals.invoke("plugin:window|hide", { label: label }).catch(function () {
+                internals.invoke("plugin:window|destroy", { label: label }).catch(function () {
+                  internals.invoke("plugin:window|close", { label: label })
+                })
+              })
+            })
+            return
+          }
+        } catch (error) {}
+        window.close()
+      }
+      document.getElementById("scratch-close").addEventListener("click", function () {
+        window.__caelumCloseScratch()
+      })
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          window.__caelumCloseScratch()
+        }
+      })
+    </script>
+    <script type="module" src="/src/scratch-main.tsx"></script>
+  </body>
+</html>

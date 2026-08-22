@@ -14,6 +14,10 @@ export const routes: RouteObject[] = [
             {
                 path: 'settings',
                 element: lazyLoad(() => import('~/pages/Settings'))
+            },
+            {
+                path: 'board',
+                element: lazyLoad(() => import('~/pages/Board'))
             }
         ]
     },

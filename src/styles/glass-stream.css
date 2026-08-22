@@ -1,0 +1,536 @@
+/* Frosted mica stream — one surface, light glass, dark ink. Shared by scratch + task list. */
+
+.glass-stream-root {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--glass-ink, #243044);
+    -webkit-font-smoothing: antialiased;
+}
+
+.glass-stream-window,
+.glass-stream-window body,
+.glass-stream-window #root {
+    background: transparent;
+}
+
+.glass-stream-chrome {
+    flex-shrink: 0;
+    padding: 8px 14px 10px;
+}
+
+.glass-stream-drag-bar {
+    height: 6px;
+    margin: 0 40px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--glass-ink) 10%, transparent);
+    cursor: grab;
+}
+
+.glass-stream-drag-bar:active {
+    cursor: grabbing;
+}
+
+.glass-stream-chrome-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 10px;
+    align-items: start;
+}
+
+.glass-stream-drag {
+    min-width: 0;
+    cursor: grab;
+    user-select: none;
+}
+
+.glass-stream-drag:active {
+    cursor: grabbing;
+}
+
+.glass-stream-eyebrow {
+    display: none;
+}
+
+.glass-stream-row-wrap {
+    transition:
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 180ms ease,
+        box-shadow 180ms ease;
+}
+
+.glass-stream-row-wrap.is-dragging {
+    transition: transform 80ms ease, opacity 120ms ease;
+    transform: scale(1.015);
+    opacity: 0.92;
+    z-index: 2;
+    box-shadow: 0 8px 24px -12px rgba(20, 40, 70, 0.28);
+}
+
+.glass-stream-title {
+    margin-top: 4px;
+    font-size: 17px;
+    font-weight: 650;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    color: var(--glass-ink);
+}
+
+.glass-stream-subline {
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--glass-muted);
+}
+
+.glass-stream-chrome-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.glass-stream-window-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.glass-stream-badge {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #34a85a 14%, white);
+    border: 1px solid color-mix(in srgb, #34a85a 28%, transparent);
+    color: #1d6b3c;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.glass-stream-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.glass-stream-icon-btn {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: color-mix(in srgb, var(--glass-ink) 58%, transparent);
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+    -webkit-app-region: no-drag;
+}
+
+.glass-stream-icon-btn:hover {
+    background: color-mix(in srgb, var(--glass-ink) 8%, transparent);
+    color: var(--glass-ink);
+}
+
+.glass-stream-icon-btn.is-active {
+    background: color-mix(in srgb, var(--glass-accent) 18%, transparent);
+    color: var(--glass-ink);
+}
+
+.glass-stream-icon-btn.is-primary {
+    color: #2a9d55;
+}
+
+.glass-stream-icon-btn.is-primary:hover {
+    background: color-mix(in srgb, #34a85a 14%, transparent);
+}
+
+.glass-stream-icon-btn.is-danger:hover {
+    background: color-mix(in srgb, #e85d5d 12%, transparent);
+    color: #b83232;
+}
+
+/* —— List rows —— */
+
+.glass-stream-list {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+    padding: 4px 10px 12px;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--glass-ink) 16%, transparent) transparent;
+}
+
+.glass-stream-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 3px 6px;
+    border-radius: 12px;
+    transition: background-color 140ms ease, opacity 140ms ease;
+}
+
+.glass-stream-row.is-active,
+.glass-stream-row:focus-within {
+    background: var(--glass-row-active, color-mix(in srgb, #8eb8e8 34%, rgba(255, 255, 255, 0.55)));
+    box-shadow: 0 0 0 1px color-mix(in srgb, white 55%, transparent) inset;
+}
+
+.glass-stream-row.is-dragging {
+    opacity: 0.88;
+}
+
+.glass-stream-row.is-done .glass-stream-input,
+.glass-stream-row.is-done .glass-stream-text {
+    opacity: 0.45;
+    text-decoration: line-through;
+}
+
+.glass-stream-grip {
+    display: inline-flex;
+    width: 18px;
+    height: 26px;
+    shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--glass-muted);
+    opacity: 0;
+    cursor: grab;
+    transition: opacity 120ms ease;
+}
+
+.glass-stream-row:hover .glass-stream-grip,
+.glass-stream-row.is-active .glass-stream-grip {
+    opacity: 1;
+}
+
+.glass-stream-grip:active {
+    cursor: grabbing;
+}
+
+.glass-stream-check {
+    display: inline-flex;
+    width: 17px;
+    height: 17px;
+    shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1.5px solid color-mix(in srgb, var(--glass-ink) 28%, transparent);
+    background: color-mix(in srgb, white 35%, transparent);
+    color: var(--glass-ink);
+}
+
+.glass-stream-check.is-checked {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--glass-accent) 70%, white);
+    color: white;
+}
+
+.glass-stream-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.glass-stream-input,
+.glass-stream-text {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--glass-ink);
+    caret-color: var(--glass-ink);
+    font-size: 13.5px;
+    line-height: 1.45;
+    outline: none;
+}
+
+.glass-stream-input::placeholder {
+    color: color-mix(in srgb, var(--glass-muted) 90%, transparent);
+}
+
+.glass-stream-text.is-heading {
+    font-weight: 650;
+    letter-spacing: -0.02em;
+}
+
+.glass-stream-trailing {
+    display: flex;
+    shrink: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    max-width: 46%;
+}
+
+.glass-stream-tag {
+    max-width: 5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.glass-stream-row-actions {
+    display: flex;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.glass-stream-row.is-active .glass-stream-row-actions,
+.glass-stream-row:focus-within .glass-stream-row-actions,
+.glass-stream-row:hover .glass-stream-row-actions {
+    opacity: 1;
+}
+
+/* —— Appearance sheet —— */
+
+.glass-stream-sheet-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 12;
+    display: flex;
+    align-items: flex-end;
+    background: color-mix(in srgb, var(--glass-ink) 12%, transparent);
+    animation: glass-stream-fade-in 160ms ease;
+}
+
+.glass-stream-sheet {
+    width: 100%;
+    max-height: min(80%, 540px);
+    overflow: auto;
+    border-top: 1px solid color-mix(in srgb, var(--glass-accent) 35%, transparent);
+    background: color-mix(in srgb, white 72%, var(--glass-pane-bg, transparent));
+    backdrop-filter: blur(28px) saturate(1.2);
+    -webkit-backdrop-filter: blur(28px) saturate(1.2);
+    animation: glass-stream-slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glass-stream-resize {
+    position: absolute;
+    z-index: 20;
+}
+
+.glass-stream-resize[data-edge='n'] { top: 0; left: 12px; right: 12px; height: 8px; cursor: n-resize; }
+.glass-stream-resize[data-edge='s'] { bottom: 0; left: 12px; right: 12px; height: 8px; cursor: s-resize; }
+.glass-stream-resize[data-edge='e'] { top: 12px; bottom: 12px; right: 0; width: 8px; cursor: e-resize; }
+.glass-stream-resize[data-edge='w'] { top: 12px; bottom: 12px; left: 0; width: 8px; cursor: w-resize; }
+.glass-stream-resize[data-edge='ne'] { top: 0; right: 0; width: 14px; height: 14px; cursor: ne-resize; }
+.glass-stream-resize[data-edge='nw'] { top: 0; left: 0; width: 14px; height: 14px; cursor: nw-resize; }
+.glass-stream-resize[data-edge='se'] { bottom: 0; right: 0; width: 16px; height: 16px; cursor: se-resize; }
+.glass-stream-resize[data-edge='sw'] { bottom: 0; left: 0; width: 14px; height: 14px; cursor: sw-resize; }
+
+@keyframes glass-stream-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes glass-stream-slide-up {
+    from { transform: translateY(10px); opacity: 0.94; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Appearance sheet — modern */
+
+.glass-look-sheet {
+    padding: 0;
+}
+
+.glass-look-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 16px 12px;
+}
+
+.glass-look-hero-title {
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    color: var(--glass-ink);
+}
+
+.glass-look-hero-sub {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--glass-muted);
+}
+
+.glass-look-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 0 16px 14px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+}
+
+.glass-look-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.glass-look-card {
+    flex: 0 0 auto;
+    width: 88px;
+    scroll-snap-align: start;
+    border: 1px solid color-mix(in srgb, var(--glass-ink) 8%, transparent);
+    border-radius: 16px;
+    padding: 8px 8px 7px;
+    background: color-mix(in srgb, white 28%, transparent);
+    cursor: pointer;
+    transition: border-color 140ms ease, transform 140ms ease, background-color 140ms ease;
+}
+
+.glass-look-card:hover {
+    background: color-mix(in srgb, white 38%, transparent);
+}
+
+.glass-look-card.is-active {
+    border-color: color-mix(in srgb, var(--glass-accent) 55%, transparent);
+    background: color-mix(in srgb, var(--glass-accent) 14%, transparent);
+    transform: translateY(-2px);
+}
+
+.glass-look-card-swatch {
+    display: block;
+    width: 100%;
+    height: 44px;
+    border-radius: 12px;
+}
+
+.glass-look-card-label {
+    margin-top: 6px;
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: center;
+    color: var(--glass-muted);
+}
+
+.glass-look-card.is-active .glass-look-card-label {
+    color: var(--glass-ink);
+    font-weight: 600;
+}
+
+.glass-look-panel {
+    margin: 0 12px 12px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--glass-ink) 8%, transparent);
+    background: color-mix(in srgb, white 22%, transparent);
+    padding: 12px 14px;
+}
+
+.glass-look-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.glass-look-field-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.glass-look-field-row:last-child {
+    margin-bottom: 0;
+}
+
+.glass-look-slider-group + .glass-look-slider-group {
+    margin-top: 14px;
+}
+
+.glass-look-field-label {
+    font-size: 12px;
+    color: var(--glass-muted);
+}
+
+.glass-look-field-value {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--glass-ink);
+    opacity: 0.85;
+}
+
+.glass-look-color-btn {
+    position: relative;
+    display: block;
+    height: 36px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--glass-ink) 10%, transparent);
+    overflow: hidden;
+}
+
+.glass-look-color-btn input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.glass-look-done {
+    display: inline-flex;
+    height: 32px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--glass-accent) 16%, white);
+    color: var(--glass-ink);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.glass-look-done:hover {
+    background: color-mix(in srgb, var(--glass-accent) 26%, white);
+}
+
+.glass-look-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--glass-ink) 12%, transparent);
+    outline: none;
+}
+
+.glass-look-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid white;
+    border-radius: 50%;
+    background: var(--glass-ink);
+    box-shadow: 0 2px 6px rgba(30, 45, 70, 0.15);
+    cursor: pointer;
+}
+
+.glass-look-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: 2px solid white;
+    border-radius: 50%;
+    background: var(--glass-ink);
+    box-shadow: 0 2px 6px rgba(30, 45, 70, 0.15);
+    cursor: pointer;
+}

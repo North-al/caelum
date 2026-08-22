@@ -227,12 +227,24 @@ export const allocateUniqueFileName = async (directory: string, desiredName: str
 
 export const isMarkdownFile = (value: string) => {
   const lower = value.toLowerCase()
-  return lower.endsWith(".md") || lower.endsWith(".markdown")
+  return lower.endsWith(".md") || lower.endsWith(".markdown") || lower.endsWith(".mdx")
 }
 
 export const isTextFile = (value: string) => {
   const lower = value.toLowerCase()
-  return lower.endsWith(".txt") || lower.endsWith(".ini")
+  return (
+    lower.endsWith(".txt") ||
+    lower.endsWith(".ini") ||
+    lower.endsWith(".log") ||
+    lower.endsWith(".csv") ||
+    lower.endsWith(".env") ||
+    lower.endsWith(".toml") ||
+    lower.endsWith(".yaml") ||
+    lower.endsWith(".yml") ||
+    lower.endsWith(".conf") ||
+    lower.endsWith(".cfg") ||
+    lower.endsWith(".properties")
+  )
 }
 
 export const initializeWorkspace = async (): Promise<WorkspaceConfig> =>

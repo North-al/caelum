@@ -3,7 +3,7 @@ import { getFileExtension } from "~/lib/file-types"
 import { readTextFile, writeTextFile } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
 
-const FORMATABLE = new Set(["md", "markdown", "json", "xml", "svg", "ini"])
+const FORMATABLE = new Set(["md", "markdown", "mdx", "json", "jsonc", "xml", "svg", "ini", "html", "htm"])
 
 export const canFormatPath = (path: string) => FORMATABLE.has(getFileExtension(path).toLowerCase())
 

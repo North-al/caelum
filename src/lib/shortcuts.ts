@@ -21,6 +21,7 @@ export const APP_SHORTCUTS: ShortcutGroup[] = [
       { keys: ["Shift", "Shift"], action: "快速打开 / 切换文件（双击 Shift）" },
       { keys: ["Alt", "←"], action: "切换到上一个标签" },
       { keys: ["Alt", "→"], action: "切换到下一个标签" },
+      { keys: ["Ctrl", "Alt", "N"], action: "全局唤起快捷便签（再按一次收起）" },
       { keys: ["F5"], action: "刷新资源管理器" },
     ],
   },
@@ -39,6 +40,16 @@ export const APP_SHORTCUTS: ShortcutGroup[] = [
       { keys: ["Ctrl", "G"], action: "跳转到指定行（可拖动，位置记忆）" },
       { keys: ["Esc"], action: "关闭查找 / 跳转 / 快速打开" },
       { keys: ["Ctrl", "滚轮"], action: "缩放编辑区字号" },
+    ],
+  },
+  {
+    id: "scratch",
+    title: "快捷便签",
+    description: "桌面临时纸条",
+    items: [
+      { keys: ["Ctrl", "Alt", "N"], action: "全局唤起 / 收起便签窗口" },
+      { keys: ["Esc"], action: "关闭当前便签窗口；便签板返回工作区" },
+      { keys: ["Ctrl", "Enter"], action: "在书写与预览间切换" },
     ],
   },
   {

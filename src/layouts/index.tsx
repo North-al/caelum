@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { Outlet } from "react-router"
+import { Outlet, useNavigate } from "react-router"
 import { listen } from "@tauri-apps/api/event"
 import { TooltipProvider } from "~/components/ui/tooltip"
 import { Toaster } from "~/components/ui/sonner"
@@ -7,6 +7,33 @@ import { ThemeSync } from "~/components/App/ThemeSync"
 import { useWindowSizeMemory } from "~/hooks/use-window-size-memory"
 import { getLaunchFilePaths } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
+
+const ScratchPromoteBridge = () => {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    void listen<string>("scratch-promoted", (event) => {
+      const path = event.payload
+      if (!path) {
+        return
+      }
+      navigate("/")
+      void (async () => {
+        const store = useWorkspaceStore.getState()
+        await store.refreshTree()
+        await store.selectFile(path)
+      })()
+    }).then((fn) => {
+      unlisten = fn
+    })
+    return () => {
+      unlisten?.()
+    }
+  }, [navigate])
+
+  return null
+}
 
 export const Layouts = () => {
   const initialize = useWorkspaceStore((state) => state.initialize)
@@ -60,6 +87,7 @@ export const Layouts = () => {
     <TooltipProvider delay={200}>
       <main className="app-mica relative h-full w-full overflow-hidden text-foreground">
         <ThemeSync />
+        <ScratchPromoteBridge />
         <Outlet />
         <Toaster />
       </main>

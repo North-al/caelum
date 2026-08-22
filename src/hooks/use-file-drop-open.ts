@@ -7,7 +7,7 @@ import { EXPLORER_ZONE_ATTR, findDropDirFromPoint } from "~/lib/dnd"
 import { isDropOpenablePath } from "~/lib/file-types"
 import { useWorkspaceStore } from "~/store/workspace"
 
-const SUPPORTED_DROP_HINT = ".md / .txt / .ini / .json / .xml"
+const SUPPORTED_DROP_HINT = "Markdown / 配置 / 源码等文本文件"
 
 export type ExternalDropZone = "explorer" | "preview" | null
 

@@ -1,20 +1,67 @@
 import { useEffect, useMemo, useRef } from "react"
 import { convertFileSrc } from "@tauri-apps/api/core"
 import hljs from "highlight.js/lib/core"
-import json from "highlight.js/lib/languages/json"
-import xml from "highlight.js/lib/languages/xml"
+import bash from "highlight.js/lib/languages/bash"
+import c from "highlight.js/lib/languages/c"
+import cpp from "highlight.js/lib/languages/cpp"
+import csharp from "highlight.js/lib/languages/csharp"
+import css from "highlight.js/lib/languages/css"
+import dockerfile from "highlight.js/lib/languages/dockerfile"
+import dos from "highlight.js/lib/languages/dos"
+import go from "highlight.js/lib/languages/go"
+import graphql from "highlight.js/lib/languages/graphql"
 import ini from "highlight.js/lib/languages/ini"
+import java from "highlight.js/lib/languages/java"
+import javascript from "highlight.js/lib/languages/javascript"
+import json from "highlight.js/lib/languages/json"
+import kotlin from "highlight.js/lib/languages/kotlin"
+import less from "highlight.js/lib/languages/less"
+import makefile from "highlight.js/lib/languages/makefile"
+import markdown from "highlight.js/lib/languages/markdown"
+import plaintext from "highlight.js/lib/languages/plaintext"
+import powershell from "highlight.js/lib/languages/powershell"
+import python from "highlight.js/lib/languages/python"
+import rust from "highlight.js/lib/languages/rust"
+import scss from "highlight.js/lib/languages/scss"
+import sql from "highlight.js/lib/languages/sql"
+import typescript from "highlight.js/lib/languages/typescript"
+import xml from "highlight.js/lib/languages/xml"
+import yaml from "highlight.js/lib/languages/yaml"
 
 import { PreviewEmptyHint } from "~/components/App/EditorEmptyGuide"
 import { WikiAwareText } from "~/components/App/WikiAwareText"
 import { tryFormatByExtension } from "~/lib/format-code"
-import { getFileExtension, getPreviewKind } from "~/lib/file-types"
+import { getFileExtension, getHighlightLanguage, getPreviewKind } from "~/lib/file-types"
 import { normalizePath } from "~/lib/workspace"
 import { cn } from "~/lib/utils"
 
-hljs.registerLanguage("json", json)
-hljs.registerLanguage("xml", xml)
+hljs.registerLanguage("bash", bash)
+hljs.registerLanguage("c", c)
+hljs.registerLanguage("cpp", cpp)
+hljs.registerLanguage("csharp", csharp)
+hljs.registerLanguage("css", css)
+hljs.registerLanguage("dockerfile", dockerfile)
+hljs.registerLanguage("dos", dos)
+hljs.registerLanguage("go", go)
+hljs.registerLanguage("graphql", graphql)
 hljs.registerLanguage("ini", ini)
+hljs.registerLanguage("java", java)
+hljs.registerLanguage("javascript", javascript)
+hljs.registerLanguage("json", json)
+hljs.registerLanguage("kotlin", kotlin)
+hljs.registerLanguage("less", less)
+hljs.registerLanguage("makefile", makefile)
+hljs.registerLanguage("markdown", markdown)
+hljs.registerLanguage("plaintext", plaintext)
+hljs.registerLanguage("powershell", powershell)
+hljs.registerLanguage("python", python)
+hljs.registerLanguage("rust", rust)
+hljs.registerLanguage("scss", scss)
+hljs.registerLanguage("sql", sql)
+hljs.registerLanguage("typescript", typescript)
+hljs.registerLanguage("xml", xml)
+hljs.registerLanguage("yaml", yaml)
+// protobuf is optional in some hljs builds — map to plaintext fallback via getHighlightLanguage
 
 interface Props {
   path: string
@@ -22,13 +69,6 @@ interface Props {
   className?: string
   containerRef?: React.RefObject<HTMLDivElement | null>
   onScroll?: (scrollTop: number) => void
-}
-
-const highlightLanguage = (extension: string) => {
-  if (extension === "json") return "json"
-  if (extension === "xml" || extension === "svg") return "xml"
-  if (extension === "ini") return "ini"
-  return null
 }
 
 export const CodePreview = ({ path, content, className, containerRef, onScroll }: Props) => {
@@ -52,16 +92,19 @@ export const CodePreview = ({ path, content, className, containerRef, onScroll }
   }, [content, extension])
 
   const highlighted = useMemo(() => {
-    const language = highlightLanguage(extension)
-    if (!language || !display.trim()) {
+    const language = getHighlightLanguage(path)
+    if (!language || language === "plaintext" || !display.trim()) {
       return null
     }
     try {
+      if (!hljs.getLanguage(language)) {
+        return null
+      }
       return hljs.highlight(display, { language }).value
     } catch {
       return null
     }
-  }, [display, extension])
+  }, [display, path])
 
   const svgObjectUrl = useMemo(() => {
     if (kind !== "svg") {

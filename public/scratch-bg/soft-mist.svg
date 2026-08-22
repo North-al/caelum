@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="mist" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eef6fc"/>
+      <stop offset="45%" stop-color="#f8fbfe"/>
+      <stop offset="100%" stop-color="#dceaf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" fill="url(#mist)"/>
+</svg>

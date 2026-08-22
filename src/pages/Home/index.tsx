@@ -549,12 +549,12 @@ const Home = () => {
               </div>
               <div className="text-xs text-muted-foreground">
                 {dropZone === "explorer"
-                  ? "将复制 .md / .txt / .ini / .json / .xml 到当前工作区"
+                  ? "将复制文本 / 配置 / 源码文件到当前工作区"
                   : dragKind === "image"
                     ? "图片将复制到 assets 并以相对路径写入 Markdown"
                     : dragKind === "unsupported"
                       ? "当前不支持该类型文件打开"
-                      : "支持 .md / .txt / .ini / .json / .xml"}
+                      : "支持 Markdown、配置与常见源码文本"}
               </div>
             </div>
           </div>

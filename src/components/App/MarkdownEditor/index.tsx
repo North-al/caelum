@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react"
 import CodeMirror from "@uiw/react-codemirror"
+import { css } from "@codemirror/lang-css"
+import { go } from "@codemirror/lang-go"
+import { html } from "@codemirror/lang-html"
+import { java } from "@codemirror/lang-java"
+import { javascript } from "@codemirror/lang-javascript"
 import { json } from "@codemirror/lang-json"
 import { markdown } from "@codemirror/lang-markdown"
+import { python } from "@codemirror/lang-python"
+import { rust } from "@codemirror/lang-rust"
+import { sql } from "@codemirror/lang-sql"
 import { xml } from "@codemirror/lang-xml"
+import { yaml } from "@codemirror/lang-yaml"
 import { indentUnit, StreamLanguage } from "@codemirror/language"
 import { EditorState } from "@codemirror/state"
 import { oneDark } from "@codemirror/theme-one-dark"
@@ -33,7 +42,8 @@ import {
   isImagePath,
 } from "~/lib/assets"
 import { tryFormatByExtension } from "~/lib/format-code"
-import { getFileExtension, isMarkdownPath } from "~/lib/file-types"
+import { getFileBasename, getFileExtension, isMarkdownPath } from "~/lib/file-types"
+import { canFormatPath } from "~/lib/format-document"
 import { writeTextToClipboard } from "~/lib/workspace"
 import { defaultSettings } from "~/lib/workspace"
 import { useWorkspaceStore } from "~/store/workspace"
@@ -102,20 +112,72 @@ const iniLanguage = StreamLanguage.define({
 })
 
 const languageExtensionForPath = (path: string | null) => {
-  const extension = path ? getFileExtension(path) : "md"
-  if (extension === "json") {
-    return json()
+  if (!path) {
+    return markdown()
   }
-  if (extension === "xml" || extension === "svg") {
-    return xml()
-  }
-  if (extension === "ini") {
-    return iniLanguage
-  }
-  if (extension === "txt") {
+  const base = getFileBasename(path).toLowerCase()
+  const extension = getFileExtension(path)
+
+  if (base === "dockerfile" || base.startsWith("dockerfile.")) {
     return []
   }
-  return markdown()
+  if (extension === "json" || extension === "jsonc" || extension === "json5") {
+    return json()
+  }
+  if (extension === "yaml" || extension === "yml") {
+    return yaml()
+  }
+  if (extension === "html" || extension === "htm") {
+    return html()
+  }
+  if (extension === "xml" || extension === "svg" || extension === "vue" || extension === "svelte") {
+    return xml()
+  }
+  if (extension === "css" || extension === "scss" || extension === "less") {
+    return css()
+  }
+  if (
+    extension === "js" ||
+    extension === "mjs" ||
+    extension === "cjs" ||
+    extension === "jsx" ||
+    extension === "ts" ||
+    extension === "tsx"
+  ) {
+    return javascript({
+      typescript: extension === "ts" || extension === "tsx",
+      jsx: extension === "jsx" || extension === "tsx",
+    })
+  }
+  if (extension === "py") {
+    return python()
+  }
+  if (extension === "go") {
+    return go()
+  }
+  if (extension === "rs") {
+    return rust()
+  }
+  if (extension === "java" || extension === "kt" || extension === "kts") {
+    return java()
+  }
+  if (extension === "sql") {
+    return sql()
+  }
+  if (extension === "ini" || extension === "env" || extension === "properties" || extension === "conf" || extension === "cfg" || extension === "toml" || extension === "config") {
+    return iniLanguage
+  }
+  if (base === ".env" || base.startsWith(".env.") || base === ".editorconfig" || base === ".npmrc" || base === ".nvmrc") {
+    return iniLanguage
+  }
+  if (extension === "md" || extension === "markdown" || extension === "mdx") {
+    return markdown()
+  }
+  if (extension === "txt" || extension === "log" || extension === "csv") {
+    return []
+  }
+  // Shell / C-family / etc. — editable as plain text
+  return []
 }
 
 const subscribeSystemDark = (onChange: () => void) => {
@@ -150,7 +212,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
   const allowImageInsert = Boolean(selectedFilePath && isMarkdownPath(selectedFilePath))
   const languageExtension = useMemo(() => languageExtensionForPath(selectedFilePath), [selectedFilePath])
   const extension = selectedFilePath ? getFileExtension(selectedFilePath) : ""
-  const canFormat = ["md", "markdown", "json", "xml", "svg", "ini"].includes(extension)
+  const canFormat = Boolean(selectedFilePath && canFormatPath(selectedFilePath))
   const isMarkdown = Boolean(selectedFilePath && isMarkdownPath(selectedFilePath))
   const rawFamily = settings?.editorFontFamily?.trim() || MONO_STACK
   const fontFamily = isMarkdown ? SANS_STACK : rawFamily || MONO_STACK

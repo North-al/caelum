@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="au" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eef6ff"/>
+      <stop offset="35%" stop-color="#f8f4ff"/>
+      <stop offset="70%" stop-color="#e8fff4"/>
+      <stop offset="100%" stop-color="#f0f8ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" fill="url(#au)"/>
+</svg>
