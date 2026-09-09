@@ -134,26 +134,41 @@ export const useContentFontZoom = (
       if (event.altKey || event.shiftKey) {
         return
       }
-      const isZero = event.key === "0" || event.code === "Digit0" || event.code === "Numpad0"
+      const isZero =
+        event.key === "0" ||
+        event.code === "Digit0" ||
+        event.code === "Numpad0" ||
+        event.key === "Digit0" ||
+        event.key === "Numpad0"
       if (!isZero) {
         return
       }
 
       const root = containerRef.current
-      if (!root) {
+      if (!root?.isConnected) {
         return
       }
-      const active = document.activeElement
-      const target = event.target
-      const inside =
-        (active instanceof Node && root.contains(active)) ||
-        (target instanceof Node && root.contains(target))
-      if (!inside) {
+
+      // Preview content is often not focused (activeElement stays on body).
+      // Only skip when typing in an unrelated form control outside this surface.
+      const isForeignField = (node: EventTarget | null) => {
+        if (!(node instanceof HTMLElement)) {
+          return false
+        }
+        if (root.contains(node)) {
+          return false
+        }
+        return Boolean(node.closest("input, textarea, select, [contenteditable='true']"))
+      }
+      if (isForeignField(event.target) || isForeignField(document.activeElement)) {
         return
       }
 
       event.preventDefault()
       event.stopPropagation()
+      if (typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation()
+      }
       commitSize(root, DEFAULT_CONTENT_FONT_SIZE)
     }
 

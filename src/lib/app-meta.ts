@@ -1,5 +1,5 @@
 /** App version — keep in sync with package.json / tauri.conf.json / Cargo.toml */
-export const APP_VERSION = '2.0 beta'
+export const APP_VERSION = '2.0.0'
 
 /** Public source repository */
 export const APP_REPO_URL = 'https://github.com/North-al/caelum'
@@ -17,11 +17,25 @@ export const APP_FEATURES = [
     '多标签页脏标记：未保存文件在标签上显示圆点',
     '大纲面板、窗口尺寸与阅读位置记忆',
     '笔记双链 [[名称]]：预览点击跳转；重命名自动同步引用',
-    'Ctrl + 滚轮缩放编辑区字号，主题与强调色可切换',
-            '快捷便签：全局唤起（默认 Ctrl+Alt+N，可在设置中修改）、待办 / 长文双模式，便签板整理后再写入正式笔记',
+    'Ctrl + 滚轮缩放编辑 / 预览字号，Ctrl+0 恢复默认；主题与强调色可切换',
+    '快捷便签：全局唤起（默认 Ctrl+Alt+N，可在设置中修改）、待办 / 长文双模式，便签板整理后再写入正式笔记',
 ] as const
 
 export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string[] }> = [
+    {
+        version: '2.0.0',
+        date: '2026-09-09',
+        notes: [
+            '快捷便签正式版：独立浮窗 + 便签板，全局唤起（默认 Ctrl+Alt+N，可在设置中自定义）',
+            '便签双模式：待办清单（回车 / 双击新增、拖动挤位排序）与便签长文（阅读模式仅长文可用）',
+            '便签外观：五种主题预设，透明度 / 圆角可调，支持恢复默认；便签板顶栏工具与卡片拖动优化',
+            '修复关闭便签后主窗口无法再次打开（隐藏窗口残留进程）；启动时按记忆尺寸显示，避免加载跳变',
+            '新建文档按「默认打开模式」进入编辑 / 预览；产品默认改为编辑模式',
+            'Markdown 格式化对齐 Prettier；Alt+Shift+F 格式化当前文档',
+            '编辑与纯预览均支持 Ctrl+滚轮缩放字号，Ctrl+0 恢复默认；预览缩放不再带动滚动条',
+            '工作区配置与 Rust 后端模块拆分，便于维护',
+        ],
+    },
     {
         version: '2.0 beta',
         date: '2026-08-22',

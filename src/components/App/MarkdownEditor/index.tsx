@@ -341,20 +341,35 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
       if (event.altKey || event.shiftKey) {
         return
       }
-      const isZero = event.key === "0" || event.code === "Digit0" || event.code === "Numpad0"
+      const isZero =
+        event.key === "0" ||
+        event.code === "Digit0" ||
+        event.code === "Numpad0" ||
+        event.key === "Digit0" ||
+        event.key === "Numpad0"
       if (!isZero) {
         return
       }
-      const active = document.activeElement
-      const target = event.target
-      const inside =
-        (active instanceof Node && element.contains(active)) ||
-        (target instanceof Node && element.contains(target))
-      if (!inside) {
+      if (!element.isConnected) {
+        return
+      }
+      const isForeignField = (node: EventTarget | null) => {
+        if (!(node instanceof HTMLElement)) {
+          return false
+        }
+        if (element.contains(node)) {
+          return false
+        }
+        return Boolean(node.closest("input, textarea, select, [contenteditable='true']"))
+      }
+      if (isForeignField(event.target) || isForeignField(document.activeElement)) {
         return
       }
       event.preventDefault()
       event.stopPropagation()
+      if (typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation()
+      }
       commitSize(DEFAULT_EDITOR_FONT_SIZE)
     }
 
@@ -703,6 +718,14 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
                   { key: "Mod-d", run: copyLineDown, preventDefault: true },
                   { key: "Mod-j", run: selectNextOccurrence, preventDefault: true },
                   { key: "Mod-g", run: openGotoLinePanel, preventDefault: true },
+                  {
+                    key: "Mod-0",
+                    run: () => {
+                      applyFontSize(DEFAULT_EDITOR_FONT_SIZE)
+                      return true
+                    },
+                    preventDefault: true,
+                  },
                   {
                     key: "Alt-Shift-f",
                     run: () => {
