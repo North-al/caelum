@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { convertFileSrc } from "@tauri-apps/api/core"
 import hljs from "highlight.js/lib/core"
 import bash from "highlight.js/lib/languages/bash"
@@ -83,12 +83,22 @@ export const CodePreview = ({ path, content, className, containerRef, onScroll }
     }
   }
 
-  const display = useMemo(() => {
+  const [display, setDisplay] = useState(content)
+
+  useEffect(() => {
+    let alive = true
     if (!content.trim()) {
-      return ""
+      setDisplay("")
+      return
     }
-    const formatted = tryFormatByExtension(extension, content)
-    return formatted ?? content
+    void tryFormatByExtension(extension, content).then((formatted) => {
+      if (alive) {
+        setDisplay(formatted ?? content)
+      }
+    })
+    return () => {
+      alive = false
+    }
   }, [content, extension])
 
   const highlighted = useMemo(() => {

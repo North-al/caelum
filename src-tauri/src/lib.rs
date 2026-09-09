@@ -1,778 +1,88 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-
-use serde::{Deserialize, Serialize};
-
 mod clipboard;
+mod config;
+mod fs_ops;
+mod hotkey;
+mod launch;
 mod scratch;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct AppSettings {
-    theme_mode: String,
-    theme_color: String,
-    editor_font_size: u32,
-    editor_font_family: String,
-    show_line_numbers: bool,
-    word_wrap: bool,
-    tab_size: u32,
-    code_highlight: bool,
-    #[serde(default = "default_code_highlight_theme")]
-    code_highlight_theme: String,
-    #[serde(default = "default_code_block_line_numbers")]
-    code_block_line_numbers: bool,
-    auto_save: bool,
-    auto_save_interval: u32,
-    start_with_last_file: bool,
-    #[serde(default = "default_scroll_sync")]
-    scroll_sync: bool,
-    #[serde(default = "default_confirm_invalid_extension")]
-    confirm_invalid_extension: bool,
-    language: String,
-}
+use std::sync::Mutex;
 
-fn default_scroll_sync() -> bool {
-    true
-}
-
-fn default_confirm_invalid_extension() -> bool {
-    true
-}
-
-fn default_code_highlight_theme() -> String {
-    "auto".to_string()
-}
-
-fn default_code_block_line_numbers() -> bool {
-    true
-}
-
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            theme_mode: "system".to_string(),
-            theme_color: "blue".to_string(),
-            editor_font_size: 14,
-            editor_font_family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace".to_string(),
-            show_line_numbers: true,
-            word_wrap: true,
-            tab_size: 2,
-            code_highlight: true,
-            code_highlight_theme: "auto".to_string(),
-            code_block_line_numbers: true,
-            auto_save: true,
-            auto_save_interval: 600,
-            start_with_last_file: true,
-            scroll_sync: true,
-            confirm_invalid_extension: true,
-            language: "zh-CN".to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct WorkspaceUiState {
-    #[serde(default = "default_open_mode")]
-    default_open_mode: String,
-    #[serde(default = "default_last_view_mode")]
-    last_view_mode: String,
-    #[serde(default)]
-    active_file_path: Option<String>,
-    #[serde(default)]
-    open_files: Vec<String>,
-    #[serde(default = "default_split_ratio")]
-    split_ratio: f64,
-    #[serde(default = "default_split_orientation")]
-    split_orientation: String,
-    #[serde(default)]
-    reading_positions: std::collections::HashMap<String, serde_json::Value>,
-    #[serde(default)]
-    sidebar_collapsed: bool,
-    #[serde(default)]
-    outline_visible: bool,
-    #[serde(default = "default_outline_width")]
-    outline_width: f64,
-    #[serde(default = "default_window_width")]
-    window_width: f64,
-    #[serde(default = "default_window_height")]
-    window_height: f64,
-}
-
-fn default_open_mode() -> String {
-    "preview".to_string()
-}
-
-fn default_last_view_mode() -> String {
-    "preview".to_string()
-}
-
-fn default_split_ratio() -> f64 {
-    50.0
-}
-
-fn default_split_orientation() -> String {
-    "horizontal".to_string()
-}
-
-fn default_outline_width() -> f64 {
-    250.0
-}
-
-fn default_window_width() -> f64 {
-    1200.0
-}
-
-fn default_window_height() -> f64 {
-    760.0
-}
-
-impl Default for WorkspaceUiState {
-    fn default() -> Self {
-        Self {
-            default_open_mode: default_open_mode(),
-            last_view_mode: default_last_view_mode(),
-            active_file_path: None,
-            open_files: Vec::new(),
-            split_ratio: default_split_ratio(),
-            split_orientation: default_split_orientation(),
-            reading_positions: std::collections::HashMap::new(),
-            sidebar_collapsed: false,
-            outline_visible: false,
-            outline_width: default_outline_width(),
-            window_width: default_window_width(),
-            window_height: default_window_height(),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct WorkspaceConfig {
-    notes_path: String,
-    assets_path: String,
-    workspace_name: String,
-    recent_files: Vec<String>,
-    #[serde(default)]
-    settings: AppSettings,
-    #[serde(default)]
-    ui_state: WorkspaceUiState,
-}
-
-#[derive(Debug, Serialize)]
-struct WorkspacePaths {
-    notes_path: String,
-    assets_path: String,
-}
-
-#[derive(Debug, Serialize)]
-struct FileEntry {
-    id: String,
-    name: String,
-    #[serde(rename = "type")]
-    r#type: String,
-    path: String,
-    children: Vec<FileEntry>,
-}
-
-impl Default for WorkspaceConfig {
-    fn default() -> Self {
-        let paths = default_workspace_paths();
-        Self {
-            notes_path: paths.notes_path,
-            assets_path: paths.assets_path,
-            workspace_name: "Caelum".to_string(),
-            recent_files: Vec::new(),
-            settings: AppSettings::default(),
-            ui_state: WorkspaceUiState::default(),
-        }
-    }
-}
-
-fn default_workspace_paths() -> WorkspacePaths {
-    let home_dir = directories::BaseDirs::new()
-        .map(|base_dirs| base_dirs.home_dir().to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("."));
-    let documents_dir = directories::UserDirs::new()
-        .and_then(|user_dirs| user_dirs.document_dir().map(Path::to_path_buf))
-        .unwrap_or_else(|| home_dir.join("Documents"));
-    let caelum_root = documents_dir.join("caelum");
-
-    WorkspacePaths {
-        notes_path: caelum_root.join("notes").to_string_lossy().into_owned(),
-        assets_path: caelum_root.join("assets").to_string_lossy().into_owned(),
-    }
-}
-
-fn allocate_unique_path(dir: &Path, file_name: &str) -> PathBuf {
-    let candidate = dir.join(file_name);
-    if !candidate.exists() {
-        return candidate;
-    }
-
-    let path = Path::new(file_name);
-    let stem = path
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or("file");
-    let extension = path
-        .extension()
-        .and_then(|value| value.to_str())
-        .unwrap_or("");
-
-    for index in 1..10_000 {
-        let next_name = if extension.is_empty() {
-            format!("{stem} ({index})")
-        } else {
-            format!("{stem} ({index}).{extension}")
-        };
-        let next_path = dir.join(next_name);
-        if !next_path.exists() {
-            return next_path;
-        }
-    }
-
-    dir.join(format!("{stem}-{}.{}", std::process::id(), extension))
-}
-
-fn config_file_path() -> PathBuf {
-    let config_dir = directories::BaseDirs::new()
-        .map(|base_dirs| base_dirs.config_dir().to_path_buf())
-        .unwrap_or_else(|| PathBuf::from(".").join(".config"));
-    config_dir.join("caelum").join("config.json")
-}
-
-fn ensure_parent_directory(path: &Path) -> Result<(), String> {
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-        }
-    }
-    Ok(())
-}
-
-fn ensure_workspace_directories(config: &WorkspaceConfig) -> Result<(), String> {
-    fs::create_dir_all(Path::new(&config.notes_path)).map_err(|error| error.to_string())?;
-    fs::create_dir_all(Path::new(&config.assets_path)).map_err(|error| error.to_string())?;
-    Ok(())
-}
-
-fn seed_example_note_if_empty(config: &WorkspaceConfig) -> Result<(), String> {
-    let notes_dir = Path::new(&config.notes_path);
-    let notes_empty = fs::read_dir(notes_dir)
-        .map(|mut entries| entries.next().is_none())
-        .unwrap_or(true);
-
-    if notes_empty {
-        let math_guide = include_str!("../seed/math-guide.md");
-        let mermaid_guide = include_str!("../seed/mermaid-guide.md");
-        fs::write(notes_dir.join("数学公式入门.md"), math_guide)
-            .map_err(|error| error.to_string())?;
-        fs::write(notes_dir.join("Mermaid图表入门.md"), mermaid_guide)
-            .map_err(|error| error.to_string())?;
-    }
-
-    Ok(())
-}
-
-fn save_workspace_config_file(config: &WorkspaceConfig) -> Result<(), String> {
-    let file_path = config_file_path();
-    if let Some(parent) = file_path.parent() {
-        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    }
-
-    let content = serde_json::to_string_pretty(config).map_err(|error| error.to_string())?;
-    fs::write(file_path, content).map_err(|error| error.to_string())?;
-    Ok(())
-}
-
-fn build_tree(path: &Path) -> Result<Vec<FileEntry>, String> {
-    let mut entries = Vec::new();
-    let directory = fs::read_dir(path).map_err(|error| error.to_string())?;
-
-    for item in directory {
-        let entry = item.map_err(|error| error.to_string())?;
-        let entry_path = entry.path();
-        let file_type = entry.file_type().map_err(|error| error.to_string())?;
-        let name = entry.file_name().to_string_lossy().to_string();
-
-        if name.starts_with('.') {
-            if !is_visible_dotfile(&name) {
-                continue;
-            }
-        }
-
-        if file_type.is_dir() {
-            entries.push(FileEntry {
-                id: entry_path.to_string_lossy().into_owned(),
-                name: name.clone(),
-                r#type: "folder".to_string(),
-                path: entry_path.to_string_lossy().into_owned(),
-                children: build_tree(&entry_path)?,
-            })
-        } else if file_type.is_file() {
-            let extension = entry_path
-                .extension()
-                .and_then(|value| value.to_str())
-                .unwrap_or_default()
-                .to_lowercase();
-
-            if is_tree_visible_entry(&name, &extension) {
-                entries.push(FileEntry {
-                    id: entry_path.to_string_lossy().into_owned(),
-                    name,
-                    r#type: "file".to_string(),
-                    path: entry_path.to_string_lossy().into_owned(),
-                    children: Vec::new(),
-                })
-            }
-        }
-    }
-
-    entries.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
-    Ok(entries)
-}
-
-fn get_config_file_path() -> String {
-    config_file_path().to_string_lossy().replace('\\', "/")
-}
-
-#[tauri::command]
-fn get_default_workspace_paths() -> Result<WorkspacePaths, String> {
-    Ok(default_workspace_paths())
-}
-
-#[tauri::command]
-fn get_app_paths() -> Result<serde_json::Value, String> {
-    let defaults = default_workspace_paths();
-    Ok(serde_json::json!({
-        "configPath": get_config_file_path(),
-        "defaultNotesPath": defaults.notes_path.replace('\\', "/"),
-        "defaultAssetsPath": defaults.assets_path.replace('\\', "/"),
-    }))
-}
-
-#[tauri::command]
-fn load_workspace_config() -> Result<WorkspaceConfig, String> {
-    let config_path = config_file_path();
-    let is_new_config = !config_path.exists();
-    let mut config = if config_path.exists() {
-        let content = fs::read_to_string(&config_path).map_err(|error| error.to_string())?;
-        let mut config: WorkspaceConfig = serde_json::from_str(&content).map_err(|error| error.to_string())?;
-        if config.notes_path.is_empty() || config.assets_path.is_empty() {
-            let default_paths = default_workspace_paths();
-            config.notes_path = default_paths.notes_path;
-            config.assets_path = default_paths.assets_path;
-        }
-        config
-    } else {
-        WorkspaceConfig::default()
-    };
-
-    if config.settings.editor_font_size == 0 {
-        config.settings.editor_font_size = 14;
-    }
-    if config.settings.tab_size == 0 {
-        config.settings.tab_size = 2;
-    }
-    if config.settings.auto_save_interval == 0 {
-        config.settings.auto_save_interval = 600;
-    }
-
-    ensure_workspace_directories(&config)?;
-    if is_new_config {
-        seed_example_note_if_empty(&config)?;
-    }
-    save_workspace_config_file(&config)?;
-    Ok(config)
-}
-
-#[tauri::command]
-fn save_workspace_config(config: WorkspaceConfig) -> Result<WorkspaceConfig, String> {
-    ensure_workspace_directories(&config)?;
-    save_workspace_config_file(&config)?;
-    Ok(config)
-}
-
-#[tauri::command]
-fn list_notes_tree(path: String) -> Result<Vec<FileEntry>, String> {
-    let root_path = PathBuf::from(path);
-    if !root_path.exists() {
-        return Ok(Vec::new());
-    }
-
-    build_tree(&root_path)
-}
-
-#[tauri::command]
-fn read_text_file(path: String) -> Result<String, String> {
-    fs::read_to_string(path).map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn write_text_file(path: String, content: String) -> Result<(), String> {
-    let file_path = PathBuf::from(path);
-    ensure_parent_directory(&file_path)?;
-    fs::write(file_path, content).map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn path_exists(path: String) -> bool {
-    PathBuf::from(path).exists()
-}
-
-#[tauri::command]
-fn get_clipboard_file_paths() -> Result<Vec<String>, String> {
-    clipboard::read_file_paths()
-}
-
-#[tauri::command]
-fn set_clipboard_file_paths(paths: Vec<String>) -> Result<(), String> {
-    clipboard::write_file_paths(paths)
-}
-
-#[tauri::command]
-fn clipboard_read_text() -> Result<String, String> {
-    clipboard::read_text()
-}
-
-#[tauri::command]
-fn clipboard_write_text(text: String) -> Result<(), String> {
-    clipboard::write_text(text)
-}
-
-#[tauri::command]
-fn clipboard_read_image() -> Result<clipboard::ClipboardImage, String> {
-    clipboard::read_image()
-}
-
-#[tauri::command]
-fn clipboard_write_image(image: clipboard::ClipboardImage) -> Result<(), String> {
-    clipboard::write_image(image)
-}
-
-#[tauri::command]
-fn create_file_entry(path: String) -> Result<(), String> {
-    let file_path = PathBuf::from(path);
-    if file_path.exists() {
-        return Err("File already exists".to_string());
-    }
-    ensure_parent_directory(&file_path)?;
-    fs::write(file_path, "").map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn create_folder_entry(path: String) -> Result<(), String> {
-    let folder_path = PathBuf::from(path);
-    if folder_path.exists() {
-        return Err("Folder already exists".to_string());
-    }
-    fs::create_dir_all(folder_path).map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn rename_entry(old_path: String, new_path: String) -> Result<(), String> {
-    fs::rename(old_path, new_path).map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn delete_entry(path: String) -> Result<(), String> {
-    let entry_path = PathBuf::from(path);
-    if entry_path.is_dir() {
-        fs::remove_dir_all(entry_path).map_err(|error| error.to_string())
-    } else {
-        fs::remove_file(entry_path).map_err(|error| error.to_string())
-    }
-}
-
-#[tauri::command]
-fn move_entry(old_path: String, new_path: String) -> Result<(), String> {
-    fs::rename(old_path, new_path).map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-fn copy_file_entry(source: String, destination_dir: String) -> Result<String, String> {
-    let source_path = PathBuf::from(&source);
-    if !source_path.is_file() {
-        return Err("Source is not a file".to_string());
-    }
-
-    let dest_dir = PathBuf::from(&destination_dir);
-    fs::create_dir_all(&dest_dir).map_err(|error| error.to_string())?;
-
-    let file_name = source_path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(|| "Invalid source file name".to_string())?;
-    let destination = allocate_unique_path(&dest_dir, file_name);
-    fs::copy(&source_path, &destination).map_err(|error| error.to_string())?;
-    Ok(destination.to_string_lossy().into_owned())
-}
-
-#[tauri::command]
-fn copy_file_to_path(source: String, destination: String) -> Result<(), String> {
-    let destination_path = PathBuf::from(&destination);
-    ensure_parent_directory(&destination_path)?;
-    fs::copy(source, destination_path).map_err(|error| error.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
-fn write_binary_file(path: String, contents_base64: String) -> Result<(), String> {
-    use base64::{engine::general_purpose::STANDARD, Engine as _};
-
-    let bytes = STANDARD
-        .decode(contents_base64.trim())
-        .map_err(|error| format!("二进制内容解码失败: {error}"))?;
-    let file_path = PathBuf::from(path);
-    ensure_parent_directory(&file_path)?;
-    fs::write(file_path, bytes).map_err(|error| error.to_string())
-}
-
-fn is_special_text_name(name: &str) -> bool {
-    let lower = name.to_ascii_lowercase();
-    matches!(
-        lower.as_str(),
-        "dockerfile"
-            | "makefile"
-            | "gemfile"
-            | "procfile"
-            | ".env"
-            | ".gitignore"
-            | ".dockerignore"
-            | ".npmrc"
-            | ".nvmrc"
-            | ".editorconfig"
-            | ".eslintrc"
-            | ".prettierrc"
-            | ".babelrc"
-    ) || lower.starts_with(".env.")
-}
-
-fn is_editable_text_extension(extension: &str) -> bool {
-    matches!(
-        extension,
-        "md" | "markdown"
-            | "mdx"
-            | "txt"
-            | "log"
-            | "csv"
-            | "ini"
-            | "json"
-            | "jsonc"
-            | "json5"
-            | "xml"
-            | "yaml"
-            | "yml"
-            | "toml"
-            | "env"
-            | "properties"
-            | "conf"
-            | "cfg"
-            | "config"
-            | "html"
-            | "htm"
-            | "css"
-            | "scss"
-            | "less"
-            | "svg"
-            | "js"
-            | "mjs"
-            | "cjs"
-            | "ts"
-            | "jsx"
-            | "tsx"
-            | "vue"
-            | "svelte"
-            | "sh"
-            | "bash"
-            | "zsh"
-            | "ps1"
-            | "bat"
-            | "cmd"
-            | "py"
-            | "go"
-            | "rs"
-            | "java"
-            | "kt"
-            | "kts"
-            | "c"
-            | "h"
-            | "cpp"
-            | "cc"
-            | "cxx"
-            | "hpp"
-            | "cs"
-            | "sql"
-            | "graphql"
-            | "gql"
-            | "proto"
-    )
-}
-
-fn is_image_extension(extension: &str) -> bool {
-    matches!(
-        extension,
-        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "avif" | "svg"
-    )
-}
-
-fn is_visible_dotfile(name: &str) -> bool {
-    if is_special_text_name(name) {
-        return true;
-    }
-    let lower = name.to_ascii_lowercase();
-    let extension = Path::new(&lower)
-        .extension()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default();
-    is_editable_text_extension(extension)
-}
-
-fn is_tree_visible_entry(name: &str, extension: &str) -> bool {
-    if is_special_text_name(name) {
-        return true;
-    }
-    is_editable_text_extension(extension) || is_image_extension(extension)
-}
-
-fn is_openable_note_path(path: &str) -> bool {
-    let lower = path.to_ascii_lowercase();
-    let path_obj = Path::new(&lower);
-    let name = path_obj
-        .file_name()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default();
-    let extension = path_obj
-        .extension()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default();
-    is_tree_visible_entry(name, extension)
-}
-
-fn collect_openable_paths(args: &[String]) -> Vec<String> {
-    args.iter()
-        .skip(1)
-        .filter(|argument| !argument.starts_with('-'))
-        .filter(|argument| is_openable_note_path(argument))
-        .map(|argument| {
-            let resolved = PathBuf::from(argument)
-                .canonicalize()
-                .unwrap_or_else(|_| PathBuf::from(argument));
-            let mut path = resolved.to_string_lossy().into_owned();
-            if let Some(stripped) = path.strip_prefix(r"\\?\") {
-                path = stripped.to_string();
-            }
-            path.replace('\\', "/")
-        })
-        .collect()
-}
-
-/// Launch file paths captured once at process start. First command call takes them;
-/// subsequent calls return an empty list (CLI args are only meaningful on cold start).
-static LAUNCH_FILE_PATHS: Mutex<Option<Vec<String>>> = Mutex::new(None);
-
-fn ensure_launch_paths_cached() {
-    let mut guard = LAUNCH_FILE_PATHS
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    if guard.is_none() {
-        let args: Vec<String> = std::env::args().collect();
-        *guard = Some(collect_openable_paths(&args));
-    }
-}
-
-/// Paths passed via CLI / file association (e.g. double-click a .md file).
-/// Consumed on first read so remounting the frontend does not reopen the same files.
-#[tauri::command]
-fn get_launch_file_paths() -> Vec<String> {
-    ensure_launch_paths_cached();
-    let mut guard = LAUNCH_FILE_PATHS
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
-    guard.take().unwrap_or_default()
-}
+use hotkey::ScratchHotkeyState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    use tauri::{Emitter, Manager};
+    use tauri::{Emitter, Manager, WindowEvent};
 
     tauri::Builder::default()
+        .manage(ScratchHotkeyState {
+            current: Mutex::new(String::new()),
+        })
         .setup(|app| {
-            ensure_launch_paths_cached();
+            launch::ensure_launch_paths_cached();
             app.manage(scratch::ScratchManager::load());
 
             #[cfg(desktop)]
             {
-                use tauri_plugin_global_shortcut::ShortcutState;
-
-                let shortcut_plugin = match tauri_plugin_global_shortcut::Builder::new()
-                    .with_shortcuts(["ctrl+alt+n"])
+                if let Err(error) = app
+                    .handle()
+                    .plugin(tauri_plugin_global_shortcut::Builder::new().build())
                 {
-                    Ok(builder) => builder
-                        .with_handler(|app, _shortcut, event| {
-                            if event.state == ShortcutState::Pressed {
-                                let app = app.clone();
-                                let _ = std::thread::Builder::new()
-                                    .name("caelum-scratch-hotkey".into())
-                                    .spawn(move || {
-                                        if let Err(error) = scratch::toggle_scratch_capture(&app) {
-                                            eprintln!("scratch capture: {error}");
-                                        }
-                                    });
-                            }
-                        })
-                        .build(),
-                    Err(error) => {
-                        eprintln!("global shortcut unavailable: {error}");
-                        tauri_plugin_global_shortcut::Builder::new().build()
-                    }
-                };
-
-                if let Err(error) = app.handle().plugin(shortcut_plugin) {
                     eprintln!("failed to init global shortcut plugin: {error}");
+                } else {
+                    let preferred = hotkey::load_scratch_hotkey_preference();
+                    if let Err(error) = hotkey::register_scratch_hotkey(app.handle(), &preferred) {
+                        eprintln!("global shortcut unavailable: {error}");
+                    }
                 }
             }
 
+            // Size before first paint so loading doesn't flash the default 1200×760 window.
+            launch::reveal_main_window(app.handle());
+
             Ok(())
         })
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            let paths = collect_openable_paths(&argv);
-            let _ = app.emit("open-files", paths);
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
+        .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return;
             }
+            if let WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed = event {
+                scratch::destroy_all_scratch_windows(window.app_handle());
+            }
+        })
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let paths = launch::collect_openable_paths(&argv);
+            let _ = app.emit("open-files", paths);
+            launch::show_or_create_main_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            get_default_workspace_paths,
-            get_app_paths,
-            load_workspace_config,
-            save_workspace_config,
-            list_notes_tree,
-            read_text_file,
-            write_text_file,
-            create_file_entry,
-            create_folder_entry,
-            rename_entry,
-            delete_entry,
-            move_entry,
-            copy_file_entry,
-            copy_file_to_path,
-            write_binary_file,
-            path_exists,
-            get_clipboard_file_paths,
-            set_clipboard_file_paths,
-            clipboard_read_text,
-            clipboard_write_text,
-            clipboard_read_image,
-            clipboard_write_image,
-            get_launch_file_paths,
+            config::get_default_workspace_paths,
+            config::get_app_paths,
+            config::load_workspace_config,
+            config::save_workspace_config,
+            fs_ops::list_notes_tree,
+            fs_ops::read_text_file,
+            fs_ops::write_text_file,
+            fs_ops::create_file_entry,
+            fs_ops::create_folder_entry,
+            fs_ops::rename_entry,
+            fs_ops::delete_entry,
+            fs_ops::move_entry,
+            fs_ops::copy_file_entry,
+            fs_ops::copy_file_to_path,
+            fs_ops::write_binary_file,
+            fs_ops::path_exists,
+            clipboard::get_clipboard_file_paths,
+            clipboard::set_clipboard_file_paths,
+            clipboard::clipboard_read_text,
+            clipboard::clipboard_write_text,
+            clipboard::clipboard_read_image,
+            clipboard::clipboard_write_image,
+            launch::get_launch_file_paths,
+            hotkey::set_scratch_hotkey,
+            hotkey::get_scratch_hotkey,
             scratch::load_scratch_store,
             scratch::upsert_scratch_note,
             scratch::patch_scratch_note,

@@ -116,3 +116,33 @@ pub fn write_file_paths(paths: Vec<String>) -> Result<(), String> {
         .file_list(&path_bufs)
         .map_err(map_clipboard_error)
 }
+
+#[tauri::command]
+pub fn get_clipboard_file_paths() -> Result<Vec<String>, String> {
+    read_file_paths()
+}
+
+#[tauri::command]
+pub fn set_clipboard_file_paths(paths: Vec<String>) -> Result<(), String> {
+    write_file_paths(paths)
+}
+
+#[tauri::command]
+pub fn clipboard_read_text() -> Result<String, String> {
+    read_text()
+}
+
+#[tauri::command]
+pub fn clipboard_write_text(text: String) -> Result<(), String> {
+    write_text(text)
+}
+
+#[tauri::command]
+pub fn clipboard_read_image() -> Result<ClipboardImage, String> {
+    read_image()
+}
+
+#[tauri::command]
+pub fn clipboard_write_image(image: ClipboardImage) -> Result<(), String> {
+    write_image(image)
+}

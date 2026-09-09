@@ -643,9 +643,28 @@ pub async fn delete_scratch_note(
     Ok(store.clone())
 }
 
+/// Destroy every scratch-* webview so the process can exit after the main window closes.
+pub fn destroy_all_scratch_windows(app: &AppHandle) {
+    let labels: Vec<String> = app
+        .webview_windows()
+        .into_keys()
+        .filter(|label| label.starts_with("scratch-"))
+        .collect();
+    for label in labels {
+        if let Some(window) = app.get_webview_window(&label) {
+            let _ = window.destroy().or_else(|_| window.close());
+        }
+    }
+}
+
 #[tauri::command]
 pub fn dismiss_scratch_window(window: WebviewWindow) -> Result<(), String> {
-    window.hide().map_err(|error| error.to_string())?;
+    // Destroy (not hide): a hidden scratch window keeps the process alive after main closes,
+    // and single-instance then cannot show a missing "main" window.
+    window
+        .destroy()
+        .or_else(|_| window.close())
+        .map_err(|error| error.to_string())?;
     Ok(())
 }
 
@@ -662,7 +681,10 @@ pub fn destroy_scratch_window(window: WebviewWindow) -> Result<(), String> {
 pub async fn close_scratch_window(app: AppHandle, id: String) -> Result<(), String> {
     let label = window_label(&id);
     if let Some(window) = app.get_webview_window(&label) {
-        window.hide().map_err(|error| error.to_string())?;
+        window
+            .destroy()
+            .or_else(|_| window.close())
+            .map_err(|error| error.to_string())?;
     }
     Ok(())
 }

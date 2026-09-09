@@ -1,6 +1,6 @@
-import { useMemo, useState, type RefObject } from "react"
+import { useCallback, useMemo, useRef, useState, type RefObject } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
-import { Download, Link2 } from "lucide-react"
+import { Download, Link2, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
 import { ImageLightbox } from "~/components/App/ImageLightbox"
@@ -18,6 +18,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"
+import {
+  useContentFontZoom,
+} from "~/hooks/use-content-font-zoom"
 import { getFencedCodeMeta } from "~/lib/code-fence"
 import { exportMermaidBatch, hasMermaidBlocks } from "~/lib/export"
 import { getMarkdownRehypePlugins, markdownRemarkPlugins } from "~/lib/markdown-plugins"
@@ -55,6 +58,19 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
   const [exportingMermaid, setExportingMermaid] = useState(false)
   const [batchDialogOpen, setBatchDialogOpen] = useState(false)
   const [batchDefaultFormat, setBatchDefaultFormat] = useState<"svg" | "png">("png")
+  // Same as editor: stable useRef so wheel listener is not torn down on font-size re-renders.
+  const previewRef = useRef<HTMLDivElement>(null)
+  const { fontSize, zoomHudVisible, resetFontSize } = useContentFontZoom(previewRef)
+
+  const assignPreviewRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      previewRef.current = node
+      if (containerRef) {
+        containerRef.current = node
+      }
+    },
+    [containerRef]
+  )
 
   const normalizedContent = useMemo(
     () => expandWikiLinks(normalizeTaskListSyntax(content)),
@@ -277,24 +293,54 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
           </div>
         ) : null}
 
-        <div
-          ref={containerRef}
-          className="markdown-preview markdown-preview-loose relative min-h-0 flex-1 overflow-auto bg-background px-10 py-9"
-          onScroll={(event) => onScroll?.(event.currentTarget.scrollTop)}
-        >
-          {!normalizedContent.trim() ? (
-            <PreviewEmptyHint />
-          ) : (
-            <div className="mx-auto max-w-3xl space-y-1">
-              <ReactMarkdown
-                remarkPlugins={markdownRemarkPlugins}
-                rehypePlugins={rehypePlugins}
-                components={components}
-              >
-                {normalizedContent}
-              </ReactMarkdown>
+        <div className="relative min-h-0 flex-1">
+          {/* Scroller stays font-size stable (like .cm-scroller); zoom the inner content only. */}
+          <div
+            ref={assignPreviewRef}
+            className="h-full overflow-auto bg-background [overflow-anchor:none]"
+            onScroll={(event) => onScroll?.(event.currentTarget.scrollTop)}
+          >
+            <div
+              className="markdown-preview markdown-preview-loose px-10 py-9"
+              style={{ fontSize: `${fontSize}px` }}
+            >
+              {!normalizedContent.trim() ? (
+                <PreviewEmptyHint />
+              ) : (
+                <div className="mx-auto max-w-3xl space-y-1">
+                  <ReactMarkdown
+                    remarkPlugins={markdownRemarkPlugins}
+                    rehypePlugins={rehypePlugins}
+                    components={components}
+                  >
+                    {normalizedContent}
+                  </ReactMarkdown>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          {zoomHudVisible ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-[18%] z-20 flex justify-center px-4">
+              <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-border/50 bg-background/95 px-4 py-2.5 shadow-xl ring-1 ring-black/5 backdrop-blur-md">
+                <div className="min-w-[4.5rem] text-center">
+                  <div className="text-[11px] text-muted-foreground">字号</div>
+                  <div className="text-lg font-semibold tabular-nums tracking-tight">{fontSize}px</div>
+                </div>
+                <div className="h-8 w-px bg-border/60" />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 gap-1.5 rounded-full px-3 text-[12px]"
+                  onClick={() => resetFontSize()}
+                >
+                  <RotateCcw className="size-3.5" />
+                  重置
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 

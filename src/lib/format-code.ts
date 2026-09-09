@@ -172,8 +172,8 @@ export const formatIniContent = (value: string) => {
   return output.length ? `${output.join("\n")}\n` : "[section]\nkey=value\n"
 }
 
-/** Soft Markdown tidy: trailing spaces, list spacing, heading gaps, blank-line collapse. */
-export const formatMarkdownContent = (value: string) => {
+/** Soft Markdown tidy fallback; prefer Prettier when available. */
+export const formatMarkdownContentLegacy = (value: string) => {
   let text = value.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n")
 
   const fences: string[] = []
@@ -190,9 +190,19 @@ export const formatMarkdownContent = (value: string) => {
     return `\0MATH${index}\0`
   })
 
-  let lines = text.split("\n").map((line) => line.replace(/[ \t]+$/g, ""))
+  let lines = text.split("\n").map((line) => {
+    // Preserve markdown hard breaks (exactly two trailing spaces).
+    if (/  $/.test(line)) {
+      return `${line.replace(/[ \t]+$/g, "")}  `
+    }
+    return line.replace(/[ \t]+$/g, "")
+  })
 
   lines = lines.map((line) => {
+    const heading = /^(#{1,6})([^\s#].*)$/.exec(line)
+    if (heading) {
+      return `${heading[1]} ${heading[2]}`
+    }
     const bullet = /^([ \t]*)([-*+])(\S.*)$/.exec(line)
     if (bullet) {
       return `${bullet[1]}${bullet[2]} ${bullet[3]}`
@@ -220,16 +230,38 @@ export const formatMarkdownContent = (value: string) => {
   return `${text.replace(/\s+$/g, "")}\n`
 }
 
-export const tryFormatByExtension = (extension: string, value: string): string | null => {
+/** Format Markdown with Prettier (same engine as VS Code Prettier extension). */
+export const formatMarkdownContent = async (value: string, tabWidth = 2) => {
+  try {
+    const prettier = await import("prettier/standalone")
+    const markdown = await import("prettier/plugins/markdown")
+    return await prettier.format(value.replace(/^\uFEFF/, ""), {
+      parser: "markdown",
+      plugins: [markdown],
+      tabWidth: Math.max(1, Math.min(8, tabWidth)),
+      useTabs: false,
+      proseWrap: "preserve",
+      endOfLine: "lf",
+    })
+  } catch {
+    return formatMarkdownContentLegacy(value)
+  }
+}
+
+export const tryFormatByExtension = async (
+  extension: string,
+  value: string,
+  options?: { tabWidth?: number }
+): Promise<string | null> => {
   const ext = extension.toLowerCase()
   try {
-    if (ext === "md" || ext === "markdown") {
-      return formatMarkdownContent(value)
+    if (ext === "md" || ext === "markdown" || ext === "mdx") {
+      return await formatMarkdownContent(value, options?.tabWidth ?? 2)
     }
-    if (ext === "json") {
+    if (ext === "json" || ext === "jsonc") {
       return formatJsonContent(value)
     }
-    if (ext === "xml" || ext === "svg") {
+    if (ext === "xml" || ext === "svg" || ext === "html" || ext === "htm") {
       return formatXmlContent(value)
     }
     if (ext === "ini") {

@@ -667,6 +667,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       return null
     }
     await get().refreshTree()
+    const openMode = config.uiState.defaultOpenMode === "preview" ? "preview" : "editor"
+    get().setViewMode(openMode)
     await get().selectFile(nextPath)
     return nextPath
   },
@@ -993,6 +995,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         ...config.settings,
         ...settings,
       },
+    }
+
+    if (settings.scratchHotkey && settings.scratchHotkey !== config.settings.scratchHotkey) {
+      const { setScratchHotkey } = await import("~/lib/scratch-hotkey")
+      const applied = await setScratchHotkey(settings.scratchHotkey)
+      nextConfig.settings.scratchHotkey = applied
     }
 
     await saveWorkspaceConfig(nextConfig)

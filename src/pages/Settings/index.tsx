@@ -27,6 +27,11 @@ import { HIGHLIGHT_THEME_OPTIONS } from "~/lib/highlight-themes"
 import { MERMAID_THEME_OPTIONS } from "~/lib/mermaid-theme"
 import { APP_SHORTCUTS } from "~/lib/shortcuts"
 import {
+  DEFAULT_SCRATCH_HOTKEY,
+  hotkeyFromKeyboardEvent,
+  splitHotkeyKeys,
+} from "~/lib/scratch-hotkey"
+import {
   defaultSettings,
   getAppPaths,
   getDefaultWorkspacePaths,
@@ -45,7 +50,7 @@ const sections = [
   { key: "editor", label: "编辑器", description: "字体与阅读体验", icon: Sparkles },
   { key: "appearance", label: "外观", description: "主题与强调色", icon: Palette },
   { key: "files", label: "文件", description: "本地存储路径", icon: FolderOpen },
-  { key: "shortcuts", label: "快捷键", description: "当前可用快捷键一览", icon: Keyboard },
+  { key: "shortcuts", label: "快捷键", description: "查看与修改快捷键", icon: Keyboard },
   { key: "about", label: "关于", description: "版本、功能与更新说明", icon: Info },
 ] as const
 
@@ -117,8 +122,11 @@ const SettingsPage = () => {
   const [activeSection, setActiveSection] = useState<(typeof sections)[number]["key"]>("general")
   const [pathDialog, setPathDialog] = useState<{ field: PathField; value: string } | null>(null)
   const [appPaths, setAppPaths] = useState<AppPaths | null>(null)
+  const [recordingHotkey, setRecordingHotkey] = useState(false)
+  const [hotkeyBusy, setHotkeyBusy] = useState(false)
   const settings = config?.settings ?? defaultSettings
   const activeMeta = sections.find((section) => section.key === activeSection) ?? sections[0]
+  const scratchHotkey = settings.scratchHotkey?.trim() || DEFAULT_SCRATCH_HOTKEY
 
   useEffect(() => {
     void getAppPaths()
@@ -128,6 +136,9 @@ const SettingsPage = () => {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (recordingHotkey) {
+        return
+      }
       if (event.key === "Escape" && !pathDialog) {
         event.preventDefault()
         navigate("/")
@@ -135,7 +146,39 @@ const SettingsPage = () => {
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [navigate, pathDialog])
+  }, [navigate, pathDialog, recordingHotkey])
+
+  useEffect(() => {
+    if (!recordingHotkey) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.key === "Escape") {
+        setRecordingHotkey(false)
+        return
+      }
+      const next = hotkeyFromKeyboardEvent(event)
+      if (!next) {
+        return
+      }
+      setRecordingHotkey(false)
+      setHotkeyBusy(true)
+      void updateSettings({ scratchHotkey: next })
+        .then(() => {
+          toast.success("全局快捷键已更新", { description: next })
+        })
+        .catch((error) => {
+          toast.error("无法更新快捷键", {
+            description: error instanceof Error ? error.message : "该组合可能已被占用",
+          })
+        })
+        .finally(() => setHotkeyBusy(false))
+    }
+    window.addEventListener("keydown", onKeyDown, true)
+    return () => window.removeEventListener("keydown", onKeyDown, true)
+  }, [recordingHotkey, updateSettings])
 
   const goBackToWorkspace = () => {
     navigate("/")
@@ -282,11 +325,11 @@ const SettingsPage = () => {
                 <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
                   <div className="mb-2 text-sm font-medium">默认打开模式</div>
                   <Select
-                    value={config?.uiState.defaultOpenMode ?? "preview"}
+                    value={config?.uiState.defaultOpenMode ?? "editor"}
                     onChange={(event) => void updateUiState({ defaultOpenMode: event.target.value as DefaultOpenMode })}
                     options={[
-                      { label: "预览", value: "preview" },
                       { label: "编辑", value: "editor" },
+                      { label: "预览", value: "preview" },
                     ]}
                   />
                 </div>
@@ -483,9 +526,70 @@ const SettingsPage = () => {
             <div className="space-y-4">
               <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
                 <p className="text-[13px] leading-relaxed text-muted-foreground">
-                  以下为当前版本已启用的快捷键，仅供查看，暂不支持自定义。编辑器相关快捷键需在编辑区聚焦时生效。
+                  全局唤起便签可自定义；其余为应用内快捷键（只读）。编辑器相关快捷键需在编辑区聚焦时生效。
                 </p>
               </div>
+
+              <div className="overflow-hidden rounded-2xl border border-border/50 bg-background/60">
+                <div className="border-b border-border/40 px-4 py-3">
+                  <div className="text-sm font-medium">可修改</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">系统级全局快捷键</div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <div className="text-[13px] text-foreground/85">唤起 / 收起快捷便签</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">在任意窗口生效</div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="flex flex-wrap items-center justify-end gap-1">
+                      {splitHotkeyKeys(scratchHotkey).map((key, index) => (
+                        <span key={`${key}-${index}`} className="inline-flex items-center gap-1">
+                          {index > 0 ? (
+                            <span className="px-0.5 text-[11px] text-muted-foreground/70">+</span>
+                          ) : null}
+                          <kbd className="inline-flex min-w-[1.5rem] items-center justify-center rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-foreground/80 shadow-[0_1px_0_color-mix(in_srgb,var(--border)_80%,transparent)]">
+                            {key}
+                          </kbd>
+                        </span>
+                      ))}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={recordingHotkey ? "default" : "outline"}
+                      className="rounded-full"
+                      disabled={hotkeyBusy}
+                      onClick={() => setRecordingHotkey((value) => !value)}
+                    >
+                      {recordingHotkey ? "按下组合键… Esc 取消" : "修改"}
+                    </Button>
+                    {scratchHotkey !== DEFAULT_SCRATCH_HOTKEY ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-full"
+                        disabled={hotkeyBusy || recordingHotkey}
+                        onClick={() => {
+                          setHotkeyBusy(true)
+                          void updateSettings({ scratchHotkey: DEFAULT_SCRATCH_HOTKEY })
+                            .then(() => toast.success("已恢复默认快捷键"))
+                            .catch((error) => {
+                              toast.error("无法恢复默认快捷键", {
+                                description:
+                                  error instanceof Error ? error.message : "请稍后重试",
+                              })
+                            })
+                            .finally(() => setHotkeyBusy(false))
+                        }}
+                      >
+                        默认
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
               {APP_SHORTCUTS.map((group) => (
                 <div
                   key={group.id}

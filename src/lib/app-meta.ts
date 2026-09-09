@@ -18,7 +18,7 @@ export const APP_FEATURES = [
     '大纲面板、窗口尺寸与阅读位置记忆',
     '笔记双链 [[名称]]：预览点击跳转；重命名自动同步引用',
     'Ctrl + 滚轮缩放编辑区字号，主题与强调色可切换',
-    '快捷便签：全局 Ctrl+Alt+N 唤起轻量纸条，待办 / 长文双模式，便签板整理后再写入正式笔记',
+            '快捷便签：全局唤起（默认 Ctrl+Alt+N，可在设置中修改）、待办 / 长文双模式，便签板整理后再写入正式笔记',
 ] as const
 
 export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string[] }> = [
@@ -26,11 +26,12 @@ export const APP_CHANGELOG: Array<{ version: string; date: string; notes: string
         version: '2.0 beta',
         date: '2026-08-22',
         notes: [
-            '快捷便签（Beta）：独立浮窗 + 便签板，全局 Ctrl+Alt+N 随时唤起',
+            '快捷便签（Beta）：独立浮窗 + 便签板，全局唤起（默认 Ctrl+Alt+N，可在设置中自定义）',
             '便签双模式：待办清单（多行勾选、回车 / 双击新增、拖动排序挤位）与便签长文（阅读模式仅长文可用）',
             '便签外观：五种主题预设，透明度 / 圆角可调，支持一键恢复默认',
             '便签板重构：顶栏紧凑工具栏（全部 / 常驻 / 新建），卡片顶栏拖动、右键菜单与删除体验优化',
-            '便签浮窗：顶栏大面积可拖窗口；去掉多余成功提示（如复制、删除）',
+            '便签浮窗：顶栏大面积可拖窗口；关闭便签不再残留隐藏窗口导致无法重开主窗口',
+            'Markdown 格式化对齐 Prettier（与 VS Code Prettier 扩展一致）；Alt+Shift+F 快捷键',
             '便签可设为常驻置顶；支持从便签板 / 右键写入正式笔记',
         ],
     },

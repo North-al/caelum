@@ -169,6 +169,7 @@ textarea,
     user-select: text;
     line-height: 1.75;
     color: var(--foreground);
+    overflow-anchor: none;
 }
 
 .markdown-preview > :first-child {
@@ -189,23 +190,23 @@ textarea,
 }
 
 .markdown-preview h1 {
-    font-size: 1.875rem;
+    font-size: 1.875em;
     padding-bottom: 0.4em;
     border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
 .markdown-preview h2 {
-    font-size: 1.4rem;
+    font-size: 1.4em;
     padding-bottom: 0.3em;
     border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
 .markdown-preview h3 {
-    font-size: 1.15rem;
+    font-size: 1.15em;
 }
 
 .markdown-preview h4 {
-    font-size: 1.05rem;
+    font-size: 1.05em;
 }
 
 .markdown-preview p {

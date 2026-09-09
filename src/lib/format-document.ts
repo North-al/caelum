@@ -24,7 +24,8 @@ export const formatDocumentAtPath = async (path: string) => {
     content = await readTextFile(path)
   }
 
-  const formatted = tryFormatByExtension(extension, content)
+  const tabWidth = state.config?.settings.tabSize || 2
+  const formatted = await tryFormatByExtension(extension, content, { tabWidth })
   if (formatted == null) {
     throw new Error("请检查语法是否正确")
   }

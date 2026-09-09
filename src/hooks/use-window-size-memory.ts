@@ -54,6 +54,14 @@ export const useWindowSizeMemory = () => {
         if (await appWindow.isMaximized()) {
           return
         }
+        const size = await appWindow.innerSize()
+        const factor = await appWindow.scaleFactor()
+        const currentWidth = Math.round(size.width / factor)
+        const currentHeight = Math.round(size.height / factor)
+        // Rust already applied remembered size before show; skip identical setSize to avoid a jump.
+        if (Math.abs(currentWidth - width) <= 2 && Math.abs(currentHeight - height) <= 2) {
+          return
+        }
         await appWindow.setSize(new LogicalSize(width, height))
       } catch {
         // Ignore when not running inside Tauri.

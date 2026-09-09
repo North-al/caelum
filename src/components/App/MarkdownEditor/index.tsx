@@ -284,18 +284,12 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
       return
     }
 
-    const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) {
-        return
-      }
-      event.preventDefault()
-      const delta = event.deltaY < 0 ? 1 : event.deltaY > 0 ? -1 : 0
-      if (delta === 0) {
-        return
-      }
+    const commitSize = (next: number) => {
+      const scroller = element.querySelector<HTMLElement>(".cm-scroller") ?? element
+      const lockedTop = scroller.scrollTop
       const clamped = Math.min(
         MAX_EDITOR_FONT_SIZE,
-        Math.max(MIN_EDITOR_FONT_SIZE, Math.round(fontSizeRef.current + delta))
+        Math.max(MIN_EDITOR_FONT_SIZE, Math.round(next))
       )
       fontSizeRef.current = clamped
       setFontSize(clamped)
@@ -312,11 +306,63 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
       persistTimerRef.current = window.setTimeout(() => {
         void updateSettings({ editorFontSize: clamped })
       }, 280)
+      scroller.scrollTop = lockedTop
+      requestAnimationFrame(() => {
+        scroller.scrollTop = lockedTop
+      })
     }
 
-    element.addEventListener("wheel", onWheel, { passive: false, capture: true })
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return
+      }
+      const target = event.target
+      if (!(target instanceof Node) || !element.contains(target)) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      if (typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation()
+      }
+
+      const delta = event.deltaY < 0 ? 1 : event.deltaY > 0 ? -1 : 0
+      if (delta === 0) {
+        return
+      }
+      commitSize(fontSizeRef.current + delta)
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
+        return
+      }
+      if (event.altKey || event.shiftKey) {
+        return
+      }
+      const isZero = event.key === "0" || event.code === "Digit0" || event.code === "Numpad0"
+      if (!isZero) {
+        return
+      }
+      const active = document.activeElement
+      const target = event.target
+      const inside =
+        (active instanceof Node && element.contains(active)) ||
+        (target instanceof Node && element.contains(target))
+      if (!inside) {
+        return
+      }
+      event.preventDefault()
+      event.stopPropagation()
+      commitSize(DEFAULT_EDITOR_FONT_SIZE)
+    }
+
+    window.addEventListener("wheel", onWheel, { passive: false, capture: true })
+    window.addEventListener("keydown", onKeyDown, true)
     return () => {
-      element.removeEventListener("wheel", onWheel, { capture: true })
+      window.removeEventListener("wheel", onWheel, { capture: true })
+      window.removeEventListener("keydown", onKeyDown, true)
     }
   }, [updateSettings])
 
@@ -463,10 +509,14 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
     }
   }, [lineMenu])
 
-  const handleFormat = () => {
-    const formatted = tryFormatByExtension(extension, value)
+  const handleFormat = async () => {
+    const formatted = await tryFormatByExtension(extension, value, { tabWidth: tabSize })
     if (formatted == null) {
       toast.error("格式化失败", { description: "请检查语法是否正确" })
+      return
+    }
+    if (formatted === value) {
+      toast.message("已是规范格式")
       return
     }
     onChange(formatted)
@@ -653,6 +703,16 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
                   { key: "Mod-d", run: copyLineDown, preventDefault: true },
                   { key: "Mod-j", run: selectNextOccurrence, preventDefault: true },
                   { key: "Mod-g", run: openGotoLinePanel, preventDefault: true },
+                  {
+                    key: "Alt-Shift-f",
+                    run: () => {
+                      if (canFormat && !readOnly) {
+                        void handleFormat()
+                      }
+                      return true
+                    },
+                    preventDefault: true,
+                  },
                   ...searchKeymap.filter(
                     (binding) =>
                       binding.key !== "Mod-f" &&
@@ -701,7 +761,7 @@ export const MarkdownEditor = ({ value, onChange, readOnly = false, onCreateEdit
                       {
                         label: "格式化文档",
                         action: () => {
-                          handleFormat()
+                          void handleFormat()
                         },
                       },
                     ]
