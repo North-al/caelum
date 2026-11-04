@@ -1,6 +1,16 @@
-import { useCallback, useMemo, useRef, useState, type RefObject } from "react"
+import {
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+  type RefObject,
+} from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
-import { Download, Link2, RotateCcw } from "lucide-react"
+import { Download, Info, Lightbulb, Link2, Pencil, RotateCcw, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 
 import { ImageLightbox } from "~/components/App/ImageLightbox"
@@ -47,6 +57,85 @@ const slugify = (value: string) =>
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s-]/gu, "")
     .replace(/\s+/g, "-")
+
+const CALLOUTS = {
+  note: { label: "笔记", tone: "note", Icon: Pencil },
+  info: { label: "笔记", tone: "note", Icon: Info },
+  abstract: { label: "笔记", tone: "note", Icon: Pencil },
+  tip: { label: "小技巧", tone: "tip", Icon: Lightbulb },
+  hint: { label: "小技巧", tone: "tip", Icon: Lightbulb },
+  warning: { label: "注意", tone: "warning", Icon: TriangleAlert },
+  caution: { label: "注意", tone: "warning", Icon: TriangleAlert },
+  important: { label: "重要", tone: "important", Icon: Info },
+} as const
+
+type CalloutKind = keyof typeof CALLOUTS
+
+const CALLOUT_MARKER = /^\s*\[!(note|info|abstract|tip|hint|warning|caution|important)\][ \t]*([^\n]*)(?:\n([\s\S]*))?$/i
+
+interface PeeledCallout {
+  kind: CalloutKind
+  title: string
+  node: ReactNode
+}
+
+const peelCallout = (node: ReactNode): PeeledCallout | null => {
+  if (typeof node === "string") {
+    const match = node.match(CALLOUT_MARKER)
+    if (!match) {
+      return null
+    }
+    const kind = match[1].toLowerCase() as CalloutKind
+    const leftover = (match[3] ?? "").replace(/^\n/, "")
+    return {
+      kind,
+      title: match[2].trim(),
+      node: leftover.trim() ? leftover.replace(/^\n/, "") : null,
+    }
+  }
+
+  if (Array.isArray(node)) {
+    const next = [...node]
+    for (let index = 0; index < next.length; index += 1) {
+      const child = next[index]
+      if (child == null || child === false || child === "") {
+        continue
+      }
+      if (typeof child === "string" && !child.trim()) {
+        continue
+      }
+      const peeled = peelCallout(child)
+      if (!peeled) {
+        return null
+      }
+      next[index] = peeled.node
+      return {
+        kind: peeled.kind,
+        title: peeled.title,
+        node: next.filter((item) => item != null && item !== ""),
+      }
+    }
+    return null
+  }
+
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    const peeled = peelCallout(node.props.children)
+    if (!peeled) {
+      return null
+    }
+    const empty =
+      peeled.node == null ||
+      peeled.node === "" ||
+      (typeof peeled.node === "string" && !peeled.node.trim())
+    return {
+      kind: peeled.kind,
+      title: peeled.title,
+      node: empty ? null : cloneElement(node as ReactElement<{ children?: ReactNode }>, undefined, peeled.node),
+    }
+  }
+
+  return null
+}
 
 export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
   const { config, selectedFilePath, tree, selectFile } = useWorkspaceStore()
@@ -203,10 +292,10 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
               type="button"
               title={target ? `打开笔记：${stem}` : `未找到笔记：${stem}`}
               className={cn(
-                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.95em] font-medium underline-offset-2 transition-colors",
+                "inline cursor-pointer border-0 bg-transparent p-0 text-[0.95em] underline decoration-current/35 underline-offset-[3px]",
                 target
-                  ? "bg-primary/10 text-primary hover:bg-primary/15 hover:underline"
-                  : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
+                  ? "text-primary hover:decoration-current"
+                  : "text-amber-700 hover:decoration-current dark:text-amber-300"
               )}
               onClick={() => {
                 if (!stem) {
@@ -238,6 +327,23 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
           </a>
         )
       },
+      blockquote: ({ children }) => {
+        const peeled = peelCallout(children)
+        if (!peeled) {
+          return <blockquote>{children}</blockquote>
+        }
+        const spec = CALLOUTS[peeled.kind]
+        const Icon = spec.Icon
+        return (
+          <aside className={`markdown-callout markdown-callout-${spec.tone}`}>
+            <div className="markdown-callout-title">
+              <Icon strokeWidth={2} />
+              <span>{peeled.title || spec.label}</span>
+            </div>
+            {peeled.node ? <div className="markdown-callout-body">{peeled.node}</div> : null}
+          </aside>
+        )
+      },
       pre: ({ children }) => {
         const meta = getFencedCodeMeta(children)
         if (meta.language === "mermaid") {
@@ -258,7 +364,7 @@ export const MarkdownPreview = ({ content, onScroll, containerRef }: Props) => {
     <>
       <div className="flex h-full min-h-0 flex-col">
         {showMermaidToolbar ? (
-          <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border/40 bg-muted/20 px-3">
+          <div className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-border bg-sidebar px-3">
             <span className="truncate text-[12px] text-muted-foreground">本文含 Mermaid 图表</span>
             <DropdownMenu>
               <DropdownMenuTrigger

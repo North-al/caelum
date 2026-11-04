@@ -48,8 +48,8 @@ export const AppearanceMenu = ({ triggerClassName, compact = false }: Appearance
           size={compact ? "icon-sm" : "sm"}
           className={cn(
             compact
-              ? "size-8 rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-background/80 hover:text-foreground"
-              : "h-9 w-full justify-start gap-2 rounded-xl px-3 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-muted/80 hover:text-foreground",
+              ? "size-8 rounded-md text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-foreground"
+              : "h-8 w-full justify-start gap-2 rounded-md px-2 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-foreground",
             triggerClassName
           )}
           aria-label="主题"
@@ -85,8 +85,8 @@ export const AppearanceMenu = ({ triggerClassName, compact = false }: Appearance
                 className={cn(
                   "flex flex-col items-center gap-1.5 rounded-lg border px-2 py-2.5 text-center transition-colors duration-150",
                   active
-                    ? "border-primary/35 bg-primary/10 text-foreground"
-                    : "border-border/50 bg-background/60 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    ? "border-border bg-accent text-foreground"
+                    : "border-transparent bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <Icon className="size-4" strokeWidth={1.75} />

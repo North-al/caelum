@@ -227,25 +227,25 @@ export const WorkspaceSidebar = () => {
   return (
     <>
       <SidebarHeader
-        className={cn("gap-2 px-2.5 pt-3", collapsed && "items-center px-1.5")}
+        className={cn("gap-2 px-2.5 pt-2.5", collapsed && "items-center px-1.5")}
       >
         <div
           className={cn(
-            "flex items-center gap-2.5 px-0.5",
+            "flex items-center gap-2 px-0.5",
             collapsed && "w-full justify-center px-0"
           )}
           data-tauri-drag-region
         >
           <button
             type="button"
-            className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-foreground hover:bg-sidebar-accent"
             onClick={() => navigate("/")}
             aria-label="回到笔记"
           >
-            <CaelumLogo className="size-5" />
+            <CaelumLogo className="size-[18px]" />
           </button>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-[15px] font-semibold tracking-tight">
+            <div className="truncate text-[13px] font-medium tracking-tight text-foreground">
               {config?.workspaceName ?? "Caelum"}
             </div>
           </div>
@@ -276,8 +276,8 @@ export const WorkspaceSidebar = () => {
                     variant="ghost"
                     size="icon-sm"
                     className={cn(
-                      "size-8 rounded-lg",
-                      onBoard ? "bg-primary/12 text-primary" : "text-muted-foreground"
+                      "size-8 rounded-md",
+                      onBoard ? "bg-sidebar-accent text-foreground" : "text-muted-foreground"
                     )}
                     aria-label="便签板"
                     onClick={() => navigate("/board")}
@@ -297,7 +297,7 @@ export const WorkspaceSidebar = () => {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="搜索笔记 / 文件名"
-                className="h-9 rounded-xl border-border/40 bg-background/50 pl-8 text-[13px] transition-colors duration-150 hover:bg-background/70 focus-visible:border-primary/35"
+                className="h-8 rounded-md border-border bg-background pl-8 text-[13px] shadow-none transition-colors duration-150 hover:bg-background focus-visible:border-ring/50"
               />
             </div>
             <div className="flex items-center gap-1 px-0.5">
@@ -320,8 +320,8 @@ export const WorkspaceSidebar = () => {
                           className={cn(
                             "inline-flex size-7 items-center justify-center rounded-lg transition-colors duration-150",
                             active
-                              ? "bg-primary/12 text-primary"
-                              : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                              ? "bg-sidebar-accent text-foreground"
+                              : "text-muted-foreground hover:bg-sidebar-accent/80 hover:text-foreground"
                           )}
                           onClick={() => setSortMode(item.mode)}
                         />
@@ -340,8 +340,8 @@ export const WorkspaceSidebar = () => {
                       type="button"
                       aria-label="刷新"
                       className={cn(
-                        "ml-auto inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-muted/70 hover:text-foreground",
-                        refreshing && "animate-spin text-primary"
+                        "ml-auto inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-foreground",
+                        refreshing && "animate-spin text-foreground"
                       )}
                       onClick={() => void handleRefresh()}
                     />
@@ -356,17 +356,17 @@ export const WorkspaceSidebar = () => {
         )}
       </SidebarHeader>
 
-      <SidebarSeparator className="mx-2 w-auto bg-border/40 group-data-[collapsible=icon]:hidden" />
+      <SidebarSeparator className="mx-3 w-auto bg-sidebar-border group-data-[collapsible=icon]:hidden" />
 
       {collapsed ? null : (
-        <div className="px-2.5 pb-1 group-data-[collapsible=icon]:hidden">
+        <div className="px-2 pb-1 group-data-[collapsible=icon]:hidden">
           <button
             type="button"
             className={cn(
-              "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-[12.5px] transition-colors",
+              "flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] transition-colors",
               onBoard
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                ? "bg-sidebar-accent text-foreground"
+                : "text-muted-foreground hover:bg-sidebar-accent/80 hover:text-foreground"
             )}
             onClick={() => navigate("/board")}
           >
@@ -467,16 +467,16 @@ export const WorkspaceSidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarSeparator className="mx-2 w-auto bg-border/40 group-data-[collapsible=icon]:hidden" />
+      <SidebarSeparator className="mx-3 w-auto bg-sidebar-border group-data-[collapsible=icon]:hidden" />
 
       <SidebarFooter
         className={cn(
-          "gap-1 px-2 pb-3",
-          collapsed && "mt-auto items-center gap-1.5 px-1.5"
+          "gap-0.5 px-2 pb-0",
+          collapsed && "mt-auto items-center gap-1 px-1.5"
         )}
       >
         {collapsed ? (
-          <div className="flex w-full flex-col items-center gap-1 rounded-2xl bg-muted/35 p-1 ring-1 ring-border/40">
+          <div className="flex w-full flex-col items-center gap-1">
             <AppearanceMenu compact />
             <div className="h-px w-5 bg-border/50" />
             <Tooltip>
@@ -485,7 +485,7 @@ export const WorkspaceSidebar = () => {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="size-8 rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-background/80 hover:text-foreground"
+                    className="size-8 rounded-md text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-foreground"
                     aria-label="设置"
                     onClick={() => navigate("/settings")}
                   />
@@ -502,7 +502,7 @@ export const WorkspaceSidebar = () => {
             <Button
               variant="ghost"
               size="sm"
-              className="h-9 w-full justify-start gap-2 rounded-xl px-3 text-[13px] text-muted-foreground transition-all duration-150 hover:bg-muted/80 hover:text-foreground active:scale-[0.99]"
+              className="h-8 w-full justify-start gap-2 rounded-md px-2 text-[13px] text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-foreground"
               onClick={() => navigate("/settings")}
             >
               <SlidersHorizontal className="size-4 shrink-0" strokeWidth={1.75} />
@@ -510,6 +510,11 @@ export const WorkspaceSidebar = () => {
             </Button>
           </div>
         )}
+        <div className="-mx-2 mt-1.5 flex h-[26px] items-center border-t border-sidebar-border px-3 text-[11px] text-muted-foreground group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <span className="truncate group-data-[collapsible=icon]:hidden">
+            {config?.workspaceName ?? "Caelum"}
+          </span>
+        </div>
       </SidebarFooter>
 
       <InputDialog

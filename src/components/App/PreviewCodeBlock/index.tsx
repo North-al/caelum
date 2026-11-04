@@ -73,8 +73,19 @@ export const PreviewCodeBlock = ({ children, className, showLineNumbers = false 
   }
 
   return (
-    <div className={cn("markdown-code-block group relative my-[1.1em] overflow-hidden rounded-[0.65rem] border border-border/70", className)}>
-      <div className="flex h-9 items-center gap-2 border-b border-border/50 bg-muted/40 px-2.5">
+    <div className={cn("markdown-code-block group relative my-[1.1em] overflow-hidden rounded-[10px]", className)}>
+      <div
+        className={cn(
+          "flex items-center gap-1 px-2",
+          collapsed
+            ? "h-9"
+            : "pointer-events-none absolute inset-x-0 top-0 z-10 h-9 justify-end opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100"
+        )}
+      >
+        <span className="mr-auto min-w-0 truncate px-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          {meta.language || "code"}
+          {collapsed ? ` · ${lineCount} 行` : ""}
+        </span>
         <button
           type="button"
           className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-background/80 hover:text-foreground"
@@ -84,15 +95,11 @@ export const PreviewCodeBlock = ({ children, className, showLineNumbers = false 
         >
           {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
         </button>
-        <span className="min-w-0 flex-1 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          {meta.language || "code"}
-          {collapsed ? ` · ${lineCount} 行` : ""}
-        </span>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 gap-1.5 rounded-md px-2 text-[11px] text-muted-foreground"
+          className="h-6 gap-1 rounded-md px-1.5 text-[11px] text-muted-foreground"
           onClick={() => void handleCopy()}
         >
           {copied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}

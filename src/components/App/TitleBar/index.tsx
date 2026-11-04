@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Download,
   Eye,
@@ -79,7 +81,7 @@ const ViewModeButton = ({ active, mode, label, onSelect, icon }: ViewModeButtonP
           size="icon-sm"
           className={cn(
             "size-8 rounded-lg",
-            active ? "bg-background text-foreground shadow-sm ring-1 ring-border/60" : "text-muted-foreground"
+            active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
           )}
           onClick={() => onSelect(mode)}
           aria-label={label}
@@ -345,9 +347,34 @@ export const TitleBar = () => {
     setActiveDropDir(null)
   }
 
+  const crumbs = (() => {
+    if (!selectedFilePath) {
+      return [] as string[]
+    }
+    const notes = config?.notesPath?.replace(/\\/g, "/").replace(/\/$/, "") ?? ""
+    const full = selectedFilePath.replace(/\\/g, "/")
+    const relative = notes && (full === notes || full.startsWith(`${notes}/`))
+      ? full.slice(notes.length).replace(/^\//, "")
+      : full
+    return relative.split("/").filter(Boolean)
+  })()
+
+  const shiftTab = (direction: -1 | 1) => {
+    if (openTabs.length < 2) {
+      return
+    }
+    const current = selectedFilePath?.replace(/\\/g, "/") ?? ""
+    const index = Math.max(
+      0,
+      openTabs.findIndex((path) => path.replace(/\\/g, "/") === current)
+    )
+    const next = (index + direction + openTabs.length) % openTabs.length
+    void selectFile(openTabs[next])
+  }
+
   return (
     <>
-      <div className="flex shrink-0 flex-col border-b border-border/40 bg-background/80 backdrop-blur-xl">
+      <div className="flex shrink-0 flex-col border-b border-border bg-sidebar">
         {/* Functional bar — Cursor-style top chrome */}
         <div className="flex h-10 items-center gap-1 pl-2 pr-0" data-tauri-drag-region>
           <Tooltip>
@@ -356,7 +383,7 @@ export const TitleBar = () => {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="size-8 shrink-0 rounded-lg text-muted-foreground transition-all duration-150 hover:bg-muted/80 hover:text-foreground active:scale-[0.94]"
+                  className="size-8 shrink-0 rounded-md text-muted-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-foreground"
                   onClick={toggleSidebar}
                   aria-label="切换侧边栏"
                 />
@@ -370,7 +397,7 @@ export const TitleBar = () => {
           <div className="min-h-full min-w-4 flex-1 self-stretch" data-tauri-drag-region />
 
           <div className="flex shrink-0 items-center gap-0.5 pr-1">
-            <div className="mr-0.5 flex items-center gap-0.5 rounded-xl border border-border/40 bg-muted/40 p-0.5">
+            <div className="mr-0.5 flex items-center gap-0.5 rounded-md bg-sidebar-accent p-0.5">
               <ViewModeButton
                 mode="editor"
                 label="仅编辑"
@@ -405,7 +432,7 @@ export const TitleBar = () => {
                     className={cn(
                       "size-8 rounded-lg",
                       outlineVisible
-                        ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
+                        ? "bg-background text-foreground shadow-sm"
                         : "text-muted-foreground"
                     )}
                     onClick={() => setOutlineVisible(!outlineVisible)}
@@ -426,7 +453,7 @@ export const TitleBar = () => {
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      className="size-8 rounded-lg text-muted-foreground"
+                      className="size-8 rounded-md text-muted-foreground"
                       aria-label="导出"
                     />
                   }
@@ -444,7 +471,7 @@ export const TitleBar = () => {
         </div>
 
         {/* Tab bar — second row */}
-        <div className="flex h-9 items-center gap-1 border-t border-border/30 bg-muted/20 px-2">
+        <div className="flex h-9 items-center gap-1 border-t border-sidebar-border px-2">
           <div
             className="caelum-tab-scroll flex min-h-0 min-w-0 flex-1 items-center gap-1 overflow-x-auto"
             onWheel={(event) => {
@@ -478,9 +505,9 @@ export const TitleBar = () => {
                           className={cn(
                             "group relative flex h-7 max-w-[12rem] min-w-0 shrink-0 cursor-grab items-center gap-1.5 rounded-md px-2 text-[12.5px] transition-colors active:cursor-grabbing",
                             active
-                              ? "bg-background text-foreground shadow-sm ring-1 ring-border/55"
-                              : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
-                            dragOverIndex === index && "bg-primary/10 ring-1 ring-primary/35"
+                              ? "bg-background font-medium text-foreground"
+                              : "text-muted-foreground hover:bg-background/80 hover:text-foreground",
+                            dragOverIndex === index && "bg-background ring-1 ring-border"
                           )}
                           onPointerDown={handlePointerDown(index, filePath)}
                           onPointerMove={handlePointerMove}
@@ -514,7 +541,7 @@ export const TitleBar = () => {
                       </span>
                       {dirtyFiles[filePath] ? (
                         <span
-                          className="size-1.5 shrink-0 rounded-full bg-primary"
+                          className="size-1.5 shrink-0 rounded-full bg-foreground/70"
                           title="未保存的更改"
                           aria-label="未保存的更改"
                         />
@@ -615,7 +642,7 @@ export const TitleBar = () => {
             <div className="min-h-full min-w-2 shrink-0 self-stretch" data-tauri-drag-region />
           </div>
 
-          <div className="flex shrink-0 items-center overflow-hidden rounded-md border border-border/50 bg-background/70">
+          <div className="flex shrink-0 items-center overflow-hidden rounded-md bg-background">
             <Button
               type="button"
               variant="ghost"
@@ -681,14 +708,47 @@ export const TitleBar = () => {
             </DropdownMenu>
           </div>
         </div>
+
+        {crumbs.length > 0 ? (
+          <div className="flex h-8 items-center gap-0.5 border-t border-border bg-background px-2 text-[12.5px] text-muted-foreground">
+            <button
+              type="button"
+              className="inline-flex size-6 items-center justify-center rounded-md hover:bg-muted hover:text-foreground disabled:opacity-30"
+              aria-label="上一个标签"
+              disabled={openTabs.length < 2}
+              onClick={() => shiftTab(-1)}
+            >
+              <ChevronLeft className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              className="inline-flex size-6 items-center justify-center rounded-md hover:bg-muted hover:text-foreground disabled:opacity-30"
+              aria-label="下一个标签"
+              disabled={openTabs.length < 2}
+              onClick={() => shiftTab(1)}
+            >
+              <ChevronRight className="size-3.5" />
+            </button>
+            <span className="mx-1.5 h-3.5 w-px bg-border" />
+            {crumbs.map((part, index) => {
+              const last = index === crumbs.length - 1
+              return (
+                <span key={`${part}-${index}`} className="flex min-w-0 items-center gap-0.5">
+                  {index > 0 ? <ChevronRight className="size-3 shrink-0 opacity-50" /> : null}
+                  <span className={cn("truncate", last && "text-foreground")}>{part}</span>
+                </span>
+              )
+            })}
+          </div>
+        ) : null}
       </div>
 
       {ghost ? (
         <div
-          className="pointer-events-none fixed z-[100] flex items-center gap-2 rounded-xl border border-border/60 bg-background/95 px-3 py-1.5 text-[13px] font-medium shadow-xl ring-1 ring-primary/20 backdrop-blur-sm"
+          className="pointer-events-none fixed z-[100] flex items-center gap-2 rounded-lg border border-border bg-popover px-3 py-1.5 text-[13px] font-medium shadow-lg"
           style={{ left: ghost.x + 12, top: ghost.y + 12 }}
         >
-          <FileText className="size-3.5 text-primary" />
+          <FileText className="size-3.5 text-muted-foreground" />
           {ghost.label}
         </div>
       ) : null}

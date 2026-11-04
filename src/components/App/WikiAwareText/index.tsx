@@ -48,10 +48,10 @@ export const WikiAwareText = ({ text, className }: WikiAwareTextProps) => {
             type="button"
             title={exists ? `打开笔记：${stem}` : `未找到笔记：${stem}`}
             className={cn(
-              "inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-[0.95em] font-medium underline-offset-2 transition-colors",
+              "inline cursor-pointer border-0 bg-transparent p-0 text-[0.95em] underline decoration-current/35 underline-offset-[3px]",
               exists
-                ? "bg-primary/10 text-primary hover:bg-primary/15 hover:underline"
-                : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300"
+                ? "text-primary hover:decoration-current"
+                : "text-amber-700 hover:decoration-current dark:text-amber-300"
             )}
             onClick={() => openWiki(stem)}
           >

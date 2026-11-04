@@ -40,7 +40,7 @@ export const PageLoading = ({ className, label, scene = "route" }: Props) => {
           <span className="page-loading-orbit-arm absolute inset-0" aria-hidden>
             <span className="absolute left-1/2 top-0 size-2 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_12px_color-mix(in_srgb,var(--primary)_45%,transparent)]" />
           </span>
-          <div className="relative flex size-16 items-center justify-center rounded-[1.15rem] bg-primary/10 text-primary shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent)]">
+          <div className="relative flex size-16 items-center justify-center rounded-xl bg-muted text-foreground shadow-[0_0_0_1px_var(--border)]">
             <CaelumLogo className="size-9" />
           </div>
         </div>

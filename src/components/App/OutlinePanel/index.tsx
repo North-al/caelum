@@ -76,8 +76,8 @@ export const OutlinePanel = ({ content, onSelectHeading }: OutlinePanelProps) =>
   const headings = useMemo(() => extractHeadings(content), [content])
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="border-b border-border/40 px-4 py-3">
+    <div className="flex h-full min-h-0 flex-col bg-transparent">
+      <div className="border-b border-border px-3 py-2.5">
         <div className="text-[13px] font-medium tracking-tight">大纲</div>
         <div className="text-[11px] text-muted-foreground">{headings.length} 个标题</div>
       </div>

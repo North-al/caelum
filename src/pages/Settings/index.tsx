@@ -215,7 +215,7 @@ const SettingsPage = () => {
 
   return (
     <div className="settings-shell flex h-full flex-col overflow-hidden animate-in fade-in duration-200">
-      <header className="flex h-11 shrink-0 items-stretch border-b border-border/30 bg-background/40 backdrop-blur-xl">
+      <header className="flex h-11 shrink-0 items-stretch border-b border-border bg-sidebar">
         <div className="flex min-w-0 flex-1 items-center px-3" data-tauri-drag-region>
           <span className="text-[13px] font-medium text-muted-foreground">设置</span>
           <span className="mx-1.5 text-muted-foreground/40">/</span>
@@ -225,12 +225,12 @@ const SettingsPage = () => {
       </header>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside className="settings-rail flex w-[232px] shrink-0 flex-col border-r border-border/30 bg-background/25 backdrop-blur-xl">
+        <aside className="settings-rail flex w-[220px] shrink-0 flex-col border-r border-sidebar-border">
           <div className="p-2.5 pb-1">
             <Button
               variant="ghost"
               size="sm"
-              className="h-9 w-full justify-start gap-2 rounded-xl px-2.5 text-[13px] font-medium text-foreground/85 transition-all duration-150 hover:bg-muted/70 active:scale-[0.99]"
+              className="h-8 w-full justify-start gap-2 rounded-md px-2 text-[13px] font-medium text-foreground transition-colors duration-150 hover:bg-sidebar-accent"
               onClick={goBackToWorkspace}
             >
               <ArrowLeft className="size-3.5" strokeWidth={1.75} />
@@ -253,10 +253,10 @@ const SettingsPage = () => {
                       type="button"
                       onClick={() => setActiveSection(section.key)}
                       className={cn(
-                        "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all duration-150",
+                        "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors duration-150",
                         active
-                          ? "bg-muted/90 text-foreground"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          ? "bg-sidebar-accent text-foreground"
+                          : "text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground"
                       )}
                     >
                       <Icon
@@ -278,7 +278,7 @@ const SettingsPage = () => {
         >
           <div className="mx-auto w-full max-w-3xl">
             <div className="mb-6">
-              <h2 className="text-[1.65rem] font-semibold tracking-tight text-foreground/95">
+              <h2 className="text-[1.35rem] font-semibold tracking-tight text-foreground">
                 {activeMeta.label}
               </h2>
               <p className="mt-1 text-[13px] text-muted-foreground">{activeMeta.description}</p>
@@ -297,7 +297,7 @@ const SettingsPage = () => {
               </SettingCard>
 
               {settings.autoSave ? (
-                <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
+                <div className="rounded-xl border border-border bg-card px-4 py-3.5">
                   <div className="mb-2 text-sm font-medium">自动保存间隔</div>
                   <div className="flex items-center gap-2">
                     <NumberField
@@ -314,7 +314,7 @@ const SettingsPage = () => {
               ) : null}
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
+                <div className="rounded-xl border border-border bg-card px-4 py-3.5">
                   <div className="mb-2 text-sm font-medium">语言</div>
                   <Select
                     value={settings.language}
@@ -322,7 +322,7 @@ const SettingsPage = () => {
                     options={[{ label: "简体中文", value: "zh-CN" }]}
                   />
                 </div>
-                <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
+                <div className="rounded-xl border border-border bg-card px-4 py-3.5">
                   <div className="mb-2 text-sm font-medium">默认打开模式</div>
                   <Select
                     value={config?.uiState.defaultOpenMode ?? "editor"}
@@ -339,7 +339,7 @@ const SettingsPage = () => {
 
           {activeSection === "editor" ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
+              <div className="rounded-xl border border-border bg-card px-4 py-3.5">
                 <div className="mb-2 text-sm font-medium">字号</div>
                 <Select
                   value={String(settings.editorFontSize > 0 ? settings.editorFontSize : 14)}
@@ -352,7 +352,7 @@ const SettingsPage = () => {
                   ]}
                 />
               </div>
-              <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
+              <div className="rounded-xl border border-border bg-card px-4 py-3.5">
                 <div className="mb-2 text-sm font-medium">字体</div>
                 <Select
                   value={fontSelectValue}
@@ -369,7 +369,7 @@ const SettingsPage = () => {
                   The quick brown fox 快速狐狸 0123456789
                 </div>
               </div>
-              <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
+              <div className="rounded-xl border border-border bg-card px-4 py-3.5">
                 <div className="mb-2 text-sm font-medium">Tab 大小</div>
                 <Select
                   value={String(settings.tabSize || 2)}
@@ -395,7 +395,7 @@ const SettingsPage = () => {
                   onCheckedChange={(value) => updateSetting({ codeHighlight: value })}
                 />
               </SettingCard>
-              <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5 sm:col-span-2">
+              <div className="rounded-xl border border-border bg-card px-4 py-3.5 sm:col-span-2">
                 <div className="mb-2 text-sm font-medium">代码高亮主题</div>
                 <div className="mb-2 text-[12px] text-muted-foreground">预览区代码块配色（跟随外观或指定主题）</div>
                 <Select
@@ -407,7 +407,7 @@ const SettingsPage = () => {
                   }))}
                 />
               </div>
-              <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5 sm:col-span-2">
+              <div className="rounded-xl border border-border bg-card px-4 py-3.5 sm:col-span-2">
                 <div className="mb-2 text-sm font-medium">Mermaid 主题</div>
                 <div className="mb-2 text-[12px] text-muted-foreground">
                   预览与导出中流程图 / 时序图等图表配色（「跟随外观」随浅色/深色切换）
@@ -454,10 +454,10 @@ const SettingsPage = () => {
                         type="button"
                         onClick={() => updateSetting({ themeMode: option.value })}
                         className={cn(
-                          "rounded-xl border px-3 py-3 text-sm transition-all",
+                          "rounded-lg border px-3 py-3 text-sm transition-colors",
                           active
-                            ? "border-primary/40 bg-primary/10 font-medium text-primary shadow-sm"
-                            : "border-border/50 bg-background/60 text-muted-foreground hover:border-border hover:text-foreground"
+                            ? "border-foreground/15 bg-accent font-medium text-foreground"
+                            : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
                         )}
                       >
                         {option.label}
@@ -477,10 +477,10 @@ const SettingsPage = () => {
                         type="button"
                         onClick={() => updateSetting({ themeColor: option.value })}
                         className={cn(
-                          "flex items-center gap-2.5 rounded-xl border px-3 py-3 text-sm transition-all",
+                          "flex items-center gap-2.5 rounded-lg border px-3 py-3 text-sm transition-colors",
                           active
-                            ? "border-primary/40 bg-primary/10 font-medium text-foreground shadow-sm"
-                            : "border-border/50 bg-background/60 text-muted-foreground hover:border-border hover:text-foreground"
+                            ? "border-foreground/15 bg-accent font-medium text-foreground"
+                            : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
                         )}
                       >
                         <span className={cn("size-3.5 rounded-full ring-2 ring-background", option.swatch)} />
@@ -524,13 +524,13 @@ const SettingsPage = () => {
 
           {activeSection === "shortcuts" ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3.5">
+              <div className="rounded-xl border border-border bg-card px-4 py-3.5">
                 <p className="text-[13px] leading-relaxed text-muted-foreground">
                   全局唤起便签可自定义；其余为应用内快捷键（只读）。编辑器相关快捷键需在编辑区聚焦时生效。
                 </p>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-border/50 bg-background/60">
+              <div className="overflow-hidden rounded-xl border border-border bg-card">
                 <div className="border-b border-border/40 px-4 py-3">
                   <div className="text-sm font-medium">可修改</div>
                   <div className="mt-0.5 text-xs text-muted-foreground">系统级全局快捷键</div>
@@ -593,7 +593,7 @@ const SettingsPage = () => {
               {APP_SHORTCUTS.map((group) => (
                 <div
                   key={group.id}
-                  className="overflow-hidden rounded-2xl border border-border/50 bg-background/60"
+                  className="overflow-hidden rounded-xl border border-border bg-card"
                 >
                   <div className="border-b border-border/40 px-4 py-3">
                     <div className="text-sm font-medium">{group.title}</div>
@@ -628,7 +628,7 @@ const SettingsPage = () => {
 
           {activeSection === "about" ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-border/50 bg-background/60 p-6">
+              <div className="rounded-xl border border-border bg-card p-6">
                 <div className="flex items-center gap-3">
                   <CaelumLogo className="size-12 text-primary" />
                   <div>
@@ -670,7 +670,7 @@ const SettingsPage = () => {
                 </dl>
               </div>
 
-              <div className="rounded-2xl border border-border/50 bg-background/60 p-5">
+              <div className="rounded-xl border border-border bg-card p-5">
                 <h3 className="text-sm font-semibold tracking-tight">功能说明</h3>
                 <p className="mt-1 text-xs text-muted-foreground">Caelum 当前提供的核心能力</p>
                 <ul className="mt-3 space-y-2">
@@ -683,7 +683,7 @@ const SettingsPage = () => {
                 </ul>
               </div>
 
-              <div className="rounded-2xl border border-border/50 bg-background/60 p-5">
+              <div className="rounded-xl border border-border bg-card p-5">
                 <h3 className="text-sm font-semibold tracking-tight">更新说明</h3>
                 <p className="mt-1 text-xs text-muted-foreground">版本变更与改进记录</p>
                 <div className="mt-4 space-y-4">
@@ -742,10 +742,10 @@ const SettingCard = ({
 }) => (
   <label
     className={cn(
-      "flex items-center justify-between gap-4 rounded-2xl border px-4 py-3.5 backdrop-blur-md transition-colors duration-150",
+      "flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors duration-150",
       recommended
-        ? "border-border/50 bg-background/55"
-        : "border-border/40 bg-background/45 hover:bg-background/60"
+        ? ""
+        : "hover:bg-muted/40"
     )}
   >
     <div>
@@ -776,7 +776,7 @@ const PathCard = ({
   onEdit?: () => void
   onOpen?: () => void
 }) => (
-  <div className="rounded-2xl border border-border/40 bg-background/45 p-4 backdrop-blur-md">
+  <div className="rounded-xl border border-border bg-card p-4">
     <div className="mb-0.5 text-sm font-medium">{title}</div>
     <div className="mb-2 text-xs text-muted-foreground">{description}</div>
     <div className="mb-3 break-all rounded-xl bg-muted/40 px-3 py-2 font-mono text-[12px] leading-relaxed text-foreground/80">
@@ -784,12 +784,12 @@ const PathCard = ({
     </div>
     <div className="flex gap-2">
       {onEdit ? (
-        <Button variant="outline" size="sm" className="rounded-full bg-background/50" onClick={onEdit}>
+        <Button variant="outline" size="sm" className="rounded-md" onClick={onEdit}>
           修改路径
         </Button>
       ) : null}
       {onOpen ? (
-        <Button variant="outline" size="sm" className="rounded-full bg-background/50" onClick={onOpen}>
+        <Button variant="outline" size="sm" className="rounded-md" onClick={onOpen}>
           打开位置
         </Button>
       ) : null}

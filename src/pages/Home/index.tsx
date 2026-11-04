@@ -404,7 +404,7 @@ const Home = () => {
         collapsible="icon"
         side="left"
         variant="sidebar"
-        className="border-r border-border/40 transition-[width] duration-200 ease-out"
+        className="border-r border-sidebar-border transition-[width] duration-200 ease-out"
       >
         <WorkspaceSidebar />
       </Sidebar>
@@ -440,7 +440,7 @@ const Home = () => {
               {showSplitHandle ? (
                 <Separator
                   className={cn(
-                    "shrink-0 bg-border/50 transition-colors hover:bg-primary/25 data-[active]:bg-primary/35",
+                    "shrink-0 bg-border transition-colors hover:bg-foreground/25 data-[active]:bg-foreground/40",
                     groupOrientation === "vertical" ? "h-px w-full" : "w-px"
                   )}
                 />
@@ -453,13 +453,13 @@ const Home = () => {
                   minSize={showSplitHandle ? "20" : outlineVisible ? 200 : "100"}
                   className={cn(
                     "overflow-hidden",
-                    groupOrientation === "horizontal" && "border-l border-border/40",
-                    groupOrientation === "vertical" && "border-t border-border/40"
+                    groupOrientation === "horizontal" && "border-l border-border",
+                    groupOrientation === "vertical" && "border-t border-border"
                   )}
                   style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}
                 >
                   {!isImageFile && viewMode === "split" ? (
-                    <div className="flex h-8 shrink-0 items-center justify-end gap-1 border-b border-border/40 bg-muted/15 px-2">
+                    <div className="flex h-8 shrink-0 items-center justify-end gap-1 border-b border-border bg-sidebar px-2">
                       <Tooltip>
                         <TooltipTrigger
                           render={
@@ -470,7 +470,7 @@ const Home = () => {
                               className={cn(
                                 "h-6 gap-1 rounded-md px-2 text-[11px]",
                                 scrollSyncEnabled
-                                  ? "bg-primary/10 text-primary"
+                                  ? "bg-background text-foreground shadow-sm"
                                   : "text-muted-foreground"
                               )}
                               onClick={() => void updateSettings({ scrollSync: !scrollSyncEnabled })}
@@ -506,7 +506,7 @@ const Home = () => {
               ) : null}
 
               {showOutlineHandle ? (
-                <Separator className="w-px shrink-0 bg-border/50 transition-colors hover:bg-primary/25 data-[active]:bg-primary/35" />
+                <Separator className="w-px shrink-0 bg-border transition-colors hover:bg-foreground/25 data-[active]:bg-foreground/40" />
               ) : null}
 
               {showOutlineHandle ? (
@@ -515,7 +515,7 @@ const Home = () => {
                   defaultSize={`${savedOutlineWidth}px`}
                   minSize={160}
                   maxSize={420}
-                  className="overflow-hidden border-l border-border/40"
+                  className="overflow-hidden border-l border-border bg-sidebar"
                   style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}
                   onResize={handleOutlineResize}
                 >
@@ -529,9 +529,9 @@ const Home = () => {
         </div>
 
         {isDragging ? (
-          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-sm">
-            <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-card/95 px-10 py-8 shadow-xl backdrop-blur-sm">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15">
+          <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-background/70">
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-foreground/25 bg-popover px-10 py-8 shadow-lg">
+              <div className="flex size-11 items-center justify-center rounded-lg bg-muted text-foreground">
                 {dropZone === "explorer" ? (
                   <FileUp className="size-6" />
                 ) : dragKind === "image" ? (
@@ -561,6 +561,13 @@ const Home = () => {
         ) : null}
 
         <QuickOpen open={quickOpen} onOpenChange={setQuickOpen} />
+        <footer className="flex h-[26px] shrink-0 items-center justify-end gap-3 border-t border-sidebar-border bg-sidebar px-3 text-[11px] text-muted-foreground">
+          <span className="truncate">
+            {selectedFilePath
+              ? selectedFilePath.split(/[\\/]/).pop()
+              : "未打开文件"}
+          </span>
+        </footer>
       </SidebarInset>
     </SidebarProvider>
   )

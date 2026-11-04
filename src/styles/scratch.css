@@ -67,7 +67,8 @@
     height: 44px;
     padding: 0;
     padding-left: 8px;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--background) 62%, transparent), transparent);
+    background: var(--sidebar);
+    border-bottom: 1px solid var(--border);
     -webkit-app-region: drag;
     cursor: grab;
 }
@@ -135,7 +136,7 @@
 
 .scratch-board-toolbar-chip.is-active {
     color: var(--foreground);
-    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    background: var(--sidebar-accent);
 }
 
 .scratch-board-toolbar-count {
@@ -167,7 +168,7 @@
 
 .scratch-board-toolbar-new:hover {
     color: var(--foreground);
-    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    background: var(--sidebar-accent);
 }
 
 .scratch-paper {

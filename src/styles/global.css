@@ -11,8 +11,8 @@
 .dark .codemirror-host .cm-editor,
 .dark .codemirror-host .cm-scroller,
 .dark .codemirror-host .cm-gutters {
-    background-color: #16171d !important;
-    color: #e6e8ef !important;
+    background-color: #1c1e26 !important;
+    color: #e7e9ef !important;
 }
 
 html,
@@ -275,27 +275,131 @@ textarea,
 }
 
 .markdown-preview blockquote {
-    margin: 1em 0;
-    padding: 0.25em 0 0.25em 1em;
-    border-left: 3px solid color-mix(in srgb, var(--primary) 55%, transparent);
-    color: color-mix(in srgb, var(--foreground) 75%, var(--muted-foreground));
+    margin: 1.15em 0;
+    padding: 0.1em 0 0.1em 0.9em;
+    border-left: 3px solid #6b63d6;
+    color: var(--foreground);
+    background: transparent;
+}
+
+.markdown-callout {
+    margin: 0.95em 0;
+    padding: 0.8rem 1rem 0.9rem;
+    border-radius: 10px;
+}
+
+.markdown-callout-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.3rem;
+    font-size: 0.95em;
+    font-weight: 650;
+    line-height: 1.4;
+}
+
+.markdown-callout-title svg {
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+}
+
+.markdown-callout-body > :first-child {
+    margin-top: 0;
+}
+
+.markdown-callout-body > :last-child {
+    margin-bottom: 0;
+}
+
+.markdown-callout-body p {
+    margin: 0.2em 0;
+}
+
+.markdown-callout-note {
+    background: #e7f1fb;
+}
+
+.markdown-callout-note .markdown-callout-title {
+    color: #3b6eae;
+}
+
+.markdown-callout-tip {
+    background: #e3f6f2;
+}
+
+.markdown-callout-tip .markdown-callout-title {
+    color: #148c78;
+}
+
+.markdown-callout-warning {
+    background: #fdece4;
+}
+
+.markdown-callout-warning .markdown-callout-title {
+    color: #d9782c;
+}
+
+.markdown-callout-important {
+    background: #f3e9fb;
+}
+
+.markdown-callout-important .markdown-callout-title {
+    color: #8a4cb5;
+}
+
+.dark .markdown-callout-note {
+    background: color-mix(in srgb, #3b6eae 22%, var(--card));
+}
+
+.dark .markdown-callout-note .markdown-callout-title {
+    color: #9ec4f5;
+}
+
+.dark .markdown-callout-tip {
+    background: color-mix(in srgb, #148c78 20%, var(--card));
+}
+
+.dark .markdown-callout-tip .markdown-callout-title {
+    color: #7ee0cf;
+}
+
+.dark .markdown-callout-warning {
+    background: color-mix(in srgb, #d9782c 20%, var(--card));
+}
+
+.dark .markdown-callout-warning .markdown-callout-title {
+    color: #f3b27a;
+}
+
+.dark .markdown-callout-important {
+    background: color-mix(in srgb, #8a4cb5 22%, var(--card));
+}
+
+.dark .markdown-callout-important .markdown-callout-title {
+    color: #d7b0f0;
+}
+
+.dark .markdown-preview blockquote {
+    border-left-color: #9b94ef;
 }
 
 .markdown-preview code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.875em;
-    padding: 0.15em 0.4em;
+    padding: 0.12em 0.38em;
     border-radius: 0.35em;
-    background: color-mix(in srgb, var(--muted) 85%, var(--primary) 8%);
+    background: var(--muted);
+    color: inherit;
 }
 
 .markdown-preview pre {
-    margin: 1.1em 0;
-    padding: 1rem 1.1rem;
+    margin: 0;
+    padding: 0.95rem 1.05rem;
     overflow-x: auto;
-    border-radius: 0.65rem;
-    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-    background: color-mix(in srgb, var(--muted) 70%, transparent);
+    border-radius: 0;
+    border: none;
+    background: transparent;
 }
 
 .markdown-preview pre code,
@@ -309,7 +413,8 @@ textarea,
 }
 
 .markdown-code-block {
-    background: color-mix(in srgb, var(--muted) 70%, transparent);
+    background: #f4f5f7;
+    border: none;
 }
 
 .markdown-code-body {
@@ -325,10 +430,10 @@ textarea,
 .markdown-code-lines {
     display: flex;
     flex-direction: column;
-    padding: 1rem 0 1rem 0.85rem;
-    border-right: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
-    background: color-mix(in srgb, var(--muted) 45%, transparent);
-    color: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
+    padding: 0.95rem 0 0.95rem 0.85rem;
+    border-right: none;
+    background: transparent;
+    color: color-mix(in srgb, var(--muted-foreground) 70%, transparent);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.85em;
     line-height: 1.65;
@@ -352,14 +457,14 @@ textarea,
 }
 
 .dark .markdown-code-block {
-    background: #0d1117;
-    border-color: #30363d;
+    background: #171920;
+    border-color: transparent;
 }
 
 .dark .markdown-code-lines {
-    background: color-mix(in srgb, #0d1117 80%, #161b22);
-    border-color: #30363d;
-    color: #6e7681;
+    background: transparent;
+    border-color: transparent;
+    color: #6d7380;
 }
 
 .markdown-preview .markdown-table-wrap {

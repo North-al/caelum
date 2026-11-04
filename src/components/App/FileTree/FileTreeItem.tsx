@@ -107,12 +107,11 @@ export const FileTreeItem = ({
   const dropActive = Boolean(dropDir && activeDropDir === normalizePath(dropDir))
 
   const rowClassName = cn(
-    "group file-tree-row flex h-8 w-full items-center gap-1.5 rounded-lg px-1.5 pr-2 text-[13px] outline-none transition-colors duration-150",
-    isSelected
-      ? "bg-primary/18 text-foreground ring-1 ring-inset ring-primary/25 hover:bg-primary/22"
-      : "hover:bg-primary/8",
-    isActiveFile && !isSelected && "bg-primary/12 text-foreground",
-    dropActive && !isSelected && "bg-primary/15 ring-1 ring-inset ring-primary/30"
+    "group file-tree-row flex h-[30px] w-full items-center gap-1.5 rounded-md px-1.5 pr-2 text-[13px] outline-none transition-colors duration-150",
+    isSelected || isActiveFile
+      ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+      : "text-sidebar-foreground/90 hover:bg-sidebar-accent/70",
+    dropActive && !isSelected && "bg-sidebar-accent ring-1 ring-inset ring-border"
   )
 
   const stop = (event: MouseEvent) => {

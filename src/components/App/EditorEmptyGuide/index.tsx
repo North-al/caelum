@@ -50,7 +50,7 @@ export const EditorEmptyGuide = ({ path, onInsertTemplate, className }: EditorEm
         )}
       >
         <div className="max-w-md space-y-3 text-left opacity-70">
-          <div className="flex items-center gap-2 text-primary/80">
+          <div className="flex items-center gap-2 text-foreground/80">
             <FileText className="size-4" strokeWidth={1.75} />
             <span className="text-[13px] font-medium">书写引导</span>
           </div>
@@ -127,8 +127,8 @@ const GuideCard = ({ icon, title, description, actionLabel, onAction, className 
       className
     )}
   >
-    <div className="max-w-sm space-y-2.5 rounded-2xl border border-border/40 bg-background/70 px-5 py-4 text-left shadow-sm backdrop-blur-sm">
-      <div className="flex items-center gap-2 text-primary/80">
+    <div className="max-w-sm space-y-2.5 rounded-xl border border-border bg-card px-5 py-4 text-left shadow-sm">
+      <div className="flex items-center gap-2 text-foreground">
         {icon}
         <span className="text-[13px] font-medium">{title}</span>
       </div>

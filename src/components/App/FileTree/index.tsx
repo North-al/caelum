@@ -345,8 +345,8 @@ export const FileTree = ({
           {...{ [DROP_DIR_ATTR]: notesPath ?? "" }}
           {...{ [EXPLORER_ZONE_ATTR]: "explorer" }}
           className={cn(
-            "h-full px-1 py-1 outline-none focus-visible:ring-1 focus-visible:ring-primary/30",
-            rootDropActive && "rounded-md bg-primary/10 ring-1 ring-primary/30"
+            "h-full px-1 py-1 outline-none focus-visible:ring-1 focus-visible:ring-ring/40",
+            rootDropActive && "rounded-md bg-sidebar-accent ring-1 ring-border"
           )}
           onDragOver={(event) => {
             if (!activeTabPath) {
@@ -369,7 +369,7 @@ export const FileTree = ({
               <div className="text-[12px] text-muted-foreground">右键新建文档，或拖拽本地文件导入</div>
               <button
                 type="button"
-                className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/15"
+                className="rounded-md bg-sidebar-accent px-2.5 py-1 text-[12px] font-medium text-foreground transition-colors hover:bg-accent"
                 onClick={() => onCreateFile?.(notesPath)}
               >
                 新建笔记

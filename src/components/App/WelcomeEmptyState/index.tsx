@@ -11,10 +11,11 @@ interface Props {
   className?: string
 }
 
-/** Frosted welcome surface when no file tab is open. */
+/** Quiet empty canvas, in the same register as a new Codex / DeepSeek thread. */
 export const WelcomeEmptyState = ({ className }: Props) => {
   const navigate = useNavigate()
   const createFile = useWorkspaceStore((state) => state.createFile)
+  const workspaceName = useWorkspaceStore((state) => state.config?.workspaceName)
   const toggleCapture = useScratchStore((state) => state.toggleCapture)
 
   const handleCreate = () => {
@@ -26,46 +27,35 @@ export const WelcomeEmptyState = ({ className }: Props) => {
   }
 
   return (
-    <div className={cn("welcome-empty relative flex min-h-0 flex-1 flex-col overflow-hidden", className)}>
-      <div className="welcome-empty-aura" aria-hidden />
-
-      <div className="relative z-[1] flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-10">
-        <h1 className="mb-8 max-w-xl text-center text-[1.75rem] font-semibold tracking-tight text-foreground/90 sm:text-[2rem]">
-          今天想写点什么？
+    <div className={cn("welcome-empty relative flex min-h-0 flex-1 flex-col bg-background", className)}>
+      <div className="flex flex-1 flex-col items-center justify-center px-8 pb-16">
+        <p className="mb-3 text-[13px] text-muted-foreground">{workspaceName ?? "Caelum"}</p>
+        <h1 className="text-center text-[1.75rem] font-semibold tracking-tight text-foreground">
+          今天写点什么
         </h1>
-
-        <div className="welcome-glass w-full max-w-[34rem] rounded-[1.35rem] border border-white/50 p-5 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.35)] dark:border-white/10 dark:shadow-[0_18px_50px_-28px_rgba(0,0,0,0.65)]">
-          <p className="px-0.5 text-[13px] leading-relaxed text-muted-foreground">
-            在左侧资源管理器选择文件开始编辑，或先用快捷便签把想法钉下来。
-          </p>
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              className="h-9 rounded-full px-4 shadow-sm shadow-primary/15 transition-transform duration-150 active:scale-[0.97]"
-              onClick={handleCreate}
-            >
-              <FilePlus2 className="mr-1.5 size-3.5" strokeWidth={1.75} />
-              新建笔记
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-9 rounded-full px-3 text-muted-foreground"
-              onClick={() => void toggleCapture()}
-            >
-              <StickyNote className="mr-1.5 size-3.5" strokeWidth={1.75} />
-              贴一张便签
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-9 rounded-full px-3 text-muted-foreground"
-              onClick={() => navigate("/board")}
-            >
-              打开便签板
-            </Button>
-          </div>
+        <p className="mt-2 max-w-md text-center text-[13.5px] leading-relaxed text-muted-foreground">
+          从左侧打开一篇笔记，或新建一篇开始。想法还没成形时，可以先贴一张便签。
+        </p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <Button className="h-9 rounded-lg px-4" onClick={handleCreate}>
+            <FilePlus2 className="mr-1.5 size-3.5" strokeWidth={1.75} />
+            新建笔记
+          </Button>
+          <Button
+            variant="outline"
+            className="h-9 rounded-lg px-3.5"
+            onClick={() => void toggleCapture()}
+          >
+            <StickyNote className="mr-1.5 size-3.5" strokeWidth={1.75} />
+            贴一张便签
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-9 rounded-lg px-3 text-muted-foreground"
+            onClick={() => navigate("/board")}
+          >
+            打开便签板
+          </Button>
         </div>
       </div>
     </div>
